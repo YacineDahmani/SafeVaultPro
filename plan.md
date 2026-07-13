@@ -16,7 +16,21 @@ SafeVaultPro/
 │   ├── Logic.md            # Behavioral guidelines to prevent LLM mistakes
 │   ├── SafeVaultDesign.md  # SafeVault-specific colors, typography, layout, and components
 │   └── SafeVaultOverview.md # Feature overview, technology stack, and user experience
-└── src/                    # Application source code (to be created)
+└── src/                    # Application source code
+    ├── bun/                # Backend / main process (running in Bun)
+    │   ├── crypto/         # Cryptography utils (Argon2id, AES-GCM)
+    │   ├── db/             # Local database connector (SQLCipher)
+    │   ├── ocr/            # Native screen-scanning and QR OCR
+    │   ├── services/       # Clipboard clear, global hotkeys
+    │   ├── totp/           # Local TOTP generation logic
+    │   └── index.ts        # Main process entry point
+    └── mainview/           # Frontend UI (React + Vite)
+        ├── components/     # Reusable UI widgets (glowing inputs, progress rings)
+        ├── hooks/          # Shared custom React hooks
+        ├── styles/         # Global colors and Tailwind definitions
+        ├── views/          # Main application screens (Unlock, Dashboard, Settings)
+        ├── App.tsx         # Root layout component
+        └── main.tsx        # View mount point
 ```
 
 ---
