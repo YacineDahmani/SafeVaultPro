@@ -1,0 +1,87 @@
+import type { VaultItem } from "../types";
+
+export function getInitialSeedItems(): VaultItem[] {
+	const now = Date.now();
+
+	return [
+		{
+			id: "seed-password-1",
+			type: "password",
+			title: "GitHub Developer Portal",
+			username: "dev.user@safevault.internal",
+			password: "ghp_xK92mQz84vLpWn731Yt90BvXc1928374",
+			url: "https://github.com/settings/tokens",
+			favorite: true,
+			tags: ["Development", "Cloud"],
+			notes: "Personal access token with repo and workflow permissions.",
+			createdAt: now - 86400000 * 15,
+			updatedAt: now - 86400000 * 2,
+		},
+		{
+			id: "seed-card-passport",
+			type: "card",
+			subtype: "passport",
+			title: "Primary International Passport",
+			cardholderName: "ALEXANDER VAULT",
+			number: "P892104928",
+			country: "United States",
+			issueDate: "2022-05-14",
+			expirationDate: "2032-05-13",
+			issuingAuthority: "Department of State",
+			favorite: true,
+			tags: ["Identity", "Travel"],
+			notes: "Primary 10-year passport. Keep digital copy secure.",
+			createdAt: now - 86400000 * 30,
+			updatedAt: now - 86400000 * 5,
+		},
+		{
+			id: "seed-card-id",
+			type: "card",
+			subtype: "id_card",
+			title: "National Identity Card",
+			cardholderName: "ALEXANDER VAULT",
+			number: "ID-90812-441-A",
+			country: "United States",
+			issueDate: "2023-01-10",
+			expirationDate: "2028-01-09",
+			issuingAuthority: "National Reg Authority",
+			pin: "8841",
+			favorite: false,
+			tags: ["Identity", "Official"],
+			notes: "Official biometric identity card.",
+			createdAt: now - 86400000 * 20,
+			updatedAt: now - 86400000 * 10,
+		},
+		{
+			id: "seed-totp-1",
+			type: "totp",
+			title: "AWS Root Console 2FA",
+			issuer: "Amazon Web Services",
+			accountName: "admin@cloud-infrastructure.io",
+			secret: "JBSWY3DPEHPK3PXP",
+			favorite: true,
+			tags: ["Cloud", "Infrastructure"],
+			notes: "Primary root MFA token for cloud production infrastructure.",
+			createdAt: now - 86400000 * 45,
+			updatedAt: now - 86400000 * 1,
+		},
+		{
+			id: "seed-note-1",
+			type: "note",
+			title: "Infrastructure Master Emergency Recovery Keys",
+			content: `SAFEVAULT HIGH-SECURITY EMERGENCY ACCESS CODES
+=============================================
+1. 8839-1029-4412-9018
+2. 7712-0091-2234-8871
+3. 9912-3341-6672-1109
+4. 4410-5591-8823-7761
+
+Store in an offsite physical safe. Requires dual authorization to rotate.`,
+			favorite: false,
+			tags: ["Security", "Emergency"],
+			notes: "Encrypted recovery payload.",
+			createdAt: now - 86400000 * 60,
+			updatedAt: now - 86400000 * 12,
+		},
+	];
+}
