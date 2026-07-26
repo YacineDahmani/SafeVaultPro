@@ -42,3 +42,7 @@ Desktop.ini
 *.db
 *.sqlite
 *.key
+
+# Plans and notes
+plan.md
+
