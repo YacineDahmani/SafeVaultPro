@@ -22,10 +22,9 @@ SafeVaultPro/
     │   ├── db/             # Local database connector (SQLCipher)
     │   ├── ocr/            # Native screen-scanning and QR OCR
     │   ├── services/       # Clipboard clear, global hotkeys
-    │   ├── totp/           # Local TOTP generation logic
     │   └── index.ts        # Main process entry point
     └── mainview/           # Frontend UI (React + Vite)
-        ├── components/     # Reusable UI widgets (glowing inputs, progress rings)
+        ├── components/     # Reusable UI widgets (glowing inputs, progress rings, card visuals)
         ├── hooks/          # Shared custom React hooks
         ├── styles/         # Global colors and Tailwind definitions
         ├── views/          # Main application screens (Unlock, Dashboard, Settings)
@@ -59,6 +58,7 @@ To ensure consistency, security, and exceptional user experience, developers mus
 *   **Cryptographic Operations:** On-device AES-256-GCM encryption and Argon2id key derivation.
 *   **Authenticating Engine:** Local, clock-synced TOTP verification.
 *   **OCR Module:** Local screen-capture OCR parsing for `otpauth://` QR codes.
+*   **Icons:** Lucide React (`lucide-react`) for premium, vector-drawn tech iconography (no basic emojis).
 
 ---
 
@@ -82,7 +82,7 @@ To ensure consistency, security, and exceptional user experience, developers mus
 
 ### Phase 3: Shell & UI Integration (Aesthetic & Interface Setup)
 > [!IMPORTANT]
-> Follow **[DESIGN.md](file:///d:/repos/SafeVaultPro/reference/DESIGN.md)** to establish a premium, developer-centric interface. Avoid generic layouts. Implement the exact theme specs from **[SafeVaultDesign.md](file:///d:/repos/SafeVaultPro/reference/SafeVaultDesign.md)**.
+> Follow **[DESIGN.md](file:///d:/repos/SafeVaultPro/reference/DESIGN.md)** to establish a premium, developer-centric interface. Avoid generic layouts or dummy placeholder screens. Use Lucide premium vector icons throughout.
 
 *   **Task 3.1:** Embed custom fonts: **Geist Sans** (primary typeface) and **JetBrains Mono** (for hashes, recovery keys, and secret values).
 *   **Task 3.2:** Configure Tailwind CSS with the Deep Obsidian theme color tokens (e.g., `#09090b` base, Electric Emerald `#10b981`, and hair-line border definitions).
@@ -93,8 +93,10 @@ To ensure consistency, security, and exceptional user experience, developers mus
     *   Implement centered password input.
     *   Add glowing aura animations (Slate -> Blue -> Emerald).
     *   Add physical shake animation on failed attempt and brute-force cool-down lock.
-*   **Task 4.2: Vault Entries & Details Pane**
+*   **Task 4.2: Vault Entries & Details Pane (including Secure Cards, Documents & Personal Info Profiles)**
     *   Render dual-pane workspace.
+    *   Integrate rich schema views for Passwords, Secure Notes, 2FA Authenticator keys, **Secure Cards & Documents** (ID cards, Passports, Driver's Licenses), and **Personal Info Profiles** (Full Name, Birthday, Age, Gender, Full Address with Country, City, State/Postal Code, Phone, and Email).
+    *   Design visual representations of secure cards (simulated premium metallic cards/ID layouts) and personal identity badges within the details pane.
     *   Create masked fields using JetBrains Mono with toggle-to-reveal eye icons and one-click copy tooltips.
     *   Integrate Entropy Gauges (4 segments: Red/Orange/Emerald) and the audit sub-panel.
 *   **Task 4.3: 2FA Authenticator ("The Keymaster")**
@@ -111,6 +113,7 @@ To ensure consistency, security, and exceptional user experience, developers mus
 - [ ] Implement subtle `slate-800/50` hairline borders (`1px`) for card and layer separation.
 - [ ] Apply the `0px 0px 15px rgba(16, 185, 129, 0.2)` outer glow strictly to active or unlocked interactive components.
 - [ ] Mask all credentials by default; never expose values unless requested by user interaction.
+- [ ] **Strictly avoid basic emojis or placeholder text/unfunctional tabs**. Use premium Lucide React icons.
 
 ---
 
