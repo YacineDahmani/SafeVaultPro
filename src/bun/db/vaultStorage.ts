@@ -81,6 +81,12 @@ export function filterVaultItems(
 			specificMatch = (item.issuer?.toLowerCase().includes(cleanQuery) ?? false) || (item.accountName?.toLowerCase().includes(cleanQuery) ?? false);
 		} else if (item.type === "note") {
 			specificMatch = item.content?.toLowerCase().includes(cleanQuery) ?? false;
+		} else if (item.type === "personal_info") {
+			specificMatch =
+				(item.fullName?.toLowerCase().includes(cleanQuery) ?? false) ||
+				(item.city?.toLowerCase().includes(cleanQuery) ?? false) ||
+				(item.country?.toLowerCase().includes(cleanQuery) ?? false) ||
+				(item.email?.toLowerCase().includes(cleanQuery) ?? false);
 		}
 
 		return titleMatch || notesMatch || tagMatch || specificMatch;
