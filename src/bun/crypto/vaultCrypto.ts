@@ -56,7 +56,7 @@ export async function deriveMasterKey(
 		const derivedBits = await crypto.subtle.deriveBits(
 			{
 				name: "PBKDF2",
-				salt,
+				salt: salt as BufferSource,
 				iterations: 100000,
 				hash: "SHA-256",
 			},
@@ -68,7 +68,7 @@ export async function deriveMasterKey(
 
 	return await crypto.subtle.importKey(
 		"raw",
-		rawKey,
+		rawKey as BufferSource,
 		{ name: "AES-GCM", length: 256 },
 		false,
 		["encrypt", "decrypt"],
@@ -85,7 +85,7 @@ export async function encryptVaultData(
 	crypto.getRandomValues(iv);
 
 	const ciphertextWithTag = await crypto.subtle.encrypt(
-		{ name: "AES-GCM", iv },
+		{ name: "AES-GCM", iv: iv as BufferSource },
 		key,
 		plaintext,
 	);
@@ -116,9 +116,9 @@ export async function decryptVaultData<T = unknown>(
 	combined.set(tag, ciphertext.length);
 
 	const decryptedBuffer = await crypto.subtle.decrypt(
-		{ name: "AES-GCM", iv },
+		{ name: "AES-GCM", iv: iv as BufferSource },
 		key,
-		combined,
+		combined as BufferSource,
 	);
 
 	const dec = new TextDecoder();

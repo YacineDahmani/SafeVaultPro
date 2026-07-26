@@ -1,8 +1,6 @@
 import {
 	calculatePasswordEntropy,
-	decryptVaultData,
 	deriveMasterKey,
-	encryptVaultData,
 	generatePassword,
 	generateSaltHex,
 } from "./crypto/vaultCrypto";
