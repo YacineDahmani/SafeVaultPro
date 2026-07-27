@@ -112,7 +112,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				{/* Top Identity Shield Badge */}
 				<div className="text-center mb-8 flex flex-col items-center">
 					<div
-						className={`w-16 h-16 rounded-2xl flex items-center justify-center border border-slate-800/80 mb-4 transition-all duration-500 ${
+						className={`w-16 h-16 rounded-2xl flex items-center justify-center border border-slate-800/80 mb-4 transition-all duration-500 overflow-hidden ${
 							isSubmitting
 								? "bg-blue-950/40 border-blue-500/50 glow-blue text-blue-400"
 								: errorMsg
@@ -120,7 +120,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 								: "bg-[#141417] border-emerald-500/30 glow-emerald text-emerald-400"
 						}`}
 					>
-						{isConfigured ? <Lock className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />}
+						<img src="/SafeVault.ico" alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
 					</div>
 
 					<h1 className="text-2xl font-bold tracking-tight text-white mb-1">

@@ -13,7 +13,7 @@ async function getMainViewUrl(): Promise<string> {
 			return DEV_SERVER_URL;
 		} catch {
 			console.log(
-				"Vite dev server not running. Run 'bun run dev:hmr' for HMR support.",
+				"Vite dev server not running. Run 'npm run dev:hmr' for HMR support.",
 			);
 		}
 	}
@@ -24,14 +24,14 @@ async function getMainViewUrl(): Promise<string> {
 const url = await getMainViewUrl();
 
 const mainWindow = new BrowserWindow({
-	title: "React + Tailwind + Vite",
+	title: "SafeVaultPro",
 	url,
 	frame: {
-		width: 900,
-		height: 700,
-		x: 200,
-		y: 200,
+		width: 1050,
+		height: 750,
+		x: 150,
+		y: 100,
 	},
 });
 
-console.log("React Tailwind Vite app started!");
+console.log("SafeVaultPro desktop application started!");
