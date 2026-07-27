@@ -5,8 +5,14 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-[#09090b] text-[#e5e1e4] font-sans antialiased select-none overflow-hidden;
+    @apply bg-[#09090b] text-[#e5e1e4] font-sans select-none overflow-hidden;
+    image-rendering: -webkit-optimize-contrast;
   }
 }
 
@@ -14,7 +20,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Custom scrollbars */
+/* Custom crisp scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

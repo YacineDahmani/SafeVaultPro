@@ -105,8 +105,8 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				}`}
 			/>
 
-			{/* Subtle Hex / Grid Background */}
-			<div className="absolute inset-0 bg-[radial-gradient(#1c1b1d_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
+			{/* Smooth Glass Background Glow */}
+			<div className="absolute inset-0 bg-gradient-to-b from-[#131315]/40 via-transparent to-[#09090b] pointer-events-none" />
 
 			<div className="w-full max-w-md relative z-10">
 				{/* Top Identity Shield Badge */}
@@ -120,7 +120,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 								: "bg-[#141417] border-emerald-500/30 glow-emerald text-emerald-400"
 						}`}
 					>
-						<img src="/SafeVault.ico" alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
+						<img src="/assets/icons/icon.png" alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
 					</div>
 
 					<h1 className="text-2xl font-bold tracking-tight text-white mb-1">

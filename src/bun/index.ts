@@ -26,11 +26,12 @@ const url = await getMainViewUrl();
 const mainWindow = new BrowserWindow({
 	title: "SafeVaultPro",
 	url,
+	icon: "assets/icons/SafeVault.ico",
 	frame: {
-		width: 1050,
-		height: 750,
-		x: 150,
-		y: 100,
+		width: 1280,
+		height: 820,
+		x: 120,
+		y: 60,
 	},
 });
 
