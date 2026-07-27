@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw } from "lucide-react";
+import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck } from "lucide-react";
 import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
 
@@ -7,6 +7,8 @@ interface ItemEditModalProps {
 	isOpen: boolean;
 	item: VaultItem | null;
 	defaultType?: VaultItemType;
+	defaultSubtype?: CardSubtype;
+	isCategoryLocked?: boolean;
 	onClose: () => void;
 	onSave: (item: VaultItem) => Promise<void>;
 }
@@ -15,6 +17,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	isOpen,
 	item,
 	defaultType = "password",
+	defaultSubtype,
+	isCategoryLocked = false,
 	onClose,
 	onSave,
 }) => {
@@ -30,7 +34,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [url, setUrl] = useState("");
 
 	// Card fields
-	const [subtype, setSubtype] = useState<CardSubtype>("passport");
+	const [subtype, setSubtype] = useState<CardSubtype>(defaultSubtype || "passport");
 	const [cardholderName, setCardholderName] = useState("");
 	const [cardNumber, setCardNumber] = useState("");
 	const [expirationDate, setExpirationDate] = useState("");
@@ -101,7 +105,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setPassword(generatePassword({ length: 20 }));
 			setUrl("");
 
-			setSubtype("passport");
+			setSubtype(defaultSubtype || (defaultType === "card" ? "credit_card" : "passport"));
 			setCardholderName("");
 			setCardNumber("");
 			setExpirationDate("");
@@ -123,7 +127,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setStateProvince("");
 			setPostalCode("");
 		}
-	}, [item, defaultType, isOpen]);
+	}, [item, defaultType, defaultSubtype, isOpen]);
 
 	if (!isOpen) return null;
 
@@ -203,14 +207,33 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 		await onSave(payload);
 	};
 
+	const getModalBadgeTitle = () => {
+		if (type === "password") return "Adding Password Secret";
+		if (type === "note") return "Adding Secure Note";
+		if (type === "personal_info") return "Adding Personal Identity Profile";
+		if (type === "totp") return "Adding 2FA Code";
+		if (type === "card") {
+			if (subtype === "credit_card") return "Adding Payment Credit Card";
+			return "Adding Identity Document / Passport";
+		}
+		return "New Vault Entry";
+	};
+
 	return (
 		<div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
 			<div className="bg-[#131315] border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] text-slate-200">
 				{/* Header */}
 				<div className="p-5 border-b border-slate-800 flex items-center justify-between">
-					<h2 className="text-base font-bold text-white tracking-wide">
-						{item ? "Edit Secret" : "New Vault Entry"}
-					</h2>
+					<div>
+						<h2 className="text-base font-bold text-white tracking-wide">
+							{item ? "Edit Secret" : getModalBadgeTitle()}
+						</h2>
+						{isCategoryLocked && (
+							<span className="text-[10px] text-emerald-400 font-mono">
+								Category locked to current view
+							</span>
+						)}
+					</div>
 					<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
 						<X className="w-5 h-5" />
 					</button>
@@ -218,8 +241,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
 				{/* Body */}
 				<form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-					{/* Type Selector */}
-					{!item && (
+					{/* Type Selector (only shown if not locked to a specific category) */}
+					{!item && !isCategoryLocked && (
 						<div>
 							<label className="block text-slate-400 font-mono mb-1">Item Category</label>
 							<div className="grid grid-cols-5 gap-1.5 p-1 bg-[#09090b] rounded-lg border border-slate-800">
@@ -260,7 +283,17 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							required
 							value={title}
 							onChange={(e) => setTitle(e.target.value)}
-							placeholder="e.g. GitHub Developer Account"
+							placeholder={
+								type === "password"
+									? "e.g. GitHub Developer Account"
+									: type === "card"
+									? subtype === "credit_card"
+										? "e.g. Corporate Platinum Visa"
+										: "e.g. Primary International Passport"
+									: type === "note"
+									? "e.g. Emergency Recovery Seed Codes"
+									: "e.g. Personal Profile"
+							}
 							className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
 						/>
 					</div>
@@ -315,23 +348,38 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{/* TYPE 2: CARD / ID */}
 					{type === "card" && (
 						<>
+							{/* Subtype Selector */}
 							<div>
-								<label className="block text-slate-400 font-mono mb-1">Card Subtype</label>
-								<select
-									value={subtype}
-									onChange={(e) => setSubtype(e.target.value as CardSubtype)}
-									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
-								>
-									<option value="passport">Passport</option>
-									<option value="id_card">National ID Card</option>
-									<option value="drivers_license">Driver's License</option>
-									<option value="credit_card">Credit / Debit Card</option>
-									<option value="custom">Custom Identity Badge</option>
-								</select>
+								<label className="block text-slate-400 font-mono mb-1">Document / Card Type</label>
+								{isCategoryLocked && defaultSubtype === "credit_card" ? (
+									<div className="px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-emerald-400 font-mono font-semibold">
+										Credit / Debit Payment Card
+									</div>
+								) : (
+									<select
+										value={subtype}
+										onChange={(e) => setSubtype(e.target.value as CardSubtype)}
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+									>
+										{defaultSubtype === "credit_card" ? (
+											<option value="credit_card">Credit / Debit Card</option>
+										) : (
+											<>
+												<option value="passport">Passport</option>
+												<option value="id_card">National ID Card</option>
+												<option value="drivers_license">Driver's License</option>
+												<option value="credit_card">Credit / Debit Card</option>
+												<option value="custom">Custom Identity Badge</option>
+											</>
+										)}
+									</select>
+								)}
 							</div>
 
 							<div>
-								<label className="block text-slate-400 font-mono mb-1">Name on Document</label>
+								<label className="block text-slate-400 font-mono mb-1">
+									{subtype === "credit_card" ? "Cardholder Name" : "Name on Document"}
+								</label>
 								<input
 									type="text"
 									value={cardholderName}
@@ -342,12 +390,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							</div>
 
 							<div>
-								<label className="block text-slate-400 font-mono mb-1">Card / Passport Number</label>
+								<label className="block text-slate-400 font-mono mb-1">
+									{subtype === "credit_card" ? "Card Number (16 digits)" : "Document Number"}
+								</label>
 								<input
 									type="text"
 									value={cardNumber}
 									onChange={(e) => setCardNumber(e.target.value)}
-									placeholder="P892104928"
+									placeholder={subtype === "credit_card" ? "4532 9012 8841 0092" : "P892104928"}
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 								/>
 							</div>
@@ -364,12 +414,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									/>
 								</div>
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">PIN / Security Code</label>
+									<label className="block text-slate-400 font-mono mb-1">
+										{subtype === "credit_card" ? "CVV / CVC" : "PIN / Security Code"}
+									</label>
 									<input
 										type="text"
 										value={pin}
 										onChange={(e) => setPin(e.target.value)}
-										placeholder="8841"
+										placeholder="884"
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
 									/>
 								</div>
