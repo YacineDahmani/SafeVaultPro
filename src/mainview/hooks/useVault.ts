@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { vaultBackend } from "../../bun/vaultBackendApi";
 import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
+import type { ToastType } from "../components/Toast";
 
 export type NavCategory =
 	| "dashboard"
@@ -21,7 +22,7 @@ export function useVault() {
 	const [activeCategory, setActiveCategory] = useState<NavCategory>("all");
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState<string>("");
-	const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "warning" } | null>(null);
+	const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
 
 	// Modals & Panels
 	const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
@@ -35,11 +36,11 @@ export function useVault() {
 	const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
 	// Toast helper
-	const showToast = useCallback((message: string, type: "success" | "info" | "warning" = "success") => {
+	const showToast = useCallback((message: string, type: ToastType = "success") => {
 		setToast({ message, type });
 		setTimeout(() => {
 			setToast(null);
-		}, 4000);
+		}, 3500);
 	}, []);
 
 	// Initial check on mount
@@ -120,15 +121,28 @@ export function useVault() {
 		setIsUnlocked(false);
 		setItems([]);
 		setSelectedItemId(null);
-		showToast("Vault locked", "info");
+		showToast("Vault locked & memory purged", "lock");
 	};
 
-	const saveItem = async (item: VaultItem) => {
+	const saveItem = async (
+		item: VaultItem,
+		customToastMsg?: string,
+		customToastType?: ToastType
+	) => {
 		try {
+			const isExisting = items.some((i) => i.id === item.id);
 			const saved = await vaultBackend.saveItem(item);
 			refreshItems();
 			setSelectedItemId(saved.id);
-			showToast(`Saved "${saved.title}" to vault`, "success");
+
+			if (customToastMsg) {
+				showToast(customToastMsg, customToastType || "success");
+			} else if (isExisting) {
+				showToast(`Updated "${saved.title}"`, "success");
+			} else {
+				showToast(`Created new secret "${saved.title}"`, "success");
+			}
+
 			setIsEditModalOpen(false);
 			setEditingItem(null);
 			return saved;
@@ -146,7 +160,7 @@ export function useVault() {
 				setSelectedItemId(null);
 			}
 			refreshItems();
-			showToast(`Deleted "${itemToDelete?.title || "Item"}"`, "info");
+			showToast(`Deleted "${itemToDelete?.title || "Item"}"`, "delete");
 		} catch (err: any) {
 			showToast(`Error deleting item: ${err.message}`, "warning");
 		}
@@ -156,14 +170,21 @@ export function useVault() {
 		const target = items.find((i) => i.id === id);
 		if (!target) return;
 
-		const updated = { ...target, favorite: !target.favorite };
-		await saveItem(updated);
+		const nextFav = !target.favorite;
+		const updated = { ...target, favorite: nextFav };
+
+		const msg = nextFav
+			? `Added "${target.title}" to Favorites`
+			: `Removed "${target.title}" from Favorites`;
+		const tType: ToastType = nextFav ? "favorite" : "unfavorite";
+
+		await saveItem(updated, msg, tType);
 	};
 
 	const copySecret = async (text: string, label = "Secret") => {
 		if (!text) return;
 		await vaultBackend.copySecret(text, 30);
-		showToast(`Copied ${label}! Auto-clears in 30 seconds`, "success");
+		showToast(`Copied ${label}! Auto-clears in 30 seconds`, "copy");
 	};
 
 	// Open create modal contextualized to active category if specific
