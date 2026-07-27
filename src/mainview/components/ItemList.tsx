@@ -96,7 +96,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 	};
 
 	return (
-		<div className="w-80 bg-[#131315] border-r border-slate-800/60 flex flex-col h-full select-none">
+		<div className="w-60 sm:w-64 md:w-72 lg:w-80 shrink-0 bg-[#131315] border-r border-slate-800/60 flex flex-col h-full select-none transition-all">
 			{/* Header */}
 			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
 				<div>

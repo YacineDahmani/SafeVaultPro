@@ -83,7 +83,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 	const score = 90;
 
 	return (
-		<div className="flex-1 bg-[#09090b] flex h-full overflow-y-auto select-text text-slate-200 p-6 space-x-6">
+		<div className="flex-1 min-w-0 bg-[#09090b] flex flex-col xl:flex-row h-full overflow-y-auto select-text text-slate-200 p-4 md:p-6 gap-6">
 			{/* Main Pane (Left & Center) */}
 			<div className="flex-1 space-y-6">
 				<h1 className="text-xl font-bold text-white tracking-wide">Password Health</h1>
@@ -233,7 +233,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 			</div>
 
 			{/* Right Pane: Security Alerts Feed (Matching reference layout) */}
-			<div className="w-80 space-y-4">
+			<div className="w-full xl:w-80 shrink-0 space-y-4">
 				<h2 className="text-base font-bold text-white flex items-center justify-between">
 					<span>Security Alerts</span>
 					<span className="px-2 py-0.5 bg-red-950/50 text-red-400 border border-red-800/50 rounded text-xs font-mono">

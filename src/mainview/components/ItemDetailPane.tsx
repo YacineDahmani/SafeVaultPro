@@ -135,7 +135,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 	};
 
 	return (
-		<div className="flex-1 bg-[#09090b] flex flex-col h-full overflow-y-auto select-text text-slate-200">
+		<div className="flex-1 min-w-0 bg-[#09090b] flex flex-col h-full overflow-y-auto select-text text-slate-200">
 			{/* Top Header Controls */}
 			<div className="p-6 border-b border-slate-800/60 flex items-center justify-between bg-[#131315]/40 backdrop-blur-md">
 				<div className="flex items-center gap-3">
