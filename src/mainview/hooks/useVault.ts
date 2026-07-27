@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { vaultBackend } from "../../bun/vaultBackendApi";
-import type { VaultItem, VaultItemType } from "../../bun/types";
+import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
 
 export type NavCategory =
 	| "dashboard"
@@ -8,7 +8,8 @@ export type NavCategory =
 	| "passwords"
 	| "notes"
 	| "personal_info"
-	| "cards"
+	| "credit_cards"
+	| "ids"
 	| "totp"
 	| "favorites"
 	| "settings";
@@ -27,6 +28,9 @@ export function useVault() {
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<VaultItem | null>(null);
 	const [defaultEditType, setDefaultEditType] = useState<VaultItemType>("password");
+	const [defaultEditSubtype, setDefaultEditSubtype] = useState<CardSubtype | undefined>(undefined);
+	const [isCategoryLocked, setIsCategoryLocked] = useState(false);
+
 	const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
 	const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
@@ -52,28 +56,27 @@ export function useVault() {
 			return;
 		}
 
-		let filterType: "all" | VaultItemType | "favorites" = "all";
-		if (activeCategory === "favorites") {
-			filterType = "favorites";
-		} else if (
-			activeCategory === "passwords" ||
-			activeCategory === "notes" ||
-			activeCategory === "personal_info" ||
-			activeCategory === "cards" ||
-			activeCategory === "totp"
-		) {
-			const typeMap: Record<string, VaultItemType> = {
-				passwords: "password",
-				notes: "note",
-				personal_info: "personal_info",
-				cards: "card",
-				totp: "totp",
-			};
-			filterType = typeMap[activeCategory];
-		}
-
 		try {
-			const fetched = vaultBackend.getItems(searchQuery, filterType);
+			// Fetch all items matching searchQuery
+			let fetched = vaultBackend.getItems(searchQuery, "all");
+
+			// Category filter logic
+			if (activeCategory === "favorites") {
+				fetched = fetched.filter((i) => i.favorite);
+			} else if (activeCategory === "passwords") {
+				fetched = fetched.filter((i) => i.type === "password");
+			} else if (activeCategory === "notes") {
+				fetched = fetched.filter((i) => i.type === "note");
+			} else if (activeCategory === "personal_info") {
+				fetched = fetched.filter((i) => i.type === "personal_info");
+			} else if (activeCategory === "credit_cards") {
+				fetched = fetched.filter((i) => i.type === "card" && i.subtype === "credit_card");
+			} else if (activeCategory === "ids") {
+				fetched = fetched.filter((i) => i.type === "card" && i.subtype !== "credit_card");
+			} else if (activeCategory === "totp") {
+				fetched = fetched.filter((i) => i.type === "totp");
+			}
+
 			setItems(fetched);
 
 			// Auto-select first item if current selection is invalid or none selected
@@ -163,14 +166,47 @@ export function useVault() {
 		showToast(`Copied ${label}! Auto-clears in 30 seconds`, "success");
 	};
 
-	const openCreateModal = (type: VaultItemType = "password") => {
+	// Open create modal contextualized to active category if specific
+	const openCreateModal = () => {
 		setEditingItem(null);
-		setDefaultEditType(type);
+
+		if (activeCategory === "passwords") {
+			setDefaultEditType("password");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "notes") {
+			setDefaultEditType("note");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "personal_info") {
+			setDefaultEditType("personal_info");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "credit_cards") {
+			setDefaultEditType("card");
+			setDefaultEditSubtype("credit_card");
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "ids") {
+			setDefaultEditType("card");
+			setDefaultEditSubtype("passport");
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "totp") {
+			setDefaultEditType("totp");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(true);
+		} else {
+			// All Items or Favorites or Dashboard -> full picker allowed
+			setDefaultEditType("password");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(false);
+		}
+
 		setIsEditModalOpen(true);
 	};
 
 	const openEditModal = (item: VaultItem) => {
 		setEditingItem(item);
+		setIsCategoryLocked(false);
 		setIsEditModalOpen(true);
 	};
 
@@ -196,6 +232,8 @@ export function useVault() {
 		setIsEditModalOpen,
 		editingItem,
 		defaultEditType,
+		defaultEditSubtype,
+		isCategoryLocked,
 		isOcrModalOpen,
 		setIsOcrModalOpen,
 		isSettingsModalOpen,

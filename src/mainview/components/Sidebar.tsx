@@ -6,7 +6,6 @@ import {
 	User,
 	CreditCard,
 	BadgeCheck,
-	Lock,
 	LogOut,
 	Smartphone,
 	Activity,
@@ -33,7 +32,8 @@ interface SidebarProps {
 		passwords: number;
 		notes: number;
 		personal_info: number;
-		cards: number;
+		credit_cards: number;
+		ids: number;
 		totp: number;
 		favorites: number;
 	};
@@ -59,7 +59,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 		{ id: "passwords" as NavCategory, label: "Passwords", icon: KeyRound, count: itemCounts.passwords },
 		{ id: "notes" as NavCategory, label: "Secure Notes", icon: FileText, count: itemCounts.notes },
 		{ id: "personal_info" as NavCategory, label: "Personal Info", icon: User, count: itemCounts.personal_info },
-		{ id: "cards" as NavCategory, label: "Payments & IDs", icon: CreditCard, count: itemCounts.cards },
+		{ id: "credit_cards" as NavCategory, label: "Payment Cards", icon: CreditCard, count: itemCounts.credit_cards },
+		{ id: "ids" as NavCategory, label: "IDs & Passports", icon: BadgeCheck, count: itemCounts.ids },
 		{ id: "totp" as NavCategory, label: "2FA Authenticator", icon: Smartphone, count: itemCounts.totp },
 	];
 
@@ -76,7 +77,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						<Shield className="w-4 h-4" />
 					</div>
 					<div>
-						<h1 className="text-sm font-bold text-white tracking-wide leading-none">SafeVault<span className="text-emerald-400">Pro</span></h1>
+						<h1 className="text-sm font-bold text-white tracking-wide leading-none">
+							SafeVault<span className="text-emerald-400">Pro</span>
+						</h1>
 						<span className="text-[10px] text-slate-500 font-mono">v1.0 • AES-256</span>
 					</div>
 				</div>

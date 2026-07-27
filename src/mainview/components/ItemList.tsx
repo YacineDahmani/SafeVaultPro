@@ -7,7 +7,6 @@ import {
 	FileText,
 	User,
 	Star,
-	Search,
 	BadgeCheck,
 	Lock,
 } from "lucide-react";
@@ -40,8 +39,10 @@ export const ItemList: React.FC<ItemListProps> = ({
 				return "Secure Notes";
 			case "personal_info":
 				return "Personal Info";
-			case "cards":
-				return "Payments & IDs";
+			case "credit_cards":
+				return "Payment Cards";
+			case "ids":
+				return "IDs & Passports";
 			case "totp":
 				return "2FA Authenticator";
 			case "favorites":
@@ -56,7 +57,10 @@ export const ItemList: React.FC<ItemListProps> = ({
 			case "password":
 				return <KeyRound className="w-4 h-4 text-emerald-400" />;
 			case "card":
-				return <CreditCard className="w-4 h-4 text-blue-400" />;
+				if (item.subtype === "credit_card") {
+					return <CreditCard className="w-4 h-4 text-blue-400" />;
+				}
+				return <BadgeCheck className="w-4 h-4 text-amber-400" />;
 			case "totp":
 				return <Smartphone className="w-4 h-4 text-purple-400" />;
 			case "note":
