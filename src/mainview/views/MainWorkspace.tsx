@@ -9,18 +9,18 @@ import { OcrModal } from "../components/OcrModal";
 import { SettingsModal } from "../components/SettingsModal";
 import { Toast } from "../components/Toast";
 import { useVault } from "../hooks/useVault";
-import { Shield, Zap, QrCode, Lock, Settings, RefreshCw } from "lucide-react";
 
 export const MainWorkspace: React.FC = () => {
 	const vault = useVault();
 
-	// Calculate counts for categories
+	// Calculate counts for categories (separating credit_cards vs ids)
 	const itemCounts = {
 		all: vault.items.length,
 		passwords: vault.items.filter((i) => i.type === "password").length,
 		notes: vault.items.filter((i) => i.type === "note").length,
 		personal_info: vault.items.filter((i) => i.type === "personal_info").length,
-		cards: vault.items.filter((i) => i.type === "card").length,
+		credit_cards: vault.items.filter((i) => i.type === "card" && i.subtype === "credit_card").length,
+		ids: vault.items.filter((i) => i.type === "card" && i.subtype !== "credit_card").length,
 		totp: vault.items.filter((i) => i.type === "totp").length,
 		favorites: vault.items.filter((i) => i.favorite).length,
 	};
@@ -60,7 +60,7 @@ export const MainWorkspace: React.FC = () => {
 							selectedItemId={vault.selectedItemId}
 							onSelectItem={vault.setSelectedItemId}
 							activeCategory={vault.activeCategory}
-							onNewItem={(type) => vault.openCreateModal(type)}
+							onNewItem={() => vault.openCreateModal()}
 							onToggleFavorite={vault.toggleFavorite}
 						/>
 
@@ -83,11 +83,13 @@ export const MainWorkspace: React.FC = () => {
 				onCopySecret={vault.copySecret}
 			/>
 
-			{/* Edit/Create Item Modal */}
+			{/* Edit/Create Item Modal (Contextually locked to active category) */}
 			<ItemEditModal
 				isOpen={vault.isEditModalOpen}
 				item={vault.editingItem}
 				defaultType={vault.defaultEditType}
+				defaultSubtype={vault.defaultEditSubtype}
+				isCategoryLocked={vault.isCategoryLocked}
 				onClose={() => vault.setIsEditModalOpen(false)}
 				onSave={vault.saveItem}
 			/>
@@ -99,11 +101,12 @@ export const MainWorkspace: React.FC = () => {
 				onSaveItem={vault.saveItem}
 			/>
 
-			{/* Settings & Cryptographic Configuration Modal */}
+			{/* Advanced Settings & Cryptographic Configuration Modal */}
 			<SettingsModal
 				isOpen={vault.isSettingsModalOpen}
 				onClose={() => vault.setIsSettingsModalOpen(false)}
 				onShowToast={vault.showToast}
+				onRefreshItems={vault.refreshItems}
 			/>
 
 			{/* Clipboard Toast Banner */}
