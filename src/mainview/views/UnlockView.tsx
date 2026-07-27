@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import appIcon from "../assets/icon.png";
 import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 
@@ -120,7 +121,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 								: "bg-[#141417] border-emerald-500/30 glow-emerald text-emerald-400"
 						}`}
 					>
-						<img src="/assets/icons/icon.png" alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
+						<img src={appIcon} alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
 					</div>
 
 					<h1 className="text-2xl font-bold tracking-tight text-white mb-1">

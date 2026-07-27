@@ -1,4 +1,5 @@
 import React from "react";
+import appIcon from "../assets/icon.png";
 import {
 	Shield,
 	KeyRound,
@@ -74,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
 				<div className="flex items-center gap-2.5">
 					<img
-						src="/assets/icons/icon.png"
+						src={appIcon}
 						alt="SafeVaultPro"
 						className="w-7 h-7 rounded-lg border border-emerald-500/40 glow-emerald object-cover"
 					/>
