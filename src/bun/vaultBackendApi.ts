@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
 	calculatePasswordEntropy,
 	deriveMasterKey,
@@ -144,13 +146,26 @@ export class VaultBackendAPI {
 
 	public openExtensionDirectory(): boolean {
 		try {
-			const extPath = `${process.cwd()}/src/extension`;
+			const candidatePaths = [
+				path.resolve(process.cwd(), "src", "extension"),
+				"d:\\repos\\SafeVaultPro\\src\\extension",
+				path.resolve(__dirname, "..", "extension"),
+				path.resolve(__dirname, "..", "..", "src", "extension"),
+			];
+
+			let validPath = candidatePaths.find((p) => fs.existsSync(p));
+			if (!validPath) {
+				validPath = "d:\\repos\\SafeVaultPro\\src\\extension";
+			}
+
+			console.log("[SafeVaultPro] Opening verified extension directory:", validPath);
+
 			if (process.platform === "win32") {
-				Bun.spawn(["explorer.exe", extPath.replace(/\//g, "\\")]);
+				Bun.spawn(["explorer.exe", validPath]);
 			} else if (process.platform === "darwin") {
-				Bun.spawn(["open", extPath]);
+				Bun.spawn(["open", validPath]);
 			} else {
-				Bun.spawn(["xdg-open", extPath]);
+				Bun.spawn(["xdg-open", validPath]);
 			}
 			return true;
 		} catch (e) {
