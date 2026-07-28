@@ -28,9 +28,9 @@ export const MainWorkspace: React.FC = () => {
 	};
 
 	return (
-		<div className="h-full w-full bg-[#09090b] flex flex-col overflow-hidden select-none">
+		<div className="flex-1 min-h-0 h-full w-full bg-[#09090b] flex flex-col overflow-hidden select-none">
 			{/* Main 3-Column Grid */}
-			<div className="flex-1 flex overflow-hidden">
+			<div className="flex-1 min-h-0 flex overflow-hidden">
 				{/* 1. Left Sidebar Navigation */}
 				<Sidebar
 					activeCategory={vault.activeCategory}
@@ -56,26 +56,31 @@ export const MainWorkspace: React.FC = () => {
 						onOpenGenerator={() => vault.setIsGeneratorOpen(true)}
 					/>
 				) : (
-					<>
-						{/* Middle Column Item List */}
-						<ItemList
-							items={vault.items}
-							selectedItemId={vault.selectedItemId}
-							onSelectItem={vault.setSelectedItemId}
-							activeCategory={vault.activeCategory}
-							onNewItem={() => vault.openCreateModal()}
-							onToggleFavorite={vault.toggleFavorite}
-						/>
+					<div className="flex-1 flex min-w-0 h-full min-h-0 overflow-hidden">
+						{/* Middle Column Item List (Shown always on md+, or on small screens when no item is selected) */}
+						<div className={`h-full min-h-0 ${vault.selectedItemId ? "hidden md:flex" : "flex w-full md:w-auto"}`}>
+							<ItemList
+								items={vault.items}
+								selectedItemId={vault.selectedItemId}
+								onSelectItem={vault.setSelectedItemId}
+								activeCategory={vault.activeCategory}
+								onNewItem={() => vault.openCreateModal()}
+								onToggleFavorite={vault.toggleFavorite}
+							/>
+						</div>
 
-						{/* Right Column Details Pane */}
-						<ItemDetailPane
-							item={vault.selectedItem}
-							onEdit={vault.openEditModal}
-							onDelete={vault.deleteItem}
-							onToggleFavorite={vault.toggleFavorite}
-							onCopySecret={vault.copySecret}
-						/>
-					</>
+						{/* Right Column Details Pane (Shown always on md+, or on small screens when an item is selected) */}
+						<div className={`flex-1 h-full min-h-0 min-w-0 ${!vault.selectedItemId ? "hidden md:flex" : "flex w-full"}`}>
+							<ItemDetailPane
+								item={vault.selectedItem}
+								onEdit={vault.openEditModal}
+								onDelete={vault.deleteItem}
+								onToggleFavorite={vault.toggleFavorite}
+								onCopySecret={vault.copySecret}
+								onBack={() => vault.setSelectedItemId(null)}
+							/>
+						</div>
+					</div>
 				)}
 			</div>
 
@@ -94,14 +99,18 @@ export const MainWorkspace: React.FC = () => {
 				defaultSubtype={vault.defaultEditSubtype}
 				isCategoryLocked={vault.isCategoryLocked}
 				onClose={() => vault.setIsEditModalOpen(false)}
-				onSave={vault.saveItem}
+				onSave={async (item) => {
+					await vault.saveItem(item);
+				}}
 			/>
 
 			{/* OCR 2FA QR Scanner Modal */}
 			<OcrModal
 				isOpen={vault.isOcrModalOpen}
 				onClose={() => vault.setIsOcrModalOpen(false)}
-				onSaveItem={vault.saveItem}
+				onSaveItem={async (item) => {
+					await vault.saveItem(item);
+				}}
 			/>
 
 			{/* Advanced Settings & Cryptographic Configuration Modal */}

@@ -7,21 +7,14 @@ import {
 	Edit,
 	Trash2,
 	Star,
-	ShieldCheck,
 	ExternalLink,
 	KeyRound,
 	CreditCard,
 	Smartphone,
 	FileText,
 	User,
-	Globe,
-	Calendar,
-	MapPin,
-	Phone,
-	Mail,
 	Lock,
-	Clock,
-	AlertTriangle,
+	ArrowLeft,
 } from "lucide-react";
 import type { VaultItem } from "../../bun/types";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
@@ -33,6 +26,7 @@ interface ItemDetailPaneProps {
 	onDelete: (id: string) => void;
 	onToggleFavorite: (id: string) => void;
 	onCopySecret: (text: string, label?: string) => void;
+	onBack?: () => void;
 }
 
 export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
@@ -41,6 +35,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 	onDelete,
 	onToggleFavorite,
 	onCopySecret,
+	onBack,
 }) => {
 	const [revealedFields, setRevealedFields] = useState<Record<string, boolean>>({});
 	const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -135,10 +130,19 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 	};
 
 	return (
-		<div className="flex-1 min-w-0 bg-[#09090b] flex flex-col h-full overflow-y-auto select-text text-slate-200">
-			{/* Top Header Controls */}
-			<div className="p-6 border-b border-slate-800/60 flex items-center justify-between bg-[#131315]/40 backdrop-blur-md">
+		<div className="flex-1 min-w-0 bg-[#09090b] flex flex-col h-full overflow-hidden select-text text-slate-200">
+			{/* Top Header Controls (Fixed) */}
+			<div className="shrink-0 p-4 sm:p-6 border-b border-slate-800/60 flex items-center justify-between bg-[#131315]/80 backdrop-blur-md z-10">
 				<div className="flex items-center gap-3">
+					{onBack && (
+						<button
+							onClick={onBack}
+							className="md:hidden p-2 rounded-lg bg-[#1c1b1d] border border-slate-800 text-slate-400 hover:text-white transition-all shrink-0"
+							title="Back to list"
+						>
+							<ArrowLeft className="w-4 h-4" />
+						</button>
+					)}
 					<div className="w-10 h-10 rounded-xl bg-[#1c1b1d] border border-slate-700/60 flex items-center justify-center text-emerald-400 shrink-0 shadow-md">
 						{item.type === "password" && <KeyRound className="w-5 h-5" />}
 						{item.type === "card" && <CreditCard className="w-5 h-5 text-blue-400" />}
@@ -147,10 +151,10 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 						{item.type === "personal_info" && <User className="w-5 h-5 text-cyan-400" />}
 					</div>
 
-					<div>
+					<div className="min-w-0">
 						<div className="flex items-center gap-2">
-							<h1 className="text-base font-bold text-white tracking-wide">{item.title}</h1>
-							<span className="px-2 py-0.5 bg-[#1c1b1d] text-slate-400 border border-slate-800 rounded text-[10px] font-mono uppercase">
+							<h1 className="text-base font-bold text-white tracking-wide truncate">{item.title}</h1>
+							<span className="px-2 py-0.5 bg-[#1c1b1d] text-slate-400 border border-slate-800 rounded text-[10px] font-mono uppercase shrink-0">
 								{item.type}
 							</span>
 						</div>
@@ -178,7 +182,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 						className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1b1d] hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-all"
 					>
 						<Edit className="w-3.5 h-3.5" />
-						<span>Edit</span>
+						<span className="hidden sm:inline">Edit</span>
 					</button>
 
 					<button
@@ -195,8 +199,8 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 				</div>
 			</div>
 
-			{/* Main Content Body */}
-			<div className="p-6 space-y-6 max-w-3xl">
+			{/* Main Content Body (Dedicated Scroll Container) */}
+			<div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl">
 				{/* 1. PASSWORD TYPE */}
 				{item.type === "password" && (
 					<div className="space-y-4">

@@ -73,9 +73,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 	];
 
 	return (
-		<aside className="w-52 md:w-56 lg:w-64 shrink-0 bg-[#131315] border-r border-slate-800/60 flex flex-col h-full select-none text-slate-300 transition-all">
+		<aside className="w-52 md:w-56 lg:w-64 shrink-0 bg-[#131315] border-r border-slate-800/60 flex flex-col h-full min-h-0 select-none text-slate-300 transition-all">
 			{/* Top Branding & App Header */}
-			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-2.5">
 					<img
 						src={appIcon}
@@ -111,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			</div>
 
 			{/* Quick Search Input */}
-			<div className="p-3">
+			<div className="p-3 shrink-0">
 				<div className="relative">
 					<Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
 					<input
@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			</div>
 
 			{/* Navigation Categories */}
-			<div className="flex-1 overflow-y-auto px-2 space-y-4 py-2 text-xs">
+			<div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-4 py-2 text-xs">
 				{/* Overview section */}
 				<div>
 					<div className="space-y-0.5">

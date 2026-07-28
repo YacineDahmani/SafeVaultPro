@@ -96,9 +96,9 @@ export const ItemList: React.FC<ItemListProps> = ({
 	};
 
 	return (
-		<div className="w-60 sm:w-64 md:w-72 lg:w-80 shrink-0 bg-[#131315] border-r border-slate-800/60 flex flex-col h-full select-none transition-all">
+		<div className="w-full md:w-72 lg:w-80 h-full min-h-0 bg-[#131315] border-r border-slate-800/60 flex flex-col select-none transition-all">
 			{/* Header */}
-			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between shrink-0">
 				<div>
 					<h2 className="text-sm font-bold text-white tracking-wide">{getCategoryTitle()}</h2>
 					<span className="text-[11px] font-mono text-slate-500">{items.length} entries stored</span>
@@ -114,7 +114,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 			</div>
 
 			{/* Items List Scrollable */}
-			<div className="flex-1 overflow-y-auto p-2 space-y-1">
+			<div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
 				{items.length === 0 ? (
 					<div className="text-center py-12 px-4 text-slate-500 space-y-2">
 						<Lock className="w-8 h-8 mx-auto text-slate-600" />
