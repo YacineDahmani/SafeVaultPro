@@ -118,18 +118,44 @@ export function startExtensionServer() {
 					);
 				}
 
-				// Query endpoint (matches items for domain or search term)
+				// Query endpoint (matches items for domain, query term, or field type)
 				if (url.pathname === "/api/query") {
 					const domain = url.searchParams.get("domain") || "";
 					const query = url.searchParams.get("q") || "";
 					const typeFilter = url.searchParams.get("type") || "all";
+					const fieldType = url.searchParams.get("fieldType") || "";
 
 					const allItems = syncedItems.length > 0 ? syncedItems : vaultBackend.getItems();
 					let matches: VaultItem[] = [];
 
-					if (domain) {
+					if (query) {
+						const cleanQ = query.toLowerCase();
+						matches = allItems.filter((item) => {
+							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""} ${(item as any).cardholderName || ""} ${(item as any).number || ""}`.toLowerCase();
+							return searchTarget.includes(cleanQ);
+						});
+					} else if (fieldType && fieldType.startsWith("card_")) {
+						// Focused on a credit card field (e.g., ECCP, CIB, Edahabia, Satim)
+						const cards = allItems.filter((i) => i.type === "card");
+						const domainCards = cards.filter((i) => (i as any).url && matchDomain((i as any).url, domain));
+						matches = domainCards.length > 0 ? domainCards : cards;
+						// Fallback if no cards exist: include all items
+						if (matches.length === 0) matches = allItems;
+					} else if (fieldType === "totp") {
+						// Focused on 2FA code field
+						const totpItems = allItems.filter((i) => i.type === "totp");
+						matches = totpItems.length > 0 ? totpItems : allItems;
+					} else if (fieldType === "personal") {
+						// Focused on identity / personal info field
+						const personalItems = allItems.filter((i) => i.type === "personal_info");
+						matches = personalItems.length > 0 ? personalItems : allItems;
+					} else if (domain) {
+						// Standard domain match for logins/passwords with fallback
 						matches = allItems.filter((item) => {
 							if (item.type === "password" && matchDomain(item.url, domain)) {
+								return true;
+							}
+							if ((item as any).url && matchDomain((item as any).url, domain)) {
 								return true;
 							}
 							if (typeFilter !== "password" && typeFilter !== "all") {
@@ -138,12 +164,11 @@ export function startExtensionServer() {
 							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).issuer || ""}`.toLowerCase();
 							return searchTarget.includes(domain.toLowerCase());
 						});
-					} else if (query) {
-						const cleanQ = query.toLowerCase();
-						matches = allItems.filter((item) => {
-							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""}`.toLowerCase();
-							return searchTarget.includes(cleanQ);
-						});
+
+						// If domain matching returned 0 items, fallback to providing all items so user can autofill
+						if (matches.length === 0) {
+							matches = allItems;
+						}
 					} else {
 						matches = allItems;
 					}

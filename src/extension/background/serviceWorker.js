@@ -49,12 +49,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		const domain = message.domain || "";
 		const q = message.q || "";
 		const type = message.type || "all";
-		const url = `${API_BASE}/query?domain=${encodeURIComponent(domain)}&q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}`;
+		const fieldType = message.fieldType || "";
+		const url = `${API_BASE}/query?domain=${encodeURIComponent(domain)}&q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}&fieldType=${encodeURIComponent(fieldType)}`;
 
 		fetch(url, { cache: "no-store" })
 			.then((res) => res.json())
 			.then((data) => sendResponse(data))
-			.catch((err) => sendResponse({ success: false, error: err.message }));
+			.catch((err) => sendResponse({ success: false, error: err.message || "Failed to reach desktop application." }));
 		return true;
 	}
 
