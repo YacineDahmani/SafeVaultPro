@@ -24,12 +24,21 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
-// Create the main application window
+// Create the main application window with native resizable frame matching Windows desktop standard
 const url = await getMainViewUrl();
 
-const mainWindow = new BrowserWindow({
+export const mainWindow = new BrowserWindow({
 	title: "SafeVaultPro",
 	url,
+	titleBarStyle: "default",
+	styleMask: {
+		Titled: true,
+		Closable: true,
+		Miniaturizable: true,
+		Resizable: true,
+		FullSizeContentView: false,
+		FullScreen: false,
+	},
 	frame: {
 		width: 1280,
 		height: 820,
@@ -39,4 +48,3 @@ const mainWindow = new BrowserWindow({
 });
 
 console.log("SafeVaultPro desktop application started!");
-

@@ -6,16 +6,18 @@ import { useVault } from "./hooks/useVault";
 function App() {
 	const vault = useVault();
 
-	if (!vault.isUnlocked) {
-		return (
-			<UnlockView
-				isConfigured={vault.isConfigured}
-				onUnlock={vault.unlock}
-			/>
-		);
-	}
-
-	return <MainWorkspace />;
+	return (
+		<div className="h-full w-full bg-[#09090b] overflow-hidden select-none flex flex-col">
+			{!vault.isUnlocked ? (
+				<UnlockView
+					isConfigured={vault.isConfigured}
+					onUnlock={vault.unlock}
+				/>
+			) : (
+				<MainWorkspace />
+			)}
+		</div>
+	);
 }
 
 export default App;

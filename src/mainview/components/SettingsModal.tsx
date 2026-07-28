@@ -57,9 +57,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 	const [kdfMemory, setKdfMemory] = useState(65536); // 64 MB
 	const [kdfIterations, setKdfIterations] = useState(metadata?.params.iterations || 3);
 
-	// Factory reset confirm phrase
+	// Factory reset confirm phrase & modals
 	const [wipePhrase, setWipePhrase] = useState("");
 	const [isWiping, setIsWiping] = useState(false);
+	const [showReloadConfirmModal, setShowReloadConfirmModal] = useState(false);
 
 	if (!isOpen) return null;
 
@@ -199,7 +200,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 		reader.readAsText(file);
 	};
 
-	const handleReloadSeed = async () => {
+	const handleReloadSeed = () => {
+		setShowReloadConfirmModal(true);
+	};
+
+	const executeReloadSeed = async () => {
+		setShowReloadConfirmModal(false);
 		try {
 			await vaultBackend.resetToInitialSeed();
 			onShowToast("Vault re-seeded with your new dataset!", "success");
@@ -580,6 +586,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 					)}
 				</div>
 			</div>
+
+			{/* Reload Seed Confirmation Modal */}
+			{showReloadConfirmModal && (
+				<div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
+					<div className="bg-[#131315] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-slate-200">
+						<div className="p-5 border-b border-slate-800 flex items-center justify-between">
+							<div className="flex items-center gap-2.5 text-indigo-400">
+								<RefreshCw className="w-5 h-5 shrink-0" />
+								<h3 className="text-sm font-bold text-white">Confirm Seed Reload</h3>
+							</div>
+							<button
+								type="button"
+								onClick={() => setShowReloadConfirmModal(false)}
+								className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+							>
+								<X className="w-4 h-4" />
+							</button>
+						</div>
+
+						<div className="p-6 space-y-4 text-xs">
+							<p className="text-slate-300 leading-relaxed">
+								Are you sure you want to reset and reload the initial seed dataset into your active vault?
+							</p>
+							<div className="p-3.5 bg-indigo-950/40 border border-indigo-900/50 rounded-xl text-indigo-200 space-y-1">
+								<span className="font-semibold block text-indigo-300 font-mono text-[11px]">DATA OVERWRITE WARNING</span>
+								<span>All current entries in your active local vault will be replaced with the default sample dataset.</span>
+							</div>
+						</div>
+
+						<div className="p-4 bg-[#09090b] border-t border-slate-800 flex items-center justify-end gap-3">
+							<button
+								type="button"
+								onClick={() => setShowReloadConfirmModal(false)}
+								className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg text-xs transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={executeReloadSeed}
+								className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg"
+							>
+								<RefreshCw className="w-3.5 h-3.5" />
+								<span>Confirm Reload & Wipe Old Data</span>
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

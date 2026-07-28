@@ -28,7 +28,7 @@ export const MainWorkspace: React.FC = () => {
 	};
 
 	return (
-		<div className="h-screen w-screen bg-[#09090b] flex flex-col overflow-hidden select-none">
+		<div className="h-full w-full bg-[#09090b] flex flex-col overflow-hidden select-none">
 			{/* Main 3-Column Grid */}
 			<div className="flex-1 flex overflow-hidden">
 				{/* 1. Left Sidebar Navigation */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import appIcon from "../assets/icon.png";
-import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
+import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, AlertTriangle, ArrowRight, Trash2, X } from "lucide-react";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 
 interface UnlockViewProps {
@@ -17,6 +17,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 	const [failedAttempts, setFailedAttempts] = useState(0);
 	const [cooldown, setCooldown] = useState(0);
 	const [isShaking, setIsShaking] = useState(false);
+	const [showWipeConfirmModal, setShowWipeConfirmModal] = useState(false);
 
 	// Calculate entropy for setup mode
 	const entropy = calculatePasswordEntropy(password);
@@ -94,15 +95,15 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 	const strength = getEntropyLabel(entropy);
 
 	return (
-		<div className="min-h-screen bg-[#09090b] flex items-center justify-center p-6 text-[#e5e1e4] relative overflow-hidden">
+		<div className="min-h-screen bg-[#09090b] flex items-center justify-center p-6 text-[#e5e1e4] relative overflow-hidden flex-1">
 			{/* Dynamic Background Glow */}
 			<div
 				className={`absolute inset-0 transition-opacity duration-1000 ${
 					isSubmitting
-						? "bg-blue-500/10 backdrop-blur-3xl animate-pulse-glow"
+						? "bg-blue-500/10 animate-pulse-glow"
 						: errorMsg
-						? "bg-red-500/5 backdrop-blur-3xl"
-						: "bg-emerald-500/5 backdrop-blur-3xl"
+						? "bg-red-500/10"
+						: "bg-emerald-500/10"
 				}`}
 			/>
 
@@ -264,16 +265,65 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 					</div>
 					<button
 						type="button"
-						onClick={() => {
-							localStorage.clear();
-							window.location.reload();
-						}}
+						onClick={() => setShowWipeConfirmModal(true)}
 						className="text-slate-500 hover:text-red-400 underline text-[11px] font-sans cursor-pointer transition-colors mt-1"
 					>
 						Wipe Old Storage & Load New Seed Dataset
 					</button>
 				</div>
 			</div>
+
+			{/* Wipe Confirmation Modal */}
+			{showWipeConfirmModal && (
+				<div className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center p-4 animate-fade-in select-none">
+					<div className="bg-[#131315] border border-red-900/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-slate-200">
+						<div className="p-5 border-b border-slate-800 flex items-center justify-between bg-red-950/20">
+							<div className="flex items-center gap-2.5 text-red-400">
+								<AlertTriangle className="w-5 h-5 shrink-0" />
+								<h3 className="text-sm font-bold text-white">Confirm Storage Wipe</h3>
+							</div>
+							<button
+								type="button"
+								onClick={() => setShowWipeConfirmModal(false)}
+								className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+							>
+								<X className="w-4 h-4" />
+							</button>
+						</div>
+
+						<div className="p-6 space-y-4 text-xs">
+							<p className="text-slate-300 leading-relaxed">
+								Are you sure you want to wipe local vault storage and reset the app?
+							</p>
+							<div className="p-3.5 bg-red-950/40 border border-red-900/50 rounded-xl text-red-300 space-y-1">
+								<span className="font-semibold block text-red-200 font-mono text-[11px]">WARNING: IRREVERSIBLE ACTION</span>
+								<span>All stored local credentials, master keys, and metadata will be permanently deleted and replaced with the fresh seed dataset.</span>
+							</div>
+						</div>
+
+						<div className="p-4 bg-[#09090b] border-t border-slate-800 flex items-center justify-end gap-3">
+							<button
+								type="button"
+								onClick={() => setShowWipeConfirmModal(false)}
+								className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg text-xs transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									localStorage.clear();
+									window.location.reload();
+								}}
+								className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg"
+							>
+								<Trash2 className="w-3.5 h-3.5" />
+								<span>Wipe Storage & Reset</span>
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

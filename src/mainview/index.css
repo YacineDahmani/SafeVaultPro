@@ -16,6 +16,13 @@
   }
 }
 
+/* Hide browser default password reveal / eye buttons */
+input::-ms-reveal,
+input::-ms-clear,
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
 .tnum {
   font-variant-numeric: tabular-nums;
 }

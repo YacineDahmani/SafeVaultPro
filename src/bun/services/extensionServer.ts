@@ -13,7 +13,7 @@ function matchDomain(itemUrl: string | undefined, domain: string): boolean {
 	return cleanUrl.includes(cleanDomain) || cleanDomain.includes(cleanUrl);
 }
 
-function handleCors(req: Request): Headers {
+function handleCors(_req?: Request): Headers {
 	const headers = new Headers();
 	headers.set("Access-Control-Allow-Origin", "*");
 	headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -49,6 +49,35 @@ export function startExtensionServer() {
 						return new Response(JSON.stringify({ success: true, unlocked: syncedUnlocked }), { headers });
 					} catch (e) {
 						return new Response(JSON.stringify({ success: false, error: "Invalid payload" }), { headers, status: 400 });
+					}
+				}
+
+				// Window action endpoint (minimize, maximize, close) from custom TitleBar
+				if (url.pathname === "/api/window-action" && req.method === "POST") {
+					try {
+						const body = (await req.json()) as { action?: string };
+						const { mainWindow } = await import("../index");
+						let isMax = false;
+						if (body.action === "minimize") {
+							mainWindow?.minimize();
+						} else if (body.action === "maximize") {
+							try { isMax = Boolean(mainWindow?.isMaximized()); } catch {}
+							if (isMax) {
+								mainWindow?.unmaximize();
+								isMax = false;
+							} else {
+								mainWindow?.maximize();
+								isMax = true;
+							}
+						} else if (body.action === "unmaximize") {
+							mainWindow?.unmaximize();
+							isMax = false;
+						} else if (body.action === "close") {
+							mainWindow?.close();
+						}
+						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
+					} catch (e) {
+						return new Response(JSON.stringify({ success: false }), { headers, status: 400 });
 					}
 				}
 
