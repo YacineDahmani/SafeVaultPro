@@ -30,13 +30,13 @@ const url = await getMainViewUrl();
 export const mainWindow = new BrowserWindow({
 	title: "SafeVaultPro",
 	url,
-	titleBarStyle: "default",
+	titleBarStyle: "hiddenInset",
 	styleMask: {
 		Titled: true,
 		Closable: true,
 		Miniaturizable: true,
 		Resizable: true,
-		FullSizeContentView: false,
+		FullSizeContentView: true,
 		FullScreen: false,
 	},
 	frame: {
