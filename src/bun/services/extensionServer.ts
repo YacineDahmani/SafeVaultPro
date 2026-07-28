@@ -3,6 +3,9 @@ import type { VaultItem } from "../types";
 
 const PORT = 48920;
 
+let syncedUnlocked = false;
+let syncedItems: VaultItem[] = [];
+
 function matchDomain(itemUrl: string | undefined, domain: string): boolean {
 	if (!itemUrl || !domain) return false;
 	const cleanDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0];
@@ -31,10 +34,28 @@ export function startExtensionServer() {
 					return new Response(null, { headers, status: 204 });
 				}
 
+				// Sync endpoint called by UI when locking/unlocking/updating secrets
+				if (url.pathname === "/api/sync" && req.method === "POST") {
+					try {
+						const body = (await req.json()) as { unlocked?: boolean; items?: VaultItem[] };
+						if (typeof body.unlocked === "boolean") {
+							syncedUnlocked = body.unlocked;
+							if (body.unlocked && Array.isArray(body.items)) {
+								syncedItems = body.items;
+							} else if (!body.unlocked) {
+								syncedItems = [];
+							}
+						}
+						return new Response(JSON.stringify({ success: true, unlocked: syncedUnlocked }), { headers });
+					} catch (e) {
+						return new Response(JSON.stringify({ success: false, error: "Invalid payload" }), { headers, status: 400 });
+					}
+				}
+
 				// Status endpoint
 				if (url.pathname === "/api/status") {
-					const isUnlocked = vaultBackend.getUnlockStatus();
-					const isConfigured = vaultBackend.isConfigured();
+					const isUnlocked = vaultBackend.getUnlockStatus() || syncedUnlocked;
+					const isConfigured = vaultBackend.isConfigured() || syncedUnlocked;
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -54,8 +75,10 @@ export function startExtensionServer() {
 					);
 				}
 
+				const isUnlocked = vaultBackend.getUnlockStatus() || syncedUnlocked;
+
 				// All other endpoints require unlock
-				if (!vaultBackend.getUnlockStatus()) {
+				if (!isUnlocked) {
 					return new Response(
 						JSON.stringify({
 							success: false,
@@ -72,7 +95,7 @@ export function startExtensionServer() {
 					const query = url.searchParams.get("q") || "";
 					const typeFilter = url.searchParams.get("type") || "all";
 
-					const allItems = vaultBackend.getItems();
+					const allItems = syncedItems.length > 0 ? syncedItems : vaultBackend.getItems();
 					let matches: VaultItem[] = [];
 
 					if (domain) {
@@ -87,7 +110,11 @@ export function startExtensionServer() {
 							return searchTarget.includes(domain.toLowerCase());
 						});
 					} else if (query) {
-						matches = vaultBackend.getItems(query, typeFilter as any);
+						const cleanQ = query.toLowerCase();
+						matches = allItems.filter((item) => {
+							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""}`.toLowerCase();
+							return searchTarget.includes(cleanQ);
+						});
 					} else {
 						matches = allItems;
 					}

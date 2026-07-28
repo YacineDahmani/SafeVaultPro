@@ -50,15 +50,31 @@ export function useVault() {
 		setIsUnlocked(vaultBackend.getUnlockStatus());
 	}, []);
 
+	// Extension syncing helper
+	const syncExtension = useCallback((unlocked: boolean, vaultItems: VaultItem[] = []) => {
+		try {
+			fetch("http://localhost:48920/api/sync", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ unlocked, items: vaultItems }),
+			}).catch(() => {});
+		} catch {}
+	}, []);
+
 	// Refresh items list from backend
 	const refreshItems = useCallback(() => {
 		if (!vaultBackend.getUnlockStatus()) {
 			setItems([]);
+			syncExtension(false, []);
 			return;
 		}
 
 		try {
-			// Fetch all items matching searchQuery
+			// Fetch all items
+			const allItems = vaultBackend.getItems("", "all");
+			syncExtension(true, allItems);
+
+			// Fetch filtered items matching searchQuery & activeCategory
 			let fetched = vaultBackend.getItems(searchQuery, "all");
 
 			// Category filter logic
@@ -91,7 +107,7 @@ export function useVault() {
 		} catch (err) {
 			console.error("Failed to fetch items:", err);
 		}
-	}, [activeCategory, searchQuery, selectedItemId]);
+	}, [activeCategory, searchQuery, selectedItemId, syncExtension]);
 
 	useEffect(() => {
 		if (isUnlocked) {
@@ -106,7 +122,9 @@ export function useVault() {
 			if (success) {
 				setIsConfigured(true);
 				setIsUnlocked(true);
-				refreshItems();
+				const allItems = vaultBackend.getItems("", "all");
+				setItems(allItems);
+				syncExtension(true, allItems);
 				showToast("Vault unlocked successfully", "success");
 				return true;
 			}
@@ -121,6 +139,7 @@ export function useVault() {
 		setIsUnlocked(false);
 		setItems([]);
 		setSelectedItemId(null);
+		syncExtension(false, []);
 		showToast("Vault locked & memory purged", "lock");
 	};
 
