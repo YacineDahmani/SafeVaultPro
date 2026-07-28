@@ -16,6 +16,7 @@ import {
 	Zap,
 	QrCode,
 	Database,
+	Puzzle,
 } from "lucide-react";
 import type { NavCategory } from "../hooks/useVault";
 
@@ -28,6 +29,7 @@ interface SidebarProps {
 	onOpenGenerator: () => void;
 	onOpenOcr: () => void;
 	onOpenSettings: () => void;
+	onOpenExtensionModal: () => void;
 	itemCounts: {
 		all: number;
 		passwords: number;
@@ -49,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 	onOpenGenerator,
 	onOpenOcr,
 	onOpenSettings,
+	onOpenExtensionModal,
 	itemCounts,
 }) => {
 	const navItems = [
@@ -230,6 +233,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						>
 							<QrCode className="w-4 h-4 text-blue-400" />
 							<span>Scan 2FA QR Code</span>
+						</button>
+						<button
+							onClick={onOpenExtensionModal}
+							className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md font-medium text-slate-400 hover:text-white hover:bg-[#18181b] transition-all text-left"
+						>
+							<Puzzle className="w-4 h-4 text-purple-400" />
+							<span>Browser Extension</span>
 						</button>
 					</div>
 				</div>

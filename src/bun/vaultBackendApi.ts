@@ -141,6 +141,23 @@ export class VaultBackendAPI {
 	public async scanQrBlob(blob: Blob) {
 		return await scanQrCodeFromBlob(blob);
 	}
+
+	public openExtensionDirectory(): boolean {
+		try {
+			const extPath = `${process.cwd()}/src/extension`;
+			if (process.platform === "win32") {
+				Bun.spawn(["explorer.exe", extPath.replace(/\//g, "\\")]);
+			} else if (process.platform === "darwin") {
+				Bun.spawn(["open", extPath]);
+			} else {
+				Bun.spawn(["xdg-open", extPath]);
+			}
+			return true;
+		} catch (e) {
+			console.error("Failed to open extension directory:", e);
+			return false;
+		}
+	}
 }
 
 export const vaultBackend = new VaultBackendAPI();

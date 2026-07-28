@@ -45,6 +45,15 @@ export function startExtensionServer() {
 					);
 				}
 
+				// Open extension directory in OS file manager endpoint
+				if (url.pathname === "/api/open-folder") {
+					const opened = vaultBackend.openExtensionDirectory();
+					return new Response(
+						JSON.stringify({ success: opened }),
+						{ headers }
+					);
+				}
+
 				// All other endpoints require unlock
 				if (!vaultBackend.getUnlockStatus()) {
 					return new Response(

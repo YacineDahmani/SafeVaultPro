@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { ItemList } from "../components/ItemList";
 import { ItemDetailPane } from "../components/ItemDetailPane";
@@ -7,11 +7,13 @@ import { GeneratorPane } from "../components/GeneratorPane";
 import { ItemEditModal } from "../components/ItemEditModal";
 import { OcrModal } from "../components/OcrModal";
 import { SettingsModal } from "../components/SettingsModal";
+import { ExtensionModal } from "../components/ExtensionModal";
 import { Toast } from "../components/Toast";
 import { useVault } from "../hooks/useVault";
 
 export const MainWorkspace: React.FC = () => {
 	const vault = useVault();
+	const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
 
 	// Calculate counts for categories (separating credit_cards vs ids)
 	const itemCounts = {
@@ -39,6 +41,7 @@ export const MainWorkspace: React.FC = () => {
 					onOpenGenerator={() => vault.setIsGeneratorOpen(true)}
 					onOpenOcr={() => vault.setIsOcrModalOpen(true)}
 					onOpenSettings={() => vault.setIsSettingsModalOpen(true)}
+					onOpenExtensionModal={() => setIsExtensionModalOpen(true)}
 					itemCounts={itemCounts}
 				/>
 
@@ -107,6 +110,12 @@ export const MainWorkspace: React.FC = () => {
 				onClose={() => vault.setIsSettingsModalOpen(false)}
 				onShowToast={vault.showToast}
 				onRefreshItems={vault.refreshItems}
+			/>
+
+			{/* Browser Extension Management & Setup Modal */}
+			<ExtensionModal
+				isOpen={isExtensionModalOpen}
+				onClose={() => setIsExtensionModalOpen(false)}
 			/>
 
 			{/* Clipboard Toast Banner */}
