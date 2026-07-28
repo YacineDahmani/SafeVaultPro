@@ -159,6 +159,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 		reader.readAsText(file);
 	};
 
+	const handleReloadSeed = async () => {
+		try {
+			await vaultBackend.resetToInitialSeed();
+			onShowToast("Vault re-seeded with your new dataset!", "success");
+			onRefreshItems();
+		} catch (err: any) {
+			onShowToast(`Failed to re-seed: ${err.message}`, "warning");
+		}
+	};
+
 	const handleFactoryReset = () => {
 		if (wipePhrase !== "WIPE VAULT") {
 			onShowToast('Please type "WIPE VAULT" to confirm deletion.', "warning");
@@ -431,6 +441,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 								>
 									<Download className="w-4 h-4" />
 									<span>Export Encrypted Vault Backup (.json)</span>
+								</button>
+							</div>
+
+							<div className="space-y-3 pt-2">
+								<h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">
+									Reload New Dataset
+								</h3>
+
+								<button
+									onClick={handleReloadSeed}
+									className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg"
+								>
+									<RefreshCw className="w-4 h-4" />
+									<span>Reset & Load New Dataset into Active Vault</span>
 								</button>
 							</div>
 

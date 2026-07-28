@@ -87,6 +87,14 @@ export class VaultBackendAPI {
 		}
 	}
 
+	public async resetToInitialSeed(): Promise<VaultItem[]> {
+		if (!this.isUnlocked || !this.activeMasterKey) throw new Error("Vault is locked.");
+		const newSeedItems = getInitialSeedItems();
+		this.cachedItems = newSeedItems;
+		await saveEncryptedVault(newSeedItems, this.activeMasterKey);
+		return newSeedItems;
+	}
+
 	public getItems(query = "", filterType: "all" | VaultItemType | "favorites" = "all"): VaultItem[] {
 		if (!this.isUnlocked) throw new Error("Vault is locked.");
 		return filterVaultItems(this.cachedItems, query, filterType);
