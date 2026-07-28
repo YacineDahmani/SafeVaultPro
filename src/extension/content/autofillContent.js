@@ -53,11 +53,8 @@
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
 		badge.title = 'SafeVaultPro Autofill';
-		badge.innerHTML = `
-			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-			</svg>
-		`;
+		const iconUrl = chrome.runtime.getURL('icon.png');
+		badge.innerHTML = `<img src="${iconUrl}" width="16" height="16" alt="SafeVaultPro" style="object-fit: contain; pointer-events: none;">`;
 
 		badge.addEventListener('mousedown', (e) => {
 			e.preventDefault();
