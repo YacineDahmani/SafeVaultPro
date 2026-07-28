@@ -115,22 +115,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 			return;
 		}
 
-		const backupPayload = {
-			metadata: JSON.parse(meta),
-			encryptedStore: JSON.parse(store),
-			exportedAt: new Date().toISOString(),
-			appVersion: "1.0.0",
-		};
+		try {
+			const backupPayload = {
+				metadata: JSON.parse(meta),
+				encryptedStore: JSON.parse(store),
+				exportedAt: new Date().toISOString(),
+				appVersion: "1.0.0",
+			};
 
-		const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: "application/json" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = `SafeVaultPro_Backup_${Date.now()}.json`;
-		a.click();
-		URL.revokeObjectURL(url);
+			const jsonStr = JSON.stringify(backupPayload, null, 2);
+			const fileName = `SafeVaultPro_Backup_${Date.now()}.json`;
 
-		onShowToast("Encrypted backup exported!", "success");
+			// Must append <a> element to document.body in Webview for programmatic download
+			const blob = new Blob([jsonStr], { type: "application/json" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.style.display = "none";
+			a.href = url;
+			a.download = fileName;
+			document.body.appendChild(a);
+			a.click();
+
+			setTimeout(() => {
+				if (document.body.contains(a)) {
+					document.body.removeChild(a);
+				}
+				URL.revokeObjectURL(url);
+			}, 1000);
+
+			onShowToast("Encrypted backup file downloaded!", "success");
+		} catch (err: any) {
+			onShowToast(`Backup export failed: ${err.message}`, "warning");
+		}
+	};
+
+	const handleCopyBackupToClipboard = async () => {
+		const store = localStorage.getItem("safevault_encrypted_store");
+		const meta = localStorage.getItem("safevault_metadata");
+		if (!store || !meta) {
+			onShowToast("No vault data available for export.", "warning");
+			return;
+		}
+
+		try {
+			const backupPayload = {
+				metadata: JSON.parse(meta),
+				encryptedStore: JSON.parse(store),
+				exportedAt: new Date().toISOString(),
+				appVersion: "1.0.0",
+			};
+
+			const jsonStr = JSON.stringify(backupPayload, null, 2);
+			await navigator.clipboard.writeText(jsonStr);
+			onShowToast("Encrypted backup JSON copied to clipboard!", "success");
+		} catch (err: any) {
+			onShowToast(`Failed to copy backup: ${err.message}`, "warning");
+		}
 	};
 
 	const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -435,13 +475,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 									Encrypted JSON Backup
 								</h3>
 
-								<button
-									onClick={handleExportBackup}
-									className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2"
-								>
-									<Download className="w-4 h-4" />
-									<span>Export Encrypted Vault Backup (.json)</span>
-								</button>
+								<div className="grid grid-cols-2 gap-3">
+									<button
+										onClick={handleExportBackup}
+										className="py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2"
+									>
+										<Download className="w-4 h-4 shrink-0" />
+										<span>Download (.json)</span>
+									</button>
+
+									<button
+										onClick={handleCopyBackupToClipboard}
+										className="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-all border border-slate-700 flex items-center justify-center gap-2"
+									>
+										<KeyRound className="w-4 h-4 shrink-0 text-emerald-400" />
+										<span>Copy to Clipboard</span>
+									</button>
+								</div>
 							</div>
 
 							<div className="space-y-3 pt-2">
