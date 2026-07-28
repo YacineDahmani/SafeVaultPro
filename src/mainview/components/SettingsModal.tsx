@@ -108,7 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 		}
 	};
 
-	const handleExportBackup = () => {
+	const handleExportBackup = async () => {
 		const store = localStorage.getItem("safevault_encrypted_store");
 		const meta = localStorage.getItem("safevault_metadata");
 		if (!store || !meta) {
@@ -127,12 +127,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 			const jsonStr = JSON.stringify(backupPayload, null, 2);
 			const fileName = `SafeVaultPro_Backup_${Date.now()}.json`;
 
-			// Must append <a> element to document.body in Webview for programmatic download
-			const blob = new Blob([jsonStr], { type: "application/json" });
-			const url = URL.createObjectURL(blob);
+			// 1. Try modern File System Access API (showSaveFilePicker)
+			if ("showSaveFilePicker" in window) {
+				try {
+					const handle = await (window as any).showSaveFilePicker({
+						suggestedName: fileName,
+						types: [
+							{
+								description: "SafeVault Encrypted Backup (.json)",
+								accept: { "application/json": [".json"] },
+							},
+						],
+					});
+					const writable = await handle.createWritable();
+					await writable.write(jsonStr);
+					await writable.close();
+					onShowToast(`Backup saved successfully as ${handle.name}!`, "success");
+					return;
+				} catch (pickerErr: any) {
+					if (pickerErr.name === "AbortError") return; // User cancelled save dialog
+					console.warn("showSaveFilePicker failed, trying native backend/download fallback", pickerErr);
+				}
+			}
+
+			// 2. Try native Bun backend disk save to user's Downloads folder
+			try {
+				const savedPath = vaultBackend.saveBackupToDisk(fileName, jsonStr);
+				if (savedPath) {
+					onShowToast(`Backup saved to Downloads: ${savedPath}`, "success");
+					return;
+				}
+			} catch (backendErr) {
+				console.warn("Backend disk save skipped/failed, using data URI fallback", backendErr);
+			}
+
+			// 3. Fallback: Data URI download link for web contexts
+			const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
 			const a = document.createElement("a");
 			a.style.display = "none";
-			a.href = url;
+			a.href = dataUri;
 			a.download = fileName;
 			document.body.appendChild(a);
 			a.click();
@@ -141,7 +174,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 				if (document.body.contains(a)) {
 					document.body.removeChild(a);
 				}
-				URL.revokeObjectURL(url);
 			}, 1000);
 
 			onShowToast("Encrypted backup file downloaded!", "success");

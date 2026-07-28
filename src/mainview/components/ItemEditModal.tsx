@@ -41,6 +41,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [issueDate, setIssueDate] = useState("");
 	const [country, setCountry] = useState("");
 	const [pin, setPin] = useState("");
+	const [cvv, setCvv] = useState("");
 
 	// TOTP fields
 	const [issuer, setIssuer] = useState("");
@@ -79,6 +80,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setIssueDate(item.issueDate || "");
 				setCountry(item.country || "");
 				setPin(item.pin || "");
+				setCvv(item.cvv || (item.subtype === "credit_card" ? item.pin || "" : ""));
 			} else if (item.type === "totp") {
 				setIssuer(item.issuer || "");
 				setAccountName(item.accountName || "");
@@ -112,6 +114,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setIssueDate("");
 			setCountry("");
 			setPin("");
+			setCvv("");
 
 			setIssuer("");
 			setAccountName("");
@@ -171,7 +174,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				expirationDate,
 				issueDate,
 				country,
-				pin,
+				pin: subtype !== "credit_card" ? pin : (pin || cvv),
+				cvv: subtype === "credit_card" ? (cvv || pin) : cvv,
 			};
 		} else if (type === "totp") {
 			payload = {
@@ -419,9 +423,16 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									</label>
 									<input
 										type="text"
-										value={pin}
-										onChange={(e) => setPin(e.target.value)}
-										placeholder="884"
+										value={subtype === "credit_card" ? (cvv || pin) : pin}
+										onChange={(e) => {
+											if (subtype === "credit_card") {
+												setCvv(e.target.value);
+												setPin(e.target.value);
+											} else {
+												setPin(e.target.value);
+											}
+										}}
+										placeholder={subtype === "credit_card" ? "884" : "8841"}
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
 									/>
 								</div>

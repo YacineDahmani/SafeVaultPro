@@ -172,13 +172,45 @@ export class VaultBackendAPI {
 				Bun.spawn(["explorer.exe", validPath]);
 			} else if (process.platform === "darwin") {
 				Bun.spawn(["open", validPath]);
-			} else {
-				Bun.spawn(["xdg-open", validPath]);
 			}
 			return true;
 		} catch (e) {
 			console.error("Failed to open extension directory:", e);
 			return false;
+		}
+	}
+
+	public saveBackupToDisk(fileName: string, jsonStr: string): string | null {
+		try {
+			let downloadsDir = "";
+			if (process.platform === "win32") {
+				downloadsDir = path.join(process.env.USERPROFILE || "C:\\", "Downloads");
+			} else {
+				downloadsDir = path.join(process.env.HOME || "/", "Downloads");
+			}
+
+			if (!fs.existsSync(downloadsDir)) {
+				downloadsDir = process.cwd();
+			}
+
+			const filePath = path.join(downloadsDir, fileName);
+			fs.writeFileSync(filePath, jsonStr, "utf-8");
+
+			// Open file in Windows Explorer / OS file manager selecting the created backup file
+			try {
+				if (process.platform === "win32") {
+					Bun.spawn(["explorer.exe", "/select,", filePath]);
+				} else if (process.platform === "darwin") {
+					Bun.spawn(["open", "-R", filePath]);
+				}
+			} catch (spawnErr) {
+				console.warn("Failed to open file manager window:", spawnErr);
+			}
+
+			return filePath;
+		} catch (err) {
+			console.error("Failed to save backup to disk:", err);
+			return null;
 		}
 	}
 }

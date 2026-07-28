@@ -364,28 +364,58 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 								</div>
 							</div>
 
-							{item.pin && (
-								<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
-									<label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider font-mono">
-										PIN / Security Code
-									</label>
-									<div className="flex items-center justify-between">
-										<span className="font-mono text-sm text-emerald-400 select-all">
-											{revealedFields["pin"] ? item.pin : "••••"}
-										</span>
-										<div className="flex items-center gap-1">
-											<button onClick={() => toggleReveal("pin")} className="p-1 text-slate-400 hover:text-white">
-												{revealedFields["pin"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-											</button>
-											<button
-												onClick={() => handleCopy(item.pin || "", "PIN")}
-												className="p-1 text-slate-400 hover:text-emerald-400"
-											>
-												<Copy className="w-4 h-4" />
-											</button>
+							{/* Credit card: Show CVV / CVC (copyable) */}
+							{item.subtype === "credit_card" ? (
+								(item.cvv || item.pin) && (
+									<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+										<label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider font-mono">
+											CVV / CVC
+										</label>
+										<div className="flex items-center justify-between">
+											<span className="font-mono text-sm text-emerald-400 select-all">
+												{revealedFields["cvv"] ? (item.cvv || item.pin) : "•••"}
+											</span>
+											<div className="flex items-center gap-1">
+												<button onClick={() => toggleReveal("cvv")} className="p-1 text-slate-400 hover:text-white">
+													{revealedFields["cvv"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+												</button>
+												<button
+													onClick={() => handleCopy(item.cvv || item.pin || "", "CVV")}
+													className="p-1 text-slate-400 hover:text-emerald-400"
+													title="Copy CVV"
+												>
+													{copiedField === "CVV" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+												</button>
+											</div>
 										</div>
 									</div>
-								</div>
+								)
+							) : (
+								/* Non-credit card ID/Passport: Show PIN if available */
+								item.pin && (
+									<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+										<label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider font-mono">
+											PIN / Security Code
+										</label>
+										<div className="flex items-center justify-between">
+											<span className="font-mono text-sm text-emerald-400 select-all">
+												{revealedFields["pin"] ? item.pin : "••••"}
+											</span>
+											<div className="flex items-center gap-1">
+												<button onClick={() => toggleReveal("pin")} className="p-1 text-slate-400 hover:text-white">
+													{revealedFields["pin"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+												</button>
+												<button
+													onClick={() => handleCopy(item.pin || "", "PIN")}
+													className="p-1 text-slate-400 hover:text-emerald-400"
+													title="Copy PIN"
+												>
+													{copiedField === "PIN" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+												</button>
+											</div>
+										</div>
+									</div>
+								)
 							)}
 						</div>
 					</div>
@@ -521,20 +551,64 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 
 				{/* 5. SECURE NOTE TYPE */}
 				{item.type === "note" && (
-					<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-3">
+					<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4">
 						<div className="flex justify-between items-center pb-2 border-b border-slate-800">
-							<span className="text-xs font-mono text-slate-400 uppercase">Encrypted Content</span>
+							<div className="flex items-center gap-2">
+								<span className="text-xs font-mono text-slate-400 uppercase font-semibold">Encrypted Content</span>
+								<span className="text-[10px] font-mono px-2 py-0.5 bg-[#1c1b1d] text-slate-500 rounded border border-slate-800">
+									{item.content.split("\n").length} {item.content.split("\n").length === 1 ? "line" : "lines"}
+								</span>
+							</div>
 							<button
-								onClick={() => handleCopy(item.content, "Secure Note")}
-								className="px-3 py-1 bg-[#1c1b1d] hover:bg-slate-800 text-slate-300 border border-slate-700 rounded text-xs flex items-center gap-1.5"
+								onClick={() => handleCopy(item.content, "Full Note")}
+								className="px-3 py-1 bg-[#1c1b1d] hover:bg-slate-800 text-slate-300 border border-slate-700 rounded text-xs flex items-center gap-1.5 transition-colors"
 							>
-								<Copy className="w-3.5 h-3.5 text-emerald-400" />
-								<span>Copy Note</span>
+								{copiedField === "Full Note" ? (
+									<Check className="w-3.5 h-3.5 text-emerald-400" />
+								) : (
+									<Copy className="w-3.5 h-3.5 text-emerald-400" />
+								)}
+								<span>{copiedField === "Full Note" ? "Copied All!" : "Copy Full Note"}</span>
 							</button>
 						</div>
-						<pre className="font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed select-all overflow-x-auto p-3 bg-[#09090b] rounded-lg border border-slate-800/60">
-							{item.content}
-						</pre>
+
+						{/* Line by line display with individual copy buttons */}
+						<div className="bg-[#09090b] rounded-xl border border-slate-800/80 divide-y divide-slate-800/40 overflow-hidden">
+							{item.content.split("\n").map((line, idx) => {
+								const lineLabel = `Line ${idx + 1}`;
+								const isCopied = copiedField === lineLabel;
+								const trimmed = line.trim();
+
+								return (
+									<div
+										key={idx}
+										className="group flex items-center justify-between px-3.5 py-2 hover:bg-[#131315]/80 transition-colors gap-3"
+									>
+										<div className="flex items-start gap-3 min-w-0 flex-1">
+											<span className="text-[10px] font-mono text-slate-600 select-none w-6 text-right shrink-0 pt-0.5">
+												{idx + 1}
+											</span>
+											<span className="font-mono text-xs text-slate-200 whitespace-pre-wrap break-all leading-relaxed select-all">
+												{line || "\u00A0"}
+											</span>
+										</div>
+										{trimmed.length > 0 && (
+											<button
+												onClick={() => handleCopy(line, lineLabel)}
+												className="opacity-70 group-hover:opacity-100 p-1.5 rounded hover:bg-[#1c1b1d] text-slate-400 hover:text-emerald-400 transition-all shrink-0"
+												title={`Copy line ${idx + 1}`}
+											>
+												{isCopied ? (
+													<Check className="w-3.5 h-3.5 text-emerald-400" />
+												) : (
+													<Copy className="w-3.5 h-3.5" />
+												)}
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
 				)}
 
