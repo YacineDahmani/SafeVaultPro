@@ -254,12 +254,24 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				</div>
 
 				{/* Footer Metadata */}
-				<div className="mt-6 text-center text-slate-500 text-[11px] font-mono flex items-center justify-center gap-4">
-					<span>AES-256-GCM</span>
-					<span>•</span>
-					<span>Argon2id (64MB)</span>
-					<span>•</span>
-					<span>Zero-Knowledge</span>
+				<div className="mt-6 text-center text-slate-500 text-[11px] font-mono flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center justify-center gap-4">
+						<span>AES-256-GCM</span>
+						<span>•</span>
+						<span>Argon2id (64MB)</span>
+						<span>•</span>
+						<span>Zero-Knowledge</span>
+					</div>
+					<button
+						type="button"
+						onClick={() => {
+							localStorage.clear();
+							window.location.reload();
+						}}
+						className="text-slate-500 hover:text-red-400 underline text-[11px] font-sans cursor-pointer transition-colors mt-1"
+					>
+						Wipe Old Storage & Load New Seed Dataset
+					</button>
 				</div>
 			</div>
 		</div>
