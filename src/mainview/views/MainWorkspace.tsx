@@ -15,16 +15,16 @@ export const MainWorkspace: React.FC = () => {
 	const vault = useVault();
 	const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
 
-	// Calculate counts for categories (separating credit_cards vs ids)
+	// Calculate counts for categories (separating credit_cards vs ids) using complete allItems array
 	const itemCounts = {
-		all: vault.items.length,
-		passwords: vault.items.filter((i) => i.type === "password").length,
-		notes: vault.items.filter((i) => i.type === "note").length,
-		personal_info: vault.items.filter((i) => i.type === "personal_info").length,
-		credit_cards: vault.items.filter((i) => i.type === "card" && i.subtype === "credit_card").length,
-		ids: vault.items.filter((i) => i.type === "card" && i.subtype !== "credit_card").length,
-		totp: vault.items.filter((i) => i.type === "totp").length,
-		favorites: vault.items.filter((i) => i.favorite).length,
+		all: vault.allItems.length,
+		passwords: vault.allItems.filter((i) => i.type === "password").length,
+		notes: vault.allItems.filter((i) => i.type === "note").length,
+		personal_info: vault.allItems.filter((i) => i.type === "personal_info").length,
+		credit_cards: vault.allItems.filter((i) => i.type === "card" && i.subtype === "credit_card").length,
+		ids: vault.allItems.filter((i) => i.type === "card" && i.subtype !== "credit_card").length,
+		totp: vault.allItems.filter((i) => i.type === "totp").length,
+		favorites: vault.allItems.filter((i) => i.favorite).length,
 	};
 
 	return (

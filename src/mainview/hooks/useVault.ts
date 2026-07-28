@@ -19,6 +19,7 @@ export function useVault() {
 	const [isConfigured, setIsConfigured] = useState<boolean>(false);
 	const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
 	const [items, setItems] = useState<VaultItem[]>([]);
+	const [allItems, setAllItems] = useState<VaultItem[]>([]);
 	const [activeCategory, setActiveCategory] = useState<NavCategory>("all");
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState<string>("");
@@ -65,14 +66,16 @@ export function useVault() {
 	const refreshItems = useCallback(() => {
 		if (!vaultBackend.getUnlockStatus()) {
 			setItems([]);
+			setAllItems([]);
 			syncExtension(false, []);
 			return;
 		}
 
 		try {
-			// Fetch all items
-			const allItems = vaultBackend.getItems("", "all");
-			syncExtension(true, allItems);
+			// Fetch all items without category filter for global counts
+			const fetchedAll = vaultBackend.getItems("", "all");
+			setAllItems(fetchedAll);
+			syncExtension(true, fetchedAll);
 
 			// Fetch filtered items matching searchQuery & activeCategory
 			let fetched = vaultBackend.getItems(searchQuery, "all");
@@ -122,9 +125,10 @@ export function useVault() {
 			if (success) {
 				setIsConfigured(true);
 				setIsUnlocked(true);
-				const allItems = vaultBackend.getItems("", "all");
-				setItems(allItems);
-				syncExtension(true, allItems);
+				const fetchedAll = vaultBackend.getItems("", "all");
+				setAllItems(fetchedAll);
+				setItems(fetchedAll);
+				syncExtension(true, fetchedAll);
 				showToast("Vault unlocked successfully", "success");
 				return true;
 			}
@@ -138,6 +142,7 @@ export function useVault() {
 		vaultBackend.lockVault();
 		setIsUnlocked(false);
 		setItems([]);
+		setAllItems([]);
 		setSelectedItemId(null);
 		syncExtension(false, []);
 		showToast("Vault locked & memory purged", "lock");
@@ -256,6 +261,7 @@ export function useVault() {
 		isConfigured,
 		isUnlocked,
 		items,
+		allItems,
 		activeCategory,
 		setActiveCategory,
 		selectedItemId,
