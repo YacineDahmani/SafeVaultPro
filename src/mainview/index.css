@@ -9,6 +9,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   html,
   body,
@@ -24,6 +25,14 @@
   body {
     @apply bg-[#09090b] text-[#e5e1e4] font-sans select-none;
     image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
+    -webkit-subpixel-font-smoothing: subpixel-antialiased;
+  }
+
+  /* Sharp crispy image and vector icon rendering */
+  img, svg {
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
   }
 }
 

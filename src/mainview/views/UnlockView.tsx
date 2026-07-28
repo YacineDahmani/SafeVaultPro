@@ -114,21 +114,26 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				{/* Top Identity Shield Badge */}
 				<div className="text-center mb-8 flex flex-col items-center">
 					<div
-						className={`w-16 h-16 rounded-2xl flex items-center justify-center border border-slate-800/80 mb-4 transition-all duration-500 overflow-hidden ${
+						className={`w-16 h-16 rounded-2xl flex items-center justify-center border mb-4 transition-all duration-500 shadow-xl ${
 							isSubmitting
-								? "bg-blue-950/40 border-blue-500/50 glow-blue text-blue-400"
+								? "bg-[#131722] border-blue-500/60 glow-blue text-blue-400"
 								: errorMsg
-								? "bg-red-950/40 border-red-500/50 glow-red text-red-400"
-								: "bg-[#141417] border-emerald-500/30 glow-emerald text-emerald-400"
+								? "bg-[#221315] border-red-500/60 glow-red text-red-400"
+								: "bg-[#131e1a] border-emerald-500/60 glow-emerald text-emerald-400"
 						}`}
 					>
-						<img src={appIcon} alt="SafeVaultPro Icon" className="w-10 h-10 rounded-xl object-cover" />
+						<img
+							src={appIcon}
+							alt="SafeVaultPro Icon"
+							className="w-11 h-11 rounded-xl object-contain drop-shadow-md"
+							style={{ imageRendering: "high-quality" }}
+						/>
 					</div>
 
-					<h1 className="text-2xl font-bold tracking-tight text-white mb-1">
+					<h1 className="text-2.5xl font-bold tracking-tight text-white mb-1.5">
 						{isConfigured ? "SafeVaultPro" : "Initialize Master Vault"}
 					</h1>
-					<p className="text-xs text-slate-400">
+					<p className="text-xs sm:text-sm text-slate-300 font-medium">
 						{isConfigured
 							? "Enter your master password to decrypt local AES-256 vault"
 							: "Create a strong master key to secure your encrypted vault store"}
@@ -137,14 +142,14 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 
 				{/* Card Form */}
 				<div
-					className={`bg-[#131315] border border-slate-800/60 rounded-xl p-6 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
-						isShaking ? "animate-shake border-red-500/50" : ""
+					className={`bg-[#131315] border border-slate-700/80 rounded-xl p-6 shadow-2xl transition-all duration-300 ${
+						isShaking ? "animate-shake border-red-500/80" : ""
 					}`}
 				>
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Error / Cooldown Banner */}
 						{errorMsg && (
-							<div className="p-3 bg-red-950/50 border border-red-800/60 rounded-lg flex items-center gap-2.5 text-red-300 text-xs">
+							<div className="p-3 bg-red-950/60 border border-red-800/80 rounded-lg flex items-center gap-2.5 text-red-200 text-xs font-medium">
 								<AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
 								<span>{errorMsg}</span>
 							</div>
@@ -159,11 +164,11 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 
 						{/* Password Field */}
 						<div>
-							<label className="block text-xs font-medium text-slate-400 mb-1.5">
+							<label className="block text-xs font-semibold text-slate-300 mb-1.5">
 								{isConfigured ? "Master Password" : "Create Master Password"}
 							</label>
 							<div className="relative">
-								<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+								<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
 									<KeyRound className="w-4 h-4" />
 								</div>
 								<input
@@ -173,12 +178,12 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 									disabled={cooldown > 0 || isSubmitting}
 									placeholder="••••••••••••••••"
 									autoFocus
-									className="w-full pl-9 pr-10 py-2.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:opacity-50"
+									className="w-full pl-9 pr-10 py-2.5 bg-[#09090b] border border-slate-700 rounded-lg text-white font-mono text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:opacity-50"
 								/>
 								<button
 									type="button"
 									onClick={() => setShowPassword(!showPassword)}
-									className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+									className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white transition-colors"
 								>
 									{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
 								</button>
@@ -188,9 +193,9 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						{/* Password strength bar for setup mode */}
 						{!isConfigured && password.length > 0 && (
 							<div className="space-y-1.5 pt-1">
-								<div className="flex justify-between text-[11px]">
-									<span className="text-slate-400">Key Entropy: {entropy} bits</span>
-									<span className={`font-medium ${strength.color}`}>{strength.text}</span>
+								<div className="flex justify-between text-xs font-mono">
+									<span className="text-slate-300">Key Entropy: {entropy} bits</span>
+									<span className={`font-semibold ${strength.color}`}>{strength.text}</span>
 								</div>
 								<div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden flex gap-1 p-0.5">
 									<div
@@ -215,7 +220,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						{/* Confirm Password Field for setup mode */}
 						{!isConfigured && (
 							<div>
-								<label className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label className="block text-xs font-semibold text-slate-300 mb-1.5">
 									Confirm Master Password
 								</label>
 								<input
@@ -223,7 +228,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 									value={confirmPassword}
 									onChange={(e) => setConfirmPassword(e.target.value)}
 									placeholder="••••••••••••••••"
-									className="w-full px-3 py-2.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+									className="w-full px-3 py-2.5 bg-[#09090b] border border-slate-700 rounded-lg text-white font-mono text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
 								/>
 							</div>
 						)}
@@ -232,7 +237,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						<button
 							type="submit"
 							disabled={cooldown > 0 || isSubmitting || !password}
-							className="w-full mt-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-[#003824] font-semibold rounded-lg text-sm transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+							className="w-full mt-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-[#003824] font-bold rounded-lg text-sm transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{isSubmitting ? (
 								<span className="flex items-center gap-2">
@@ -255,8 +260,8 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				</div>
 
 				{/* Footer Metadata */}
-				<div className="mt-6 text-center text-slate-500 text-[11px] font-mono flex flex-col items-center justify-center gap-2">
-					<div className="flex items-center justify-center gap-4">
+				<div className="mt-6 text-center text-slate-400 text-xs font-mono flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center justify-center gap-3 font-semibold text-slate-300">
 						<span>AES-256-GCM</span>
 						<span>•</span>
 						<span>Argon2id (64MB)</span>
@@ -266,7 +271,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 					<button
 						type="button"
 						onClick={() => setShowWipeConfirmModal(true)}
-						className="text-slate-500 hover:text-red-400 underline text-[11px] font-sans cursor-pointer transition-colors mt-1"
+						className="text-slate-400 hover:text-red-400 underline text-xs font-sans cursor-pointer transition-colors mt-1"
 					>
 						Wipe Old Storage & Load New Seed Dataset
 					</button>
