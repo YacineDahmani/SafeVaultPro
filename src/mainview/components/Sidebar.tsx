@@ -90,13 +90,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					</div>
 				</div>
 
-				<button
-					onClick={onOpenSettings}
-					title="Settings"
-					className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1c1b1d] transition-colors"
-				>
-					<Settings className="w-4 h-4" />
-				</button>
+				<div className="flex items-center gap-1">
+					<button
+						onClick={onOpenExtensionModal}
+						title="Browser Extension Setup"
+						className="p-1.5 rounded-lg text-purple-400 hover:text-white hover:bg-[#1c1b1d] transition-colors relative"
+					>
+						<Puzzle className="w-4 h-4" />
+						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full" />
+					</button>
+					<button
+						onClick={onOpenSettings}
+						title="Settings"
+						className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1c1b1d] transition-colors"
+					>
+						<Settings className="w-4 h-4" />
+					</button>
+				</div>
 			</div>
 
 			{/* Quick Search Input */}
