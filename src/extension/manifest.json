@@ -1,0 +1,34 @@
+{
+	"manifest_version": 3,
+	"name": "SafeVaultPro Autofill & Keymaster",
+	"version": "1.0.0",
+	"description": "Smart autofill for passwords, 2FA codes, credit cards, and personal profiles linked locally to SafeVaultPro desktop app.",
+	"permissions": [
+		"storage",
+		"activeTab",
+		"scripting"
+	],
+	"host_permissions": [
+		"http://localhost:48920/*"
+	],
+	"background": {
+		"service_worker": "background/serviceWorker.js"
+	},
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["content/autofillContent.js"],
+			"css": ["content/autofillContent.css"],
+			"run_at": "document_idle"
+		}
+	],
+	"action": {
+		"default_popup": "popup/popup.html",
+		"default_title": "SafeVaultPro"
+	},
+	"icons": {
+		"16": "icons/icon16.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
+	}
+}
