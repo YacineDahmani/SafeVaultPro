@@ -1,4 +1,8 @@
 import { BrowserWindow, Updater } from "electrobun/bun";
+import { startExtensionServer } from "./services/extensionServer";
+
+// Start the local extension IPC bridge
+startExtensionServer();
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -35,3 +39,4 @@ const mainWindow = new BrowserWindow({
 });
 
 console.log("SafeVaultPro desktop application started!");
+
