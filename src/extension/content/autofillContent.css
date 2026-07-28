@@ -6,34 +6,43 @@
 	width: 24px;
 	height: 24px;
 	border-radius: 6px;
-	background: rgba(24, 24, 27, 0.85);
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(24, 24, 27, 0.9);
+	border: 1px solid rgba(255, 255, 255, 0.15);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	cursor: pointer;
+	cursor: grab;
 	z-index: 99999;
-	transition: all 0.2s ease;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+	user-select: none;
+	touch-action: none;
+}
+
+.safevault-input-badge:active,
+.safevault-input-badge.safevault-dragging {
+	cursor: grabbing !important;
+	transform: scale(1.1) !important;
+	box-shadow: 0 0 16px rgba(16, 185, 129, 0.5) !important;
 }
 
 .safevault-input-badge:hover {
-	background: rgba(16, 185, 129, 0.15);
-	border-color: rgba(16, 185, 129, 0.5);
-	box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
-	transform: translateY(-50%) scale(1.08);
+	background: rgba(16, 185, 129, 0.2);
+	border-color: rgba(16, 185, 129, 0.6);
+	box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
 }
 
 .safevault-dropdown-menu {
-	width: 280px;
+	width: 300px;
 	background: #09090b;
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.15);
 	border-radius: 12px;
-	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.2);
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	color: #f4f4f5;
 	overflow: hidden;
 	animation: safevault-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+	z-index: 999999;
 }
 
 @keyframes safevault-pop {
@@ -49,11 +58,17 @@
 
 .safevault-dropdown-header {
 	padding: 10px 14px;
-	background: rgba(24, 24, 27, 0.9);
+	background: rgba(24, 24, 27, 0.95);
 	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+}
+
+.safevault-header-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 
 .safevault-brand {
@@ -66,10 +81,28 @@
 
 .safevault-badge-count {
 	font-size: 11px;
-	color: #71717a;
-	background: rgba(255, 255, 255, 0.05);
+	color: #a1a1aa;
+	background: rgba(255, 255, 255, 0.08);
 	padding: 2px 6px;
 	border-radius: 4px;
+}
+
+.safevault-close-btn {
+	background: transparent;
+	border: none;
+	color: #a1a1aa;
+	font-size: 16px;
+	font-weight: bold;
+	cursor: pointer;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: all 0.15s ease;
+}
+
+.safevault-close-btn:hover {
+	color: #ffffff;
+	background: rgba(239, 68, 68, 0.3);
 }
 
 .safevault-dropdown-empty {
@@ -77,10 +110,44 @@
 	font-size: 13px;
 	color: #a1a1aa;
 	text-align: center;
+	display: flex;
+	flex-col;
+	gap: 10px;
+	align-items: center;
+}
+
+.safevault-dropdown-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+	margin-top: 8px;
+	width: 100%;
+}
+
+.safevault-action-btn {
+	font-size: 11px;
+	padding: 4px 10px;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	background: rgba(255, 255, 255, 0.05);
+	color: #d4d4d8;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.safevault-action-btn:hover {
+	background: rgba(255, 255, 255, 0.15);
+	color: #ffffff;
+}
+
+.safevault-action-btn.danger:hover {
+	background: rgba(239, 68, 68, 0.25);
+	border-color: rgba(239, 68, 68, 0.5);
+	color: #fca5a5;
 }
 
 .safevault-dropdown-list {
-	max-height: 240px;
+	max-height: 250px;
 	overflow-y: auto;
 }
 
@@ -99,7 +166,7 @@
 }
 
 .safevault-dropdown-item:hover {
-	background: rgba(16, 185, 129, 0.1);
+	background: rgba(16, 185, 129, 0.12);
 }
 
 .safevault-item-icon {
