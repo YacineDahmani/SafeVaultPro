@@ -139,8 +139,6 @@ export function startExtensionServer() {
 						const cards = allItems.filter((i) => i.type === "card");
 						const domainCards = cards.filter((i) => (i as any).url && matchDomain((i as any).url, domain));
 						matches = domainCards.length > 0 ? domainCards : cards;
-						// Fallback if no cards exist: include all items
-						if (matches.length === 0) matches = allItems;
 					} else if (fieldType === "totp") {
 						// Focused on 2FA code field
 						const totpItems = allItems.filter((i) => i.type === "totp");

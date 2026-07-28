@@ -36,38 +36,29 @@
 
 		const combined = `${name} ${id} ${placeholder} ${ariaLabel} ${autocomplete} ${type}`;
 
-		// 1. Password fields
+		// 1. Credit Card CVV / CVC / CVP / Cryptogramme (EVALUATED FIRST to catch <input type="password" name="cvv">)
 		if (
-			type === 'password' ||
-			combined.includes('password') ||
-			combined.includes('mot_de_passe') ||
-			combined.includes('mdp') ||
-			combined.includes('code_secret') ||
-			combined.includes('كلمة السر') ||
-			combined.includes('كلمة المرور') ||
-			combined.includes('الرمز السري')
+			combined.includes('cvv') ||
+			combined.includes('cvc') ||
+			combined.includes('cvp') ||
+			combined.includes('security-code') ||
+			combined.includes('cvv2') ||
+			combined.includes('cvc2') ||
+			combined.includes('cvp2') ||
+			combined.includes('crypto') ||
+			combined.includes('cryptogramme') ||
+			combined.includes('code_securite') ||
+			combined.includes('code_secu') ||
+			combined.includes('code_verification') ||
+			combined.includes('cc-csc') ||
+			combined.includes('رمز الأمان') ||
+			combined.includes('رمز الحماية') ||
+			combined.includes('رمز التحقق')
 		) {
-			return 'password';
+			return 'card_cvv';
 		}
 
-		// 2. TOTP / 2FA / Verification code
-		if (
-			combined.includes('one-time') ||
-			combined.includes('totp') ||
-			combined.includes('2fa') ||
-			combined.includes('mfa') ||
-			combined.includes('otp') ||
-			combined.includes('verification') ||
-			combined.includes('validation') ||
-			combined.includes('confirmation') ||
-			combined.includes('رمز') ||
-			combined.includes('تأكيد') ||
-			combined.includes('تفعيل')
-		) {
-			return 'totp';
-		}
-
-		// 3. Credit Card Number (Algerian CIB, Edahabia, Baridi, Satim, ECCP, Postel, Visa, MasterCard)
+		// 2. Credit Card Number (Algerian CIB, Edahabia, Baridi, Satim, ECCP, Postel, Visa, MasterCard)
 		if (
 			combined.includes('cardnumber') ||
 			combined.includes('card-number') ||
@@ -87,7 +78,6 @@
 			combined.includes('carte_cib') ||
 			combined.includes('carte_edahabia') ||
 			combined.includes('baridi') ||
-			combined.includes('carte') ||
 			combined.includes('cib') ||
 			combined.includes('edahabia') ||
 			combined.includes('بطاقة') ||
@@ -98,26 +88,7 @@
 			return 'card_number';
 		}
 
-		// 4. Credit Card CVV / CVC / CVP / Cryptogramme
-		if (
-			combined.includes('cvv') ||
-			combined.includes('cvc') ||
-			combined.includes('cvp') ||
-			combined.includes('security-code') ||
-			combined.includes('cvv2') ||
-			combined.includes('cvc2') ||
-			combined.includes('crypto') ||
-			combined.includes('cryptogramme') ||
-			combined.includes('code_securite') ||
-			combined.includes('code_secu') ||
-			combined.includes('رمز الأمان') ||
-			combined.includes('رمز الحماية') ||
-			combined.includes('رمز التحقق')
-		) {
-			return 'card_cvv';
-		}
-
-		// 5. Credit Card Expiry Date / Month / Year
+		// 3. Credit Card Expiry Date / Month / Year
 		if (
 			combined.includes('exp_date') ||
 			combined.includes('exp_month') ||
@@ -140,7 +111,7 @@
 			return 'card_exp';
 		}
 
-		// 6. Cardholder Name
+		// 4. Cardholder Name
 		if (
 			combined.includes('holder') ||
 			combined.includes('cardholder') ||
@@ -151,10 +122,42 @@
 			combined.includes('titulaire') ||
 			combined.includes('nom_carte') ||
 			combined.includes('porteur') ||
+			combined.includes('owner_name') ||
 			combined.includes('اسم صاحب البطاقة') ||
 			combined.includes('اسم حامل البطاقة')
 		) {
 			return 'card_holder';
+		}
+
+		// 5. TOTP / 2FA / Verification code
+		if (
+			combined.includes('one-time') ||
+			combined.includes('totp') ||
+			combined.includes('2fa') ||
+			combined.includes('mfa') ||
+			combined.includes('otp') ||
+			combined.includes('verification') ||
+			combined.includes('validation') ||
+			combined.includes('confirmation') ||
+			combined.includes('رمز') ||
+			combined.includes('تأكيد') ||
+			combined.includes('تفعيل')
+		) {
+			return 'totp';
+		}
+
+		// 6. Password fields
+		if (
+			type === 'password' ||
+			combined.includes('password') ||
+			combined.includes('mot_de_passe') ||
+			combined.includes('mdp') ||
+			combined.includes('code_secret') ||
+			combined.includes('كلمة السر') ||
+			combined.includes('كلمة المرور') ||
+			combined.includes('الرمز السري')
+		) {
+			return 'password';
 		}
 
 		// 7. Username / Email / Login / Account / CCP ID
@@ -389,12 +392,15 @@
 					</div>
 				`;
 			} else if (item.type === 'card') {
+				const cardNum = item.number ? `•••• ${item.number.slice(-4)}` : 'Card';
+				const cardHolder = item.cardholderName ? escapeHtml(item.cardholderName) : '';
+				const cvvCode = (item.cvv || item.pin) ? ` | CVV: ${escapeHtml(item.cvv || item.pin)}` : '';
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
 						<div class="safevault-item-icon">💳</div>
 						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.title)}</div>
-							<div class="safevault-item-sub">${escapeHtml(item.subtype ? item.subtype.toUpperCase() : 'CARD')} •••• ${escapeHtml((item.number || '').slice(-4))}</div>
+							<div class="safevault-item-title">${escapeHtml(item.title)} ${cardHolder ? `(${cardHolder})` : ''}</div>
+							<div class="safevault-item-sub">${escapeHtml(item.subtype ? item.subtype.toUpperCase().replace('_', ' ') : 'CARD')} ${cardNum}${cvvCode}</div>
 						</div>
 						<span class="safevault-fill-btn">Fill Card</span>
 					</div>
@@ -469,42 +475,60 @@
 				}
 			});
 		} else if (item.type === 'card') {
-			// Find Credit Card Number field
+			const cvvVal = item.cvv || item.pin || '';
+			const holderVal = item.cardholderName || '';
+			const numVal = item.number || '';
+			const expVal = item.expirationDate || '';
+
+			// 1. Direct assignment to focused input if targetInput is a specific field
+			const fieldType = classifyField(targetInput);
+			if (fieldType === 'card_cvv' && cvvVal) {
+				setNativeFieldValue(targetInput, cvvVal);
+			} else if (fieldType === 'card_holder' && holderVal) {
+				setNativeFieldValue(targetInput, holderVal);
+			} else if (fieldType === 'card_number' && numVal) {
+				setNativeFieldValue(targetInput, numVal);
+			} else if (fieldType === 'card_exp' && expVal) {
+				setNativeFieldValue(targetInput, expVal);
+			}
+
+			// 2. Broad form assignment for all credit card inputs
+			// Find Card Number field
 			const cardNumField = form.querySelector(
-				'input[name*="carte"], input[id*="carte"], input[name*="card"], input[id*="card"], input[name*="pan"], input[name*="cib"], input[name*="edahabia"], input[autocomplete="cc-number"]'
+				'input[name*="carte"], input[id*="carte"], input[name*="card"], input[id*="card"], input[name*="pan"], input[id*="pan"], input[name*="cib"], input[name*="edahabia"], input[name*="num"], input[autocomplete="cc-number"]'
 			) || targetInput;
 
-			// Find CVV/CVP field
+			// Find CVV / CVC / CVP / Cryptogramme field
 			const cvvField = form.querySelector(
-				'input[name*="cvv"], input[name*="cvc"], input[name*="cvp"], input[name*="crypto"], input[name*="secu"], input[id*="cvv"], input[id*="crypto"]'
+				'input[name*="cvv"], input[name*="cvc"], input[name*="cvp"], input[name*="crypto"], input[name*="secu"], input[name*="verification"], input[id*="cvv"], input[id*="cvc"], input[id*="cvp"], input[id*="crypto"], input[id*="secu"], input[placeholder*="cvv" i], input[placeholder*="cvc" i], input[placeholder*="crypto" i], input[autocomplete="cc-csc"]'
 			);
 
-			// Find Cardholder field
+			// Find Cardholder Name field
 			const holderField = form.querySelector(
-				'input[name*="holder"], input[name*="titulaire"], input[name*="porteur"], input[name*="nom"], input[autocomplete="cc-name"]'
+				'input[name*="holder"], input[name*="titulaire"], input[name*="porteur"], input[name*="owner"], input[name*="nom"], input[id*="holder"], input[id*="titulaire"], input[id*="porteur"], input[id*="nom"], input[autocomplete="cc-name"]'
 			);
 
-			if (cardNumField && item.number) setNativeFieldValue(cardNumField, item.number);
-			if (cvvField && item.cvv) setNativeFieldValue(cvvField, item.cvv);
-			if (holderField && item.cardholderName) setNativeFieldValue(holderField, item.cardholderName);
+			if (cardNumField && numVal) setNativeFieldValue(cardNumField, numVal);
+			if (cvvField && cvvVal) setNativeFieldValue(cvvField, cvvVal);
+			if (holderField && holderVal) setNativeFieldValue(holderField, holderVal);
 
 			// Handle Expiration Date (Single input vs separate Month/Year dropdowns)
-			if (item.expirationDate) {
+			if (expVal) {
 				const expField = form.querySelector(
-					'input[name*="exp"], input[name*="date"], input[id*="exp"], input[autocomplete="cc-exp"]'
+					'input[name*="exp"], input[name*="date"], input[id*="exp"], input[id*="date"], input[autocomplete="cc-exp"]'
 				);
 				if (expField) {
-					setNativeFieldValue(expField, item.expirationDate);
+					setNativeFieldValue(expField, expVal);
 				}
 
 				// Separate Month / Year fields
-				const parts = item.expirationDate.split('/');
+				const parts = expVal.split('/');
 				if (parts.length === 2) {
 					const monthStr = parts[0].padStart(2, '0');
 					const yearStr = parts[1].length === 2 ? `20${parts[1]}` : parts[1];
 
-					const monthField = form.querySelector('select[name*="month"], select[name*="mois"], input[name*="month"], input[name*="mois"]');
-					const yearField = form.querySelector('select[name*="year"], select[name*="annee"], input[name*="year"], input[name*="annee"]');
+					const monthField = form.querySelector('select[name*="month"], select[name*="mois"], select[id*="month"], select[id*="mois"], input[name*="month"], input[name*="mois"], input[autocomplete="cc-exp-month"]');
+					const yearField = form.querySelector('select[name*="year"], select[name*="annee"], select[id*="year"], select[id*="annee"], input[name*="year"], input[name*="annee"], input[autocomplete="cc-exp-year"]');
 
 					if (monthField) setNativeFieldValue(monthField, monthStr);
 					if (yearField) setNativeFieldValue(yearField, yearStr);
