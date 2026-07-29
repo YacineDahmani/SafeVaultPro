@@ -234,8 +234,7 @@
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
 		badge.title = 'SafeVaultPro Autofill (Click to open, Drag to move)';
-		const iconUrl = chrome.runtime.getURL('icon.png');
-		badge.innerHTML = `<img src="${iconUrl}" width="16" height="16" alt="SafeVaultPro" style="object-fit: contain; pointer-events: none;">`;
+		badge.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
 
 		// Drag state management
 		let isDragging = false;
@@ -267,6 +266,7 @@
 				badge.classList.add('safevault-dragging');
 				badge.style.position = 'fixed';
 				badge.style.right = 'auto';
+				badge.style.margin = '0';
 				badge.style.transform = 'none';
 
 				const newLeft = Math.max(0, Math.min(window.innerWidth - 30, initialLeft + dx));
@@ -480,48 +480,36 @@
 			const numVal = item.number || '';
 			const expVal = item.expirationDate || '';
 
-			// 1. Direct assignment to focused input if targetInput is a specific field
-			const fieldType = classifyField(targetInput);
-			if (fieldType === 'card_cvv' && cvvVal) {
+			const targetClassification = classifyField(targetInput);
+
+			// Direct assignment to target input if it matches a known classification
+			if (targetClassification === 'card_cvv' && cvvVal) {
 				setNativeFieldValue(targetInput, cvvVal);
-			} else if (fieldType === 'card_holder' && holderVal) {
+			} else if (targetClassification === 'card_holder' && holderVal) {
 				setNativeFieldValue(targetInput, holderVal);
-			} else if (fieldType === 'card_number' && numVal) {
+			} else if (targetClassification === 'card_number' && numVal) {
 				setNativeFieldValue(targetInput, numVal);
-			} else if (fieldType === 'card_exp' && expVal) {
+			} else if (targetClassification === 'card_exp' && expVal) {
 				setNativeFieldValue(targetInput, expVal);
 			}
 
-			// 2. Broad form assignment for all credit card inputs
-			// Find Card Number field
-			const cardNumField = form.querySelector(
-				'input[name*="carte"], input[id*="carte"], input[name*="card"], input[id*="card"], input[name*="pan"], input[id*="pan"], input[name*="cib"], input[name*="edahabia"], input[name*="num"], input[autocomplete="cc-number"]'
-			) || targetInput;
-
-			// Find CVV / CVC / CVP / Cryptogramme field
-			const cvvField = form.querySelector(
-				'input[name*="cvv"], input[name*="cvc"], input[name*="cvp"], input[name*="crypto"], input[name*="secu"], input[name*="verification"], input[id*="cvv"], input[id*="cvc"], input[id*="cvp"], input[id*="crypto"], input[id*="secu"], input[placeholder*="cvv" i], input[placeholder*="cvc" i], input[placeholder*="crypto" i], input[autocomplete="cc-csc"]'
-			);
-
-			// Find Cardholder Name field
-			const holderField = form.querySelector(
-				'input[name*="holder"], input[name*="titulaire"], input[name*="porteur"], input[name*="owner"], input[name*="nom"], input[id*="holder"], input[id*="titulaire"], input[id*="porteur"], input[id*="nom"], input[autocomplete="cc-name"]'
-			);
-
-			if (cardNumField && numVal) setNativeFieldValue(cardNumField, numVal);
-			if (cvvField && cvvVal) setNativeFieldValue(cvvField, cvvVal);
-			if (holderField && holderVal) setNativeFieldValue(holderField, holderVal);
-
-			// Handle Expiration Date (Single input vs separate Month/Year dropdowns)
-			if (expVal) {
-				const expField = form.querySelector(
-					'input[name*="exp"], input[name*="date"], input[id*="exp"], input[id*="date"], input[autocomplete="cc-exp"]'
-				);
-				if (expField) {
-					setNativeFieldValue(expField, expVal);
+			// Form-wide assignment across all matching card fields in form
+			const allFormInputs = form.querySelectorAll('input:not([type="hidden"]), select');
+			allFormInputs.forEach((field) => {
+				const fieldType = classifyField(field);
+				if (fieldType === 'card_cvv' && cvvVal && field !== targetInput) {
+					setNativeFieldValue(field, cvvVal);
+				} else if (fieldType === 'card_holder' && holderVal && field !== targetInput) {
+					setNativeFieldValue(field, holderVal);
+				} else if (fieldType === 'card_number' && numVal && field !== targetInput) {
+					setNativeFieldValue(field, numVal);
+				} else if (fieldType === 'card_exp' && expVal && field !== targetInput) {
+					setNativeFieldValue(field, expVal);
 				}
+			});
 
-				// Separate Month / Year fields
+			// Handle separate Month / Year fields if expiration date is present
+			if (expVal) {
 				const parts = expVal.split('/');
 				if (parts.length === 2) {
 					const monthStr = parts[0].padStart(2, '0');

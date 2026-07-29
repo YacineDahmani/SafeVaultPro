@@ -135,20 +135,18 @@ export function startExtensionServer() {
 							return searchTarget.includes(cleanQ);
 						});
 					} else if (fieldType && fieldType.startsWith("card_")) {
-						// Focused on a credit card field (e.g., ECCP, CIB, Edahabia, Satim)
+						// Focused on a credit card field
 						const cards = allItems.filter((i) => i.type === "card");
 						const domainCards = cards.filter((i) => (i as any).url && matchDomain((i as any).url, domain));
 						matches = domainCards.length > 0 ? domainCards : cards;
 					} else if (fieldType === "totp") {
 						// Focused on 2FA code field
-						const totpItems = allItems.filter((i) => i.type === "totp");
-						matches = totpItems.length > 0 ? totpItems : allItems;
+						matches = allItems.filter((i) => i.type === "totp");
 					} else if (fieldType === "personal") {
 						// Focused on identity / personal info field
-						const personalItems = allItems.filter((i) => i.type === "personal_info");
-						matches = personalItems.length > 0 ? personalItems : allItems;
+						matches = allItems.filter((i) => i.type === "personal_info");
 					} else if (domain) {
-						// Standard domain match for logins/passwords with fallback
+						// Standard domain match for logins/passwords
 						matches = allItems.filter((item) => {
 							if (item.type === "password" && matchDomain(item.url, domain)) {
 								return true;
@@ -162,11 +160,6 @@ export function startExtensionServer() {
 							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).issuer || ""}`.toLowerCase();
 							return searchTarget.includes(domain.toLowerCase());
 						});
-
-						// If domain matching returned 0 items, fallback to providing all items so user can autofill
-						if (matches.length === 0) {
-							matches = allItems;
-						}
 					} else {
 						matches = allItems;
 					}

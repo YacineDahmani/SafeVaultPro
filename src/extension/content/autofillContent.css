@@ -22,8 +22,8 @@
 .safevault-input-badge:active,
 .safevault-input-badge.safevault-dragging {
 	cursor: grabbing !important;
-	transform: scale(1.1) !important;
-	box-shadow: 0 0 16px rgba(16, 185, 129, 0.5) !important;
+	box-shadow: 0 0 16px rgba(16, 185, 129, 0.6) !important;
+	border-color: rgba(16, 185, 129, 0.8) !important;
 }
 
 .safevault-input-badge:hover {
