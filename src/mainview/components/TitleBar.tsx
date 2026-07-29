@@ -29,10 +29,8 @@ export const TitleBar: React.FC = () => {
 				className="h-9 bg-[#09090b] border-b border-slate-800/80 flex items-center justify-between px-3 select-none shrink-0 cursor-default"
 				style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
 			>
-				{/* Center Title (Draggable region) */}
-				<div className="text-[11px] font-mono text-slate-500 pointer-events-none hidden md:block">
-					SafeVaultPro — Secure Password Manager
-				</div>
+				{/* Center Draggable Spacer Region */}
+				<div className="flex-1" />
 
 				{/* Right Custom Dark Window Controls */}
 				<div className="flex items-center" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>

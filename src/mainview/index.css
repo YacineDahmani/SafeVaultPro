@@ -26,7 +26,8 @@
     @apply bg-[#09090b] text-[#e5e1e4] font-sans select-none;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: high-quality;
-    -webkit-subpixel-font-smoothing: subpixel-antialiased;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
   }
 
   /* Sharp crispy image and vector icon rendering */
