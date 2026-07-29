@@ -469,7 +469,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 								) : (
 									<div>
 										<label className="block text-slate-400 font-mono mb-1">
-											NIN / National Identification Number
+											NIN 
 										</label>
 										<input
 											type="text"

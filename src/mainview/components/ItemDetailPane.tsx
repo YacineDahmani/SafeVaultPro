@@ -394,7 +394,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 								(item.nin || item.pin) && (
 									<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 										<label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider font-mono">
-											NIN / National Identification Number
+											NIN
 										</label>
 										<div className="flex items-center justify-between">
 											<span className="font-mono text-sm text-emerald-400 select-all">
