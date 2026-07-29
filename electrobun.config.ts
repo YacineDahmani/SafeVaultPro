@@ -11,22 +11,23 @@ export default {
 		copy: {
 			"dist/index.html": "views/mainview/index.html",
 			"dist/assets": "views/mainview/assets",
-			"SafeVault.ico": "views/mainview/SafeVault.ico",
-			"icon.png": "views/mainview/icon.png",
+			"src/mainview/assets/SafeVault.ico": "views/mainview/SafeVault.ico",
+			"src/mainview/assets/SafeVault.png": "views/mainview/SafeVault.png",
+			"src/mainview/assets/SafeVault.svg": "views/mainview/SafeVault.svg",
 		},
 		// Ignore Vite output in watch mode — HMR handles view rebuilds separately
 		watchIgnore: ["dist/**"],
 		mac: {
 			bundleCEF: false,
-			icon: "icon.png",
+			icon: "src/mainview/assets/SafeVault.png",
 		},
 		linux: {
 			bundleCEF: false,
-			icon: "icon.png",
+			icon: "src/mainview/assets/SafeVault.png",
 		},
 		win: {
 			bundleCEF: false,
-			icon: "SafeVault.ico",
+			icon: "src/mainview/assets/SafeVault.ico",
 		},
 	},
 } satisfies ElectrobunConfig;
