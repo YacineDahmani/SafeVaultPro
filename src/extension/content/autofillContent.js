@@ -36,14 +36,16 @@
 
 		const combined = `${name} ${id} ${placeholder} ${ariaLabel} ${autocomplete} ${type}`;
 
-		// 1. Credit Card CVV / CVC / CVP / Cryptogramme (EVALUATED FIRST to catch <input type="password" name="cvv">)
+		// 1. Credit Card CVV / CVC / CVP / CVW / Cryptogramme
 		if (
 			combined.includes('cvv') ||
 			combined.includes('cvc') ||
+			combined.includes('cvw') ||
 			combined.includes('cvp') ||
 			combined.includes('security-code') ||
 			combined.includes('cvv2') ||
 			combined.includes('cvc2') ||
+			combined.includes('cvw2') ||
 			combined.includes('cvp2') ||
 			combined.includes('crypto') ||
 			combined.includes('cryptogramme') ||
@@ -111,7 +113,7 @@
 			return 'card_exp';
 		}
 
-		// 4. Cardholder Name
+		// 4. Cardholder Name (Nom et Prenom / Titulaire)
 		if (
 			combined.includes('holder') ||
 			combined.includes('cardholder') ||
@@ -119,10 +121,14 @@
 			combined.includes('cc-name') ||
 			combined.includes('nom_porteur') ||
 			combined.includes('nom_prenom') ||
+			combined.includes('nomprenom') ||
+			combined.includes('nom_p') ||
 			combined.includes('titulaire') ||
 			combined.includes('nom_carte') ||
 			combined.includes('porteur') ||
 			combined.includes('owner_name') ||
+			combined.includes('nom') ||
+			combined.includes('prenom') ||
 			combined.includes('اسم صاحب البطاقة') ||
 			combined.includes('اسم حامل البطاقة')
 		) {
@@ -480,46 +486,77 @@
 			const numVal = item.number || '';
 			const expVal = item.expirationDate || '';
 
-			const targetClassification = classifyField(targetInput);
+			const container = targetInput.form || targetInput.closest('form') || document;
+			const inputs = Array.from(container.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]), select'));
 
-			// Direct assignment to target input if it matches a known classification
-			if (targetClassification === 'card_cvv' && cvvVal) {
-				setNativeFieldValue(targetInput, cvvVal);
-			} else if (targetClassification === 'card_holder' && holderVal) {
-				setNativeFieldValue(targetInput, holderVal);
-			} else if (targetClassification === 'card_number' && numVal) {
-				setNativeFieldValue(targetInput, numVal);
-			} else if (targetClassification === 'card_exp' && expVal) {
-				setNativeFieldValue(targetInput, expVal);
+			// 1. Fill Card Number field
+			const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || targetInput;
+			if (cardNumInput && numVal) {
+				setNativeFieldValue(cardNumInput, numVal);
 			}
 
-			// Form-wide assignment across all matching card fields in form
-			const allFormInputs = form.querySelectorAll('input:not([type="hidden"]), select');
-			allFormInputs.forEach((field) => {
-				const fieldType = classifyField(field);
-				if (fieldType === 'card_cvv' && cvvVal && field !== targetInput) {
-					setNativeFieldValue(field, cvvVal);
-				} else if (fieldType === 'card_holder' && holderVal && field !== targetInput) {
-					setNativeFieldValue(field, holderVal);
-				} else if (fieldType === 'card_number' && numVal && field !== targetInput) {
-					setNativeFieldValue(field, numVal);
-				} else if (fieldType === 'card_exp' && expVal && field !== targetInput) {
-					setNativeFieldValue(field, expVal);
-				}
-			});
+			// 2. Fill CVV / CVC / CVW field (guarded to NEVER put card number into CVV)
+			const cvvInput = inputs.find(i => i !== cardNumInput && (classifyField(i) === 'card_cvv' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/cvv|cvc|cvw|crypto|secu/)));
+			if (cvvInput && cvvVal && cvvInput !== cardNumInput) {
+				setNativeFieldValue(cvvInput, cvvVal);
+			}
 
-			// Handle separate Month / Year fields if expiration date is present
+			// 3. Fill Cardholder Name field ("Nom et Prenom" / "Titulaire")
+			const holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && (classifyField(i) === 'card_holder' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/holder|titulaire|porteur|owner|nom|prenom/)));
+			if (holderInput && holderVal && holderInput !== cardNumInput && holderInput !== cvvInput) {
+				setNativeFieldValue(holderInput, holderVal);
+			}
+
+			// 4. Fill Expiration Date (Single input vs separate Month/Year dropdowns)
 			if (expVal) {
 				const parts = expVal.split('/');
-				if (parts.length === 2) {
-					const monthStr = parts[0].padStart(2, '0');
-					const yearStr = parts[1].length === 2 ? `20${parts[1]}` : parts[1];
+				const monthVal = parts[0] ? parts[0].padStart(2, '0') : '';
+				let yearVal = parts[1] || '';
+				const fullYearVal = yearVal.length === 2 ? `20${yearVal}` : yearVal;
+				const shortYearVal = yearVal.length === 4 ? yearVal.slice(-2) : yearVal;
 
-					const monthField = form.querySelector('select[name*="month"], select[name*="mois"], select[id*="month"], select[id*="mois"], input[name*="month"], input[name*="mois"], input[autocomplete="cc-exp-month"]');
-					const yearField = form.querySelector('select[name*="year"], select[name*="annee"], select[id*="year"], select[id*="annee"], input[name*="year"], input[name*="annee"], input[autocomplete="cc-exp-year"]');
+				// Single Expiration Date input
+				const expInput = inputs.find(i => classifyField(i) === 'card_exp' && i.tagName === 'INPUT');
+				if (expInput) {
+					setNativeFieldValue(expInput, expVal);
+				}
 
-					if (monthField) setNativeFieldValue(monthField, monthStr);
-					if (yearField) setNativeFieldValue(yearField, yearStr);
+				// Separate Month Select or Input
+				const monthInput = inputs.find(i => i !== cardNumInput && i !== holderInput && i !== cvvInput && ((i.name || i.id || '').toLowerCase().match(/month|mois|expm/) || (i.tagName === 'SELECT')));
+				if (monthInput) {
+					if (monthInput.tagName === 'SELECT') {
+						const options = Array.from(monthInput.options);
+						const matchedOpt = options.find(opt => {
+							const val = (opt.value || '').trim();
+							const txt = (opt.text || '').trim();
+							return val === monthVal || val === String(parseInt(monthVal, 10)) || txt.startsWith(monthVal) || txt.startsWith(String(parseInt(monthVal, 10)));
+						});
+						if (matchedOpt) {
+							monthInput.value = matchedOpt.value;
+							monthInput.dispatchEvent(new Event('change', { bubbles: true }));
+						}
+					} else {
+						setNativeFieldValue(monthInput, monthVal);
+					}
+				}
+
+				// Separate Year Select or Input
+				const yearInput = inputs.find(i => i !== cardNumInput && i !== holderInput && i !== cvvInput && i !== monthInput && ((i.name || i.id || '').toLowerCase().match(/year|annee|expy/) || (i.tagName === 'SELECT')));
+				if (yearInput) {
+					if (yearInput.tagName === 'SELECT') {
+						const options = Array.from(yearInput.options);
+						const matchedOpt = options.find(opt => {
+							const val = (opt.value || '').trim();
+							const txt = (opt.text || '').trim();
+							return val === fullYearVal || val === shortYearVal || txt.includes(fullYearVal) || txt.includes(shortYearVal);
+						});
+						if (matchedOpt) {
+							yearInput.value = matchedOpt.value;
+							yearInput.dispatchEvent(new Event('change', { bubbles: true }));
+						}
+					} else {
+						setNativeFieldValue(yearInput, fullYearVal);
+					}
 				}
 			}
 		} else if (item.type === 'personal_info') {
@@ -545,6 +582,10 @@
 		);
 		inputs.forEach((input) => {
 			const classification = classifyField(input);
+			// For payment card fields, ONLY attach badge to card_number field
+			if (classification === 'card_cvv' || classification === 'card_holder' || classification === 'card_exp') {
+				return;
+			}
 			if (classification !== 'generic') {
 				attachBadge(input);
 			}
