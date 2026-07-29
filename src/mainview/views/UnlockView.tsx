@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import appIcon from "../assets/icon.png";
+import { SafeVaultLogo } from "../components/SafeVaultLogo";
 import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, AlertTriangle, ArrowRight, Trash2, X } from "lucide-react";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 
@@ -114,7 +114,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				{/* Top Identity Shield Badge */}
 				<div className="text-center mb-8 flex flex-col items-center">
 					<div
-						className={`w-16 h-16 rounded-2xl flex items-center justify-center border mb-4 transition-all duration-500 shadow-xl ${
+						className={`w-16 h-16 rounded-2xl flex items-center justify-center border mb-4 transition-all duration-500 shadow-xl overflow-hidden ${
 							isSubmitting
 								? "bg-[#131722] border-blue-500/60 glow-blue text-blue-400"
 								: errorMsg
@@ -122,12 +122,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 								: "bg-[#131e1a] border-emerald-500/60 glow-emerald text-emerald-400"
 						}`}
 					>
-						<img
-							src={appIcon}
-							alt="SafeVaultPro Icon"
-							className="w-11 h-11 rounded-xl object-contain drop-shadow-md"
-							style={{ imageRendering: "high-quality" }}
-						/>
+						<SafeVaultLogo className="w-12 h-12" />
 					</div>
 
 					<h1 className="text-2.5xl font-bold tracking-tight text-white mb-1.5">
@@ -135,14 +130,14 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 					</h1>
 					<p className="text-xs sm:text-sm text-slate-300 font-medium">
 						{isConfigured
-							? "Enter your master password to decrypt local AES-256 vault"
+							? "Enter your master password to unlock your encrypted local vault"
 							: "Create a strong master key to secure your encrypted vault store"}
 					</p>
 				</div>
 
 				{/* Card Form */}
 				<div
-					className={`bg-[#131315] border border-slate-700/80 rounded-xl p-6 shadow-2xl transition-all duration-300 ${
+					className={`bg-[#131315] border border-slate-700/80 rounded-2xl p-6 shadow-2xl transition-all duration-300 ${
 						isShaking ? "animate-shake border-red-500/80" : ""
 					}`}
 				>
@@ -259,19 +254,28 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 					</form>
 				</div>
 
-				{/* Footer Metadata */}
-				<div className="mt-6 text-center text-slate-400 text-xs font-mono flex flex-col items-center justify-center gap-2">
-					<div className="flex items-center justify-center gap-3 font-semibold text-slate-300">
-						<span>AES-256-GCM</span>
-						<span>•</span>
-						<span>Argon2id (64MB)</span>
-						<span>•</span>
-						<span>Zero-Knowledge</span>
+				{/* Vault Security Specifications Grid */}
+				<div className="mt-5 grid grid-cols-3 gap-2.5 text-center">
+					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
+						<span className="block text-[11px] font-bold text-white">Local KDF</span>
+						<span className="text-[10px] text-slate-400 font-mono">Argon2id (64MB)</span>
 					</div>
+					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
+						<span className="block text-[11px] font-bold text-white">Storage</span>
+						<span className="text-[10px] text-emerald-400 font-mono">Encrypted SQL</span>
+					</div>
+					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
+						<span className="block text-[11px] font-bold text-white">Architecture</span>
+						<span className="text-[10px] text-slate-400 font-mono">Zero-Knowledge</span>
+					</div>
+				</div>
+
+				{/* Footer Reset Action */}
+				<div className="mt-4 text-center">
 					<button
 						type="button"
 						onClick={() => setShowWipeConfirmModal(true)}
-						className="text-slate-400 hover:text-red-400 underline text-xs font-sans cursor-pointer transition-colors mt-1"
+						className="text-slate-400 hover:text-red-400 underline text-xs font-sans cursor-pointer transition-colors"
 					>
 						Wipe Old Storage & Load New Seed Dataset
 					</button>
