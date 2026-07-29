@@ -25,6 +25,25 @@
 		}
 	}
 
+	function getFieldLabelText(input) {
+		let text = '';
+		try {
+			if (input.id) {
+				const label = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+				if (label) text += label.textContent + ' ';
+			}
+			const parentLabel = input.closest('label');
+			if (parentLabel) text += parentLabel.textContent + ' ';
+
+			const container = input.closest('td, div, p, tr, li');
+			if (container) {
+				const prev = container.previousElementSibling || container;
+				if (prev) text += prev.textContent + ' ';
+			}
+		} catch (e) {}
+		return text.toLowerCase();
+	}
+
 	// Comprehensive Multilingual (English + French + Arabic) Form Field Classifier
 	function classifyField(input) {
 		const name = (input.name || '').toLowerCase();
@@ -482,7 +501,7 @@
 			});
 		} else if (item.type === 'card') {
 			const cvvVal = item.cvv || item.pin || '';
-			const holderVal = item.cardholderName || '';
+			const holderVal = item.cardholderName || item.fullName || item.title || '';
 			const numVal = item.number || '';
 			const expVal = item.expirationDate || '';
 
@@ -502,7 +521,27 @@
 			}
 
 			// 3. Fill Cardholder Name field ("Nom et Prenom" / "Titulaire")
-			const holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && (classifyField(i) === 'card_holder' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/holder|titulaire|porteur|owner|nom|prenom/)));
+			let holderInput = inputs.find(i => 
+				i !== cardNumInput && 
+				i !== cvvInput && 
+				i.tagName === 'INPUT' &&
+				(
+					classifyField(i) === 'card_holder' || 
+					(i.name || i.id || i.placeholder || '').toLowerCase().match(/holder|titulaire|porteur|owner|nom|prenom/) ||
+					getFieldLabelText(i).match(/nom|prenom|holder|titulaire|porteur|owner|name/)
+				)
+			);
+
+			// Fallback for Cardholder Name: First remaining text input in the form container that is not cardNumInput, not cvvInput
+			if (!holderInput) {
+				holderInput = inputs.find(i => 
+					i !== cardNumInput && 
+					i !== cvvInput && 
+					i.tagName === 'INPUT' && 
+					(i.type === 'text' || i.type === '' || !i.type)
+				);
+			}
+
 			if (holderInput && holderVal && holderInput !== cardNumInput && holderInput !== cvvInput) {
 				setNativeFieldValue(holderInput, holderVal);
 			}

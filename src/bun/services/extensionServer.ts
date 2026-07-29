@@ -135,8 +135,8 @@ export function startExtensionServer() {
 							return searchTarget.includes(cleanQ);
 						});
 					} else if (fieldType && fieldType.startsWith("card_")) {
-						// Focused on a credit card field
-						const cards = allItems.filter((i) => i.type === "card");
+						// Focused on a credit card payment field -> ONLY return payment cards (exclude ID/Passport)
+						const cards = allItems.filter((i) => i.type === "card" && ((i as any).subtype === "credit_card" || !(i as any).subtype));
 						const domainCards = cards.filter((i) => (i as any).url && matchDomain((i as any).url, domain));
 						matches = domainCards.length > 0 ? domainCards : cards;
 					} else if (fieldType === "totp") {
