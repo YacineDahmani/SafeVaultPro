@@ -84,7 +84,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 						<div className="flex items-center gap-2.5">
 							<span
 								className={`w-2.5 h-2.5 rounded-full ${
-									status?.connected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+									status?.connected ? "bg-emerald-500" : "bg-amber-500"
 								}`}
 							/>
 							<div>
@@ -180,7 +180,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 
 				{/* Footer */}
 				<div className="px-6 py-3 border-t border-slate-800 bg-[#18181b] flex items-center justify-between text-xs text-slate-400">
-					<span>SafeVaultPro Extension v1.0.0</span>
+					<span>SafeVaultPro Extension</span>
 					<button
 						onClick={onClose}
 						className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md transition-colors"

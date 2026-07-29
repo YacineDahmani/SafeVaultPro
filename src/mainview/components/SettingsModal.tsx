@@ -329,7 +329,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 										<option value="never">Never (Keep Unlocked)</option>
 									</select>
 									<p className="text-[11px] text-slate-500">
-										Vault automatically locks and purges derived AES keys from RAM when idle.
+										Vault automatically locks and purges derived encryption keys from memory when idle.
 									</p>
 								</div>
 

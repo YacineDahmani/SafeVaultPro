@@ -1,5 +1,5 @@
 import React from "react";
-import appIcon from "../assets/icon.png";
+import { SafeVaultLogo } from "./SafeVaultLogo";
 import {
 	Shield,
 	KeyRound,
@@ -77,16 +77,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			{/* Top Branding & App Header */}
 			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-2.5">
-					<img
-						src={appIcon}
-						alt="SafeVaultPro"
-						className="w-7 h-7 rounded-lg border border-emerald-500/40 glow-emerald object-cover"
-					/>
+					<SafeVaultLogo className="w-7 h-7 glow-emerald" />
 					<div>
 						<h1 className="text-sm font-bold text-white tracking-wide leading-none">
 							SafeVault<span className="text-emerald-400">Pro</span>
 						</h1>
-						<span className="text-[10px] text-slate-500 font-mono">v1.0 • AES-256</span>
 					</div>
 				</div>
 
@@ -97,7 +92,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						className="p-1.5 rounded-lg text-purple-400 hover:text-white hover:bg-[#1c1b1d] transition-colors relative"
 					>
 						<Puzzle className="w-4 h-4" />
-						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
 						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full" />
 					</button>
 					<button
@@ -259,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			{/* Footer Status & Lock Button */}
 			<div className="p-3 border-t border-slate-800/60 bg-[#09090b]/50 flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+					<span className="w-2 h-2 rounded-full bg-emerald-500" />
 					<span className="text-[11px] font-mono text-slate-400">Sync: Local</span>
 				</div>
 				<button
