@@ -52,10 +52,17 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [content, setContent] = useState("");
 
 	// Personal Info fields
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
 	const [fullName, setFullName] = useState("");
+	const [birthDate, setBirthDate] = useState("");
+	const [gender, setGender] = useState("");
+	const [age, setAge] = useState("");
+	const [nationalId, setNationalId] = useState("");
 	const [phone, setPhone] = useState("");
 	const [email, setEmail] = useState("");
 	const [addressLine1, setAddressLine1] = useState("");
+	const [addressLine2, setAddressLine2] = useState("");
 	const [city, setCity] = useState("");
 	const [stateProvince, setStateProvince] = useState("");
 	const [postalCode, setPostalCode] = useState("");
@@ -88,13 +95,21 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			} else if (item.type === "note") {
 				setContent(item.content || "");
 			} else if (item.type === "personal_info") {
+				setFirstName(item.firstName || "");
+				setLastName(item.lastName || "");
 				setFullName(item.fullName || "");
+				setBirthDate(item.birthDate || "");
+				setGender(item.gender || "");
+				setAge(item.age ? String(item.age) : "");
+				setNationalId(item.nationalId || "");
 				setPhone(item.phone || "");
 				setEmail(item.email || "");
 				setAddressLine1(item.addressLine1 || "");
+				setAddressLine2(item.addressLine2 || "");
 				setCity(item.city || "");
 				setStateProvince(item.stateProvince || "");
 				setPostalCode(item.postalCode || "");
+				setCountry(item.country || "");
 			}
 		} else {
 			setType(defaultType);
@@ -122,10 +137,17 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
 			setContent("");
 
+			setFirstName("");
+			setLastName("");
 			setFullName("");
+			setBirthDate("");
+			setGender("");
+			setAge("");
+			setNationalId("");
 			setPhone("");
 			setEmail("");
 			setAddressLine1("");
+			setAddressLine2("");
 			setCity("");
 			setStateProvince("");
 			setPostalCode("");
@@ -197,10 +219,17 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			payload = {
 				...baseItem,
 				type: "personal_info",
-				fullName,
+				firstName,
+				lastName,
+				fullName: fullName || `${firstName} ${lastName}`.trim(),
+				birthDate,
+				gender,
+				age: age ? parseInt(String(age), 10) || age : undefined,
+				nationalId,
 				phone,
 				email,
 				addressLine1,
+				addressLine2,
 				city,
 				stateProvince,
 				postalCode,
@@ -493,6 +522,39 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{/* TYPE 5: PERSONAL INFO */}
 					{type === "personal_info" && (
 						<>
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">First Name</label>
+									<input
+										type="text"
+										value={firstName}
+										onChange={(e) => {
+											setFirstName(e.target.value);
+											if (!fullName || fullName === `${firstName} ${lastName}`.trim()) {
+												setFullName(`${e.target.value} ${lastName}`.trim());
+											}
+										}}
+										placeholder="Alexander"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Last Name</label>
+									<input
+										type="text"
+										value={lastName}
+										onChange={(e) => {
+											setLastName(e.target.value);
+											if (!fullName || fullName === `${firstName} ${lastName}`.trim()) {
+												setFullName(`${firstName} ${e.target.value}`.trim());
+											}
+										}}
+										placeholder="Vault"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+							</div>
+
 							<div>
 								<label className="block text-slate-400 font-mono mb-1">Full Name</label>
 								<input
@@ -503,9 +565,46 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
 								/>
 							</div>
+
+							<div className="grid grid-cols-3 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Birth Date</label>
+									<input
+										type="text"
+										value={birthDate}
+										onChange={(e) => setBirthDate(e.target.value)}
+										placeholder="YYYY-MM-DD"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Gender</label>
+									<select
+										value={gender}
+										onChange={(e) => setGender(e.target.value)}
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+									>
+										<option value="">Unspecified</option>
+										<option value="Male">Male</option>
+										<option value="Female">Female</option>
+										<option value="Other">Other</option>
+									</select>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Age</label>
+									<input
+										type="text"
+										value={age}
+										onChange={(e) => setAge(e.target.value)}
+										placeholder="30"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+									/>
+								</div>
+							</div>
+
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Phone</label>
+									<label className="block text-slate-400 font-mono mb-1">Phone Number</label>
 									<input
 										type="text"
 										value={phone}
@@ -515,7 +614,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									/>
 								</div>
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Email</label>
+									<label className="block text-slate-400 font-mono mb-1">Email Address</label>
 									<input
 										type="email"
 										value={email}
@@ -525,13 +624,81 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									/>
 								</div>
 							</div>
+
 							<div>
-								<label className="block text-slate-400 font-mono mb-1">Address</label>
+								<label className="block text-slate-400 font-mono mb-1">National ID / Passport / NIN</label>
 								<input
 									type="text"
-									value={addressLine1}
-									onChange={(e) => setAddressLine1(e.target.value)}
-									placeholder="742 Evergreen Terr, Suite 400"
+									value={nationalId}
+									onChange={(e) => setNationalId(e.target.value)}
+									placeholder="NIN982104928"
+									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Address Line 1</label>
+									<input
+										type="text"
+										value={addressLine1}
+										onChange={(e) => setAddressLine1(e.target.value)}
+										placeholder="742 Evergreen Terr"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Address Line 2</label>
+									<input
+										type="text"
+										value={addressLine2}
+										onChange={(e) => setAddressLine2(e.target.value)}
+										placeholder="Suite 400"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-3 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">City</label>
+									<input
+										type="text"
+										value={city}
+										onChange={(e) => setCity(e.target.value)}
+										placeholder="Springfield"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">State / Wilaya</label>
+									<input
+										type="text"
+										value={stateProvince}
+										onChange={(e) => setStateProvince(e.target.value)}
+										placeholder="Oregon"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Postal Code</label>
+									<input
+										type="text"
+										value={postalCode}
+										onChange={(e) => setPostalCode(e.target.value)}
+										placeholder="97477"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="block text-slate-400 font-mono mb-1">Country</label>
+								<input
+									type="text"
+									value={country}
+									onChange={(e) => setCountry(e.target.value)}
+									placeholder="Algeria / United States"
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
 								/>
 							</div>

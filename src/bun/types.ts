@@ -53,10 +53,13 @@ export interface NoteVaultItem extends BaseVaultItem {
 
 export interface PersonalInfoVaultItem extends BaseVaultItem {
 	type: "personal_info";
+	firstName?: string;
+	lastName?: string;
 	fullName: string;
 	birthDate?: string;
-	age?: number;
+	age?: number | string;
 	gender?: string;
+	nationalId?: string;
 	addressLine1?: string;
 	addressLine2?: string;
 	city?: string;

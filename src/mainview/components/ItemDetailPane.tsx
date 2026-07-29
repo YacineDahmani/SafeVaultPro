@@ -505,15 +505,85 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 					<div className="space-y-4">
 						<div className="grid grid-cols-2 gap-4">
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
-								<label className="text-[11px] text-slate-400 font-mono uppercase">Full Name</label>
+								<label className="text-[11px] text-slate-400 font-mono uppercase">First Name</label>
 								<div className="flex justify-between items-center text-sm font-semibold text-white">
-									<span>{item.fullName}</span>
-									<button onClick={() => handleCopy(item.fullName, "Full Name")} className="p-1 text-slate-400 hover:text-emerald-400">
-										<Copy className="w-4 h-4" />
-									</button>
+									<span>{item.firstName || "—"}</span>
+									{item.firstName && (
+										<button onClick={() => handleCopy(item.firstName || "", "First Name")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-4 h-4" />
+										</button>
+									)}
 								</div>
 							</div>
 
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Last Name</label>
+								<div className="flex justify-between items-center text-sm font-semibold text-white">
+									<span>{item.lastName || "—"}</span>
+									{item.lastName && (
+										<button onClick={() => handleCopy(item.lastName || "", "Last Name")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-4 h-4" />
+										</button>
+									)}
+								</div>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Full Name</label>
+								<div className="flex justify-between items-center text-sm font-semibold text-white">
+									<span>{item.fullName || "—"}</span>
+									{item.fullName && (
+										<button onClick={() => handleCopy(item.fullName, "Full Name")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-4 h-4" />
+										</button>
+									)}
+								</div>
+							</div>
+
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">National ID / Passport</label>
+								<div className="flex justify-between items-center text-sm font-semibold text-white">
+									<span className="font-mono">{item.nationalId || "—"}</span>
+									{item.nationalId && (
+										<button onClick={() => handleCopy(item.nationalId || "", "National ID")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-4 h-4" />
+										</button>
+									)}
+								</div>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-3 gap-4">
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Birth Date</label>
+								<div className="flex justify-between items-center text-xs font-semibold text-white font-mono">
+									<span>{item.birthDate || "—"}</span>
+									{item.birthDate && (
+										<button onClick={() => handleCopy(item.birthDate || "", "Birth Date")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-3.5 h-3.5" />
+										</button>
+									)}
+								</div>
+							</div>
+
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Gender</label>
+								<div className="flex justify-between items-center text-xs font-semibold text-white font-mono">
+									<span>{item.gender || "—"}</span>
+								</div>
+							</div>
+
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Age</label>
+								<div className="flex justify-between items-center text-xs font-semibold text-white font-mono">
+									<span>{item.age ? String(item.age) : "—"}</span>
+								</div>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 								<label className="text-[11px] text-slate-400 font-mono uppercase">Phone Number</label>
 								<div className="flex justify-between items-center text-sm font-semibold text-white">
@@ -525,25 +595,39 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 									)}
 								</div>
 							</div>
+
+							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Email Address</label>
+								<div className="flex justify-between items-center text-sm font-semibold text-white">
+									<span className="truncate">{item.email || "—"}</span>
+									{item.email && (
+										<button onClick={() => handleCopy(item.email || "", "Email")} className="p-1 text-slate-400 hover:text-emerald-400">
+											<Copy className="w-4 h-4" />
+										</button>
+									)}
+								</div>
+							</div>
 						</div>
 
 						<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 							<label className="text-[11px] text-slate-400 font-mono uppercase">Full Address</label>
 							<div className="flex justify-between items-center text-sm font-semibold text-white">
 								<span>
-									{[item.addressLine1, item.city, item.stateProvince, item.postalCode, item.country].filter(Boolean).join(", ") || "—"}
+									{[item.addressLine1, item.addressLine2, item.city, item.stateProvince, item.postalCode, item.country].filter(Boolean).join(", ") || "—"}
 								</span>
-								<button
-									onClick={() =>
-										handleCopy(
-											[item.addressLine1, item.city, item.stateProvince, item.postalCode, item.country].filter(Boolean).join(", "),
-											"Address"
-										)
-									}
-									className="p-1 text-slate-400 hover:text-emerald-400"
-								>
-									<Copy className="w-4 h-4" />
-								</button>
+								{item.addressLine1 && (
+									<button
+										onClick={() =>
+											handleCopy(
+												[item.addressLine1, item.addressLine2, item.city, item.stateProvince, item.postalCode, item.country].filter(Boolean).join(", "),
+												"Address"
+											)
+										}
+										className="p-1 text-slate-400 hover:text-emerald-400"
+									>
+										<Copy className="w-4 h-4" />
+									</button>
+								)}
 							</div>
 						</div>
 					</div>

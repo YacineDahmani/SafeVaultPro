@@ -560,13 +560,44 @@
 				}
 			}
 		} else if (item.type === 'personal_info') {
-			const nameField = form.querySelector('input[name*="name"], input[name*="nom"], input[name*="prenom"], input[autocomplete="name"]');
-			const emailField = form.querySelector('input[name*="email"], input[name*="courriel"], input[type="email"]');
-			const phoneField = form.querySelector('input[name*="phone"], input[name*="tele"], input[name*="mobile"], input[type="tel"]');
+			const container = targetInput.form || targetInput.closest('form') || document;
+			const inputs = Array.from(container.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]), select'));
 
-			if (nameField && item.fullName) setNativeFieldValue(nameField, item.fullName);
-			if (emailField && item.email) setNativeFieldValue(emailField, item.email);
-			if (phoneField && item.phone) setNativeFieldValue(phoneField, item.phone);
+			const getVal = (f) => (f || '').trim();
+
+			inputs.forEach((field) => {
+				const attr = `${field.name || ''} ${field.id || ''} ${field.placeholder || ''} ${field.getAttribute('aria-label') || ''} ${field.autocomplete || ''} ${field.type || ''}`.toLowerCase();
+
+				if (attr.includes('first-name') || attr.includes('firstname') || attr.includes('first_name') || attr.includes('prenom') || attr.includes('fname')) {
+					if (item.firstName) setNativeFieldValue(field, item.firstName);
+				} else if (attr.includes('last-name') || attr.includes('lastname') || attr.includes('last_name') || attr.includes('lname') || attr.includes('family_name')) {
+					if (item.lastName) setNativeFieldValue(field, item.lastName);
+				} else if (attr.includes('full-name') || attr.includes('fullname') || attr.includes('full_name') || attr.includes('nom_prenom') || (attr.includes('name') && !attr.includes('user') && !attr.includes('card'))) {
+					if (item.fullName || (item.firstName && item.lastName)) setNativeFieldValue(field, item.fullName || `${item.firstName} ${item.lastName}`);
+				} else if (attr.includes('birth') || attr.includes('dob') || attr.includes('birthdate') || attr.includes('date_naissance')) {
+					if (item.birthDate) setNativeFieldValue(field, item.birthDate);
+				} else if (attr.includes('gender') || attr.includes('sexe')) {
+					if (item.gender) setNativeFieldValue(field, item.gender);
+				} else if (attr.includes('age')) {
+					if (item.age) setNativeFieldValue(field, String(item.age));
+				} else if (attr.includes('passport') || attr.includes('nin') || attr.includes('national_id') || attr.includes('carte_identite') || attr.includes('identity')) {
+					if (item.nationalId) setNativeFieldValue(field, item.nationalId);
+				} else if (attr.includes('email') || attr.includes('courriel') || field.type === 'email') {
+					if (item.email) setNativeFieldValue(field, item.email);
+				} else if (attr.includes('phone') || attr.includes('tele') || attr.includes('mobile') || field.type === 'tel') {
+					if (item.phone) setNativeFieldValue(field, item.phone);
+				} else if (attr.includes('address') || attr.includes('adresse') || attr.includes('street')) {
+					if (item.addressLine1) setNativeFieldValue(field, item.addressLine1);
+				} else if (attr.includes('city') || attr.includes('ville')) {
+					if (item.city) setNativeFieldValue(field, item.city);
+				} else if (attr.includes('state') || attr.includes('province') || attr.includes('wilaya')) {
+					if (item.stateProvince) setNativeFieldValue(field, item.stateProvince);
+				} else if (attr.includes('zip') || attr.includes('postal') || attr.includes('code_postal')) {
+					if (item.postalCode) setNativeFieldValue(field, item.postalCode);
+				} else if (attr.includes('country') || attr.includes('pays')) {
+					if (item.country) setNativeFieldValue(field, item.country);
+				}
+			});
 		}
 	}
 
