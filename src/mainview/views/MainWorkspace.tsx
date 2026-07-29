@@ -11,8 +11,11 @@ import { ExtensionModal } from "../components/ExtensionModal";
 import { Toast } from "../components/Toast";
 import { useVault } from "../hooks/useVault";
 
-export const MainWorkspace: React.FC = () => {
-	const vault = useVault();
+interface MainWorkspaceProps {
+	vault: ReturnType<typeof useVault>;
+}
+
+export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 	const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
 
 	// Calculate counts for categories (separating credit_cards vs ids) using complete allItems array

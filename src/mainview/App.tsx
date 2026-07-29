@@ -17,7 +17,7 @@ function App() {
 						onUnlock={vault.unlock}
 					/>
 				) : (
-					<MainWorkspace />
+					<MainWorkspace vault={vault} />
 				)}
 			</div>
 		</div>
