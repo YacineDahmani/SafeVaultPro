@@ -112,7 +112,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 				isOpen={vault.isOcrModalOpen}
 				onClose={() => vault.setIsOcrModalOpen(false)}
 				onSaveItem={async (item) => {
-					await vault.saveItem(item);
+					return await vault.saveItem(item);
 				}}
 			/>
 
