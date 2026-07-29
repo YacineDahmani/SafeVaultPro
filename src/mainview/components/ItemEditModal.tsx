@@ -42,6 +42,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [country, setCountry] = useState("");
 	const [pin, setPin] = useState("");
 	const [cvv, setCvv] = useState("");
+	const [nin, setNin] = useState("");
 
 	// TOTP fields
 	const [issuer, setIssuer] = useState("");
@@ -88,6 +89,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setCountry(item.country || "");
 				setPin(item.pin || "");
 				setCvv(item.cvv || (item.subtype === "credit_card" ? item.pin || "" : ""));
+				setNin(item.nin || (item.subtype !== "credit_card" ? item.pin || "" : ""));
 			} else if (item.type === "totp") {
 				setIssuer(item.issuer || "");
 				setAccountName(item.accountName || "");
@@ -130,6 +132,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setCountry("");
 			setPin("");
 			setCvv("");
+			setNin("");
 
 			setIssuer("");
 			setAccountName("");
@@ -196,8 +199,9 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				expirationDate,
 				issueDate,
 				country,
-				pin: subtype !== "credit_card" ? pin : (pin || cvv),
-				cvv: subtype === "credit_card" ? (cvv || pin) : cvv,
+				nin: subtype !== "credit_card" ? nin : undefined,
+				pin: subtype !== "credit_card" ? nin : (pin || cvv),
+				cvv: subtype === "credit_card" ? (cvv || pin) : undefined,
 			};
 		} else if (type === "totp") {
 			payload = {
@@ -446,25 +450,36 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
 									/>
 								</div>
-								<div>
-									<label className="block text-slate-400 font-mono mb-1">
-										{subtype === "credit_card" ? "CVV / CVC" : "PIN / Security Code"}
-									</label>
-									<input
-										type="text"
-										value={subtype === "credit_card" ? (cvv || pin) : pin}
-										onChange={(e) => {
-											if (subtype === "credit_card") {
+								{subtype === "credit_card" ? (
+									<div>
+										<label className="block text-slate-400 font-mono mb-1">
+											CVV / CVC
+										</label>
+										<input
+											type="text"
+											value={cvv || pin}
+											onChange={(e) => {
 												setCvv(e.target.value);
 												setPin(e.target.value);
-											} else {
-												setPin(e.target.value);
-											}
-										}}
-										placeholder={subtype === "credit_card" ? "884" : "8841"}
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
-									/>
-								</div>
+											}}
+											placeholder="884"
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										/>
+									</div>
+								) : (
+									<div>
+										<label className="block text-slate-400 font-mono mb-1">
+											NIN / National Identification Number
+										</label>
+										<input
+											type="text"
+											value={nin}
+											onChange={(e) => setNin(e.target.value)}
+											placeholder="NIN982104928"
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										/>
+									</div>
+								)}
 							</div>
 						</>
 					)}

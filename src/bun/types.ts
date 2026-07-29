@@ -31,6 +31,7 @@ export interface CardVaultItem extends BaseVaultItem {
 	issuingAuthority?: string;
 	pin?: string;
 	cvv?: string;
+	nin?: string;
 	notes?: string;
 }
 

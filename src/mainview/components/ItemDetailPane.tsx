@@ -390,26 +390,26 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 									</div>
 								)
 							) : (
-								/* Non-credit card ID/Passport: Show PIN if available */
-								item.pin && (
+								/* Non-credit card ID/Passport: Show NIN if available */
+								(item.nin || item.pin) && (
 									<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 										<label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider font-mono">
-											PIN / Security Code
+											NIN / National Identification Number
 										</label>
 										<div className="flex items-center justify-between">
 											<span className="font-mono text-sm text-emerald-400 select-all">
-												{revealedFields["pin"] ? item.pin : "••••"}
+												{revealedFields["nin"] ? (item.nin || item.pin) : "••••••••••••"}
 											</span>
 											<div className="flex items-center gap-1">
-												<button onClick={() => toggleReveal("pin")} className="p-1 text-slate-400 hover:text-white">
-													{revealedFields["pin"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+												<button onClick={() => toggleReveal("nin")} className="p-1 text-slate-400 hover:text-white">
+													{revealedFields["nin"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
 												</button>
 												<button
-													onClick={() => handleCopy(item.pin || "", "PIN")}
+													onClick={() => handleCopy(item.nin || item.pin || "", "NIN")}
 													className="p-1 text-slate-400 hover:text-emerald-400"
-													title="Copy PIN"
+													title="Copy NIN"
 												>
-													{copiedField === "PIN" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+													{copiedField === "NIN" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
 												</button>
 											</div>
 										</div>
