@@ -35,13 +35,27 @@
 			const parentLabel = input.closest('label');
 			if (parentLabel) text += parentLabel.textContent + ' ';
 
-			const container = input.closest('td, div, p, tr, li');
+			// Table Row / Cell inspection (Handles ECCP, SATIM, CIB, BaridiMob payment tables)
+			const tr = input.closest('tr');
+			if (tr) {
+				text += tr.textContent + ' ';
+			}
+			const td = input.closest('td');
+			if (td) {
+				const prevTd = td.previousElementSibling;
+				if (prevTd) text += prevTd.textContent + ' ';
+				if (td.parentElement && td.parentElement.children[0]) {
+					text += td.parentElement.children[0].textContent + ' ';
+				}
+			}
+
+			const container = input.closest('div, p, li, section');
 			if (container) {
-				const prev = container.previousElementSibling || container;
+				const prev = container.previousElementSibling;
 				if (prev) text += prev.textContent + ' ';
 			}
 		} catch (e) {}
-		return text.toLowerCase();
+		return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 	}
 
 	// Comprehensive Multilingual (English + French + Arabic) Form Field Classifier
@@ -133,6 +147,7 @@
 		}
 
 		// 4. Cardholder Name (Nom et Prenom / Titulaire)
+		const labelText = getFieldLabelText(input);
 		if (
 			combined.includes('holder') ||
 			combined.includes('cardholder') ||
@@ -149,7 +164,14 @@
 			combined.includes('nom') ||
 			combined.includes('prenom') ||
 			combined.includes('اسم صاحب البطاقة') ||
-			combined.includes('اسم حامل البطاقة')
+			combined.includes('اسم حامل البطاقة') ||
+			labelText.includes('nom et prenom') ||
+			labelText.includes('nom & prenom') ||
+			labelText.includes('nom prenom') ||
+			labelText.includes('titulaire') ||
+			labelText.includes('porteur') ||
+			labelText.includes('cardholder') ||
+			labelText.includes('name on card')
 		) {
 			return 'card_holder';
 		}
@@ -521,16 +543,27 @@
 			}
 
 			// 3. Fill Cardholder Name field ("Nom et Prenom" / "Titulaire")
-			let holderInput = inputs.find(i => 
-				i !== cardNumInput && 
-				i !== cvvInput && 
-				i.tagName === 'INPUT' &&
-				(
-					classifyField(i) === 'card_holder' || 
-					(i.name || i.id || i.placeholder || '').toLowerCase().match(/holder|titulaire|porteur|owner|nom|prenom/) ||
-					getFieldLabelText(i).match(/nom|prenom|holder|titulaire|porteur|owner|name/)
-				)
-			);
+			let holderInput = inputs.find(i => {
+				if (i === cardNumInput || i === cvvInput) return false;
+				if (i.tagName !== 'INPUT') return false;
+				const iType = (i.type || '').toLowerCase();
+				if (iType && iType !== 'text' && iType !== 'string' && iType !== 'search') return false;
+
+				const labelText = getFieldLabelText(i);
+				const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${i.className || ''}`.toLowerCase();
+				const norm = (attr + ' ' + labelText).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+				return (
+					classifyField(i) === 'card_holder' ||
+					norm.includes('nom') ||
+					norm.includes('prenom') ||
+					norm.includes('holder') ||
+					norm.includes('titulaire') ||
+					norm.includes('porteur') ||
+					norm.includes('owner') ||
+					norm.includes('name')
+				);
+			});
 
 			// Fallback for Cardholder Name: First remaining text input in the form container that is not cardNumInput, not cvvInput
 			if (!holderInput) {
@@ -538,7 +571,7 @@
 					i !== cardNumInput && 
 					i !== cvvInput && 
 					i.tagName === 'INPUT' && 
-					(i.type === 'text' || i.type === '' || !i.type)
+					((i.type || '').toLowerCase() === 'text' || !(i.type))
 				);
 			}
 
