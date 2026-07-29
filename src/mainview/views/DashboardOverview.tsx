@@ -58,9 +58,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
 		// Check if domain or title has a matching 2FA secret
 		const itemDomain = (item.url || "").toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0];
+		const itemTitle = item.title.toLowerCase();
 		const has2fa = totpItems.some((totpItem: any) => {
 			const issuer = (totpItem.issuer || totpItem.title || "").toLowerCase();
-			return itemDomain && issuer.includes(itemDomain);
+			const account = (totpItem.accountName || "").toLowerCase();
+			return (
+				(itemDomain && (issuer.includes(itemDomain) || account.includes(itemDomain))) ||
+				(itemTitle && (issuer.includes(itemTitle) || itemTitle.includes(issuer)))
+			);
 		});
 
 		if (isWeak) weakCount++;

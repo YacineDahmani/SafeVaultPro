@@ -51,7 +51,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 				{/* 2. Middle Pane & 3. Right Pane workspace */}
 				{vault.activeCategory === "dashboard" ? (
 					<DashboardOverview
-						items={vault.items}
+						items={vault.allItems}
 						onSelectItem={(id) => {
 							vault.setSelectedItemId(id);
 							vault.setActiveCategory("all");
