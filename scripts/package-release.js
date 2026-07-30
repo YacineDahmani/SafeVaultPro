@@ -24,9 +24,9 @@ fs.mkdirSync(DIST_PKG_DIR, { recursive: true });
 console.log("\n[2/6] Compiling optimized Vite frontend assets...");
 execSync("npx vite build", { stdio: "inherit", cwd: ROOT_DIR });
 
-// Step 3: Run Electrobun Executable Build
+// Step 3: Run Electrobun Executable Build (Production env disables debug console)
 console.log("\n[3/6] Compiling Electrobun native desktop executable...");
-execSync("node node_modules/electrobun/bin/electrobun.cjs build", { stdio: "inherit", cwd: ROOT_DIR });
+execSync("node node_modules/electrobun/bin/electrobun.cjs build --env=canary", { stdio: "inherit", cwd: ROOT_DIR });
 
 // Locate build output directory
 const candidateBuildDirs = [

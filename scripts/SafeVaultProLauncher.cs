@@ -19,6 +19,8 @@ class Program {
                 psi.FileName = launcherPath;
                 psi.WorkingDirectory = Path.GetDirectoryName(launcherPath);
                 psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
 
                 if (args.Length > 0) {
                     psi.Arguments = string.Join(" ", args);
