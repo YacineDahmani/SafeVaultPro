@@ -1,61 +1,30 @@
-# React + Tailwind + Vite Electrobun Template
+# SafeVaultPro
 
-A fast Electrobun desktop app template with React, Tailwind CSS, and Vite for hot module replacement (HMR).
+SafeVaultPro is a native desktop credentials manager with browser extension integration, built for local security and low power consumption.
 
-## Getting Started
+## Features
+
+- Local Security: Password generation, encrypted vault storage, and Argon2id key derivation performed entirely offline.
+- TOTP Authenticator: Real-time 6-digit TOTP code generation with countdown timer.
+- Browser Extension Bridge: Native HTTP bridge on port 48920 for Chrome, Edge, Brave, and Firefox field detection and autofill.
+- Power Efficiency: Automatic low-power idle state when minimized to minimize CPU and RAM usage.
+
+## Development Commands
 
 ```bash
 # Install dependencies
-bun install
+npm install
 
-# Development without HMR (uses bundled assets)
-bun run dev
+# Start development mode
+npm run dev
 
-# Development with HMR (recommended)
-bun run dev:hmr
-
-# Build for production
-bun run build
-
-# Build for production release
-bun run build:prod
+# Build release executable package
+npm run package:release
 ```
 
-## How HMR Works
+## Production Release
 
-When you run `bun run dev:hmr`:
-
-1. **Vite dev server** starts on `http://localhost:5173` with HMR enabled
-2. **Electrobun** starts and detects the running Vite server
-3. The app loads from the Vite dev server instead of bundled assets
-4. Changes to React components update instantly without full page reload
-
-When you run `bun run dev` (without HMR):
-
-1. Electrobun starts and loads from `views://mainview/index.html`
-2. You need to rebuild (`bun run build`) to see changes
-
-## Project Structure
-
-```
-├── src/
-│   ├── bun/
-│   │   └── index.ts        # Main process (Electrobun/Bun)
-│   └── mainview/
-│       ├── App.tsx         # React app component
-│       ├── main.tsx        # React entry point
-│       ├── index.html      # HTML template
-│       └── index.css       # Tailwind CSS
-├── electrobun.config.ts    # Electrobun configuration
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.js      # Tailwind configuration
-└── package.json
-```
-
-## Customizing
-
-- **React components**: Edit files in `src/mainview/`
-- **Tailwind theme**: Edit `tailwind.config.js`
-- **Vite settings**: Edit `vite.config.ts`
-- **Window settings**: Edit `src/bun/index.ts`
-- **App metadata**: Edit `electrobun.config.ts`
+Running `npm run package:release` generates:
+- Release Folder: `release/SafeVaultPro-v1.0.0-win-x64/`
+- Desktop Executable: `release/SafeVaultPro-v1.0.0-win-x64/SafeVaultPro.exe`
+- Distribution Zip: `release/SafeVaultPro-v1.0.0-win-x64.zip`
