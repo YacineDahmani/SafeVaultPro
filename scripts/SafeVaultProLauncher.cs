@@ -11,6 +11,10 @@ class Program {
             string launcherPath = Path.Combine(baseDir, "bin", "launcher.exe");
 
             if (!File.Exists(launcherPath)) {
+                launcherPath = Path.Combine(baseDir, "bin", "launcher");
+            }
+
+            if (!File.Exists(launcherPath)) {
                 launcherPath = Path.Combine(baseDir, "SafeVaultPro-dev", "bin", "launcher.exe");
             }
 

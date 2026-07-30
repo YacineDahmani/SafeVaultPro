@@ -10,7 +10,7 @@ const PKG_NAME = `SafeVaultPro-v${VERSION}-win-x64`;
 const DIST_PKG_DIR = path.join(RELEASE_DIR, PKG_NAME);
 
 console.log("==========================================");
-console.log(`Building SafeVaultPro v${VERSION} Release Package`);
+console.log(`Building SafeVaultPro v${VERSION} Portable Release`);
 console.log("==========================================");
 
 // Step 1: Clean build target & release folders
@@ -28,52 +28,48 @@ execSync("npx vite build", { stdio: "inherit", cwd: ROOT_DIR });
 console.log("\n[3/6] Compiling Electrobun native desktop executable...");
 execSync("node node_modules/electrobun/bin/electrobun.cjs build --env=canary", { stdio: "inherit", cwd: ROOT_DIR });
 
-// Locate build output directory
-const candidateBuildDirs = [
-	path.join(ROOT_DIR, "build", "canary-win-x64", "SafeVaultPro-canary"),
-	path.join(ROOT_DIR, "build", "stable-win-x64", "SafeVaultPro-stable"),
-	path.join(ROOT_DIR, "build", "dev-win-x64", "SafeVaultPro-dev"),
-];
+// Extract the production app files using the built installer
+console.log("\nExtracting official production binaries via installer...");
+const installerPath = path.join(ROOT_DIR, "build", "canary-win-x64", "SafeVaultPro-Setup-canary.exe");
+const installTargetDir = path.join(process.env.USERPROFILE || "C:\\", "AppData", "Local", "com.safevaultpro.app", "canary", "app");
 
-let sourceBuildDir = candidateBuildDirs.find((d) => fs.existsSync(d));
-if (!sourceBuildDir) {
-	// Search any subdirectory in build/
-	const buildRoot = path.join(ROOT_DIR, "build");
-	if (fs.existsSync(buildRoot)) {
-		const subdirs = fs.readdirSync(buildRoot);
-		for (const sub of subdirs) {
-			const fullSub = path.join(buildRoot, sub);
-			if (fs.statSync(fullSub).isDirectory()) {
-				const inner = fs.readdirSync(fullSub)[0];
-				if (inner) {
-					const candidate = path.join(fullSub, inner);
-					if (fs.existsSync(path.join(candidate, "bin"))) {
-						sourceBuildDir = candidate;
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-
-if (!sourceBuildDir) {
-	console.error("Error: Could not locate Electrobun build output in build/ directory!");
+if (!fs.existsSync(installerPath)) {
+	console.error(`Error: Could not locate installer at ${installerPath}`);
 	process.exit(1);
 }
 
-console.log(`Using build source: ${sourceBuildDir}`);
+// Clean local target to guarantee fresh extraction
+if (fs.existsSync(installTargetDir)) {
+	fs.rmSync(installTargetDir, { recursive: true, force: true });
+}
+
+// Run the installer synchronously to extract files
+execSync(`"${installerPath}"`, { stdio: "inherit", cwd: path.dirname(installerPath) });
+
+// Wait a brief moment to ensure filesystem sync
+execSync("powershell -Command \"Start-Sleep -Seconds 2\"");
+
+// Verify extracted app files
+if (!fs.existsSync(installTargetDir) || !fs.existsSync(path.join(installTargetDir, "bin", "launcher.exe"))) {
+	console.error(`Error: Installer extraction failed at ${installTargetDir}`);
+	process.exit(1);
+}
+
+console.log(`Using extracted production source: ${installTargetDir}`);
 
 // Step 4: Assemble Standalone Release Bundle
 console.log("\n[4/6] Assembling standalone release directory structure...");
 
-// Copy bin, Resources, Info.plist
-fs.cpSync(path.join(sourceBuildDir, "bin"), path.join(DIST_PKG_DIR, "bin"), { recursive: true });
-if (fs.existsSync(path.join(sourceBuildDir, "Resources"))) {
-	fs.cpSync(path.join(sourceBuildDir, "Resources"), path.join(DIST_PKG_DIR, "Resources"), { recursive: true });
+// Copy bin, Resources, Info.plist, lib from extracted production app
+fs.cpSync(path.join(installTargetDir, "bin"), path.join(DIST_PKG_DIR, "bin"), { recursive: true });
+if (fs.existsSync(path.join(installTargetDir, "Resources"))) {
+	fs.cpSync(path.join(installTargetDir, "Resources"), path.join(DIST_PKG_DIR, "Resources"), { recursive: true });
 }
-if (fs.existsSync(path.join(sourceBuildDir, "Info.plist"))) {
-	fs.copyFileSync(path.join(sourceBuildDir, "Info.plist"), path.join(DIST_PKG_DIR, "Info.plist"));
+if (fs.existsSync(path.join(installTargetDir, "lib"))) {
+	fs.cpSync(path.join(installTargetDir, "lib"), path.join(DIST_PKG_DIR, "lib"), { recursive: true });
+}
+if (fs.existsSync(path.join(installTargetDir, "Info.plist"))) {
+	fs.copyFileSync(path.join(installTargetDir, "Info.plist"), path.join(DIST_PKG_DIR, "Info.plist"));
 }
 
 const icoPath = path.join(ROOT_DIR, "src", "mainview", "assets", "SafeVault.ico");
@@ -107,8 +103,6 @@ if (fs.existsSync(icoPath) && process.platform === "win32") {
 	const exesToIcon = [
 		path.join(DIST_PKG_DIR, "bin", "launcher.exe"),
 		path.join(DIST_PKG_DIR, "bin", "bun.exe"),
-		path.join(sourceBuildDir, "bin", "launcher.exe"),
-		path.join(sourceBuildDir, "bin", "bun.exe"),
 	];
 
 	for (const targetExe of exesToIcon) {
