@@ -5,9 +5,11 @@ jspm_packages/
 # Build outputs
 build/
 dist/
+release/
 artifacts/
 out/
 *.tsbuildinfo
+*.exe
 
 # Debug logs
 npm-debug.log*
