@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { X, Puzzle, FolderOpen, Copy, Check, ExternalLink, ShieldCheck, Zap, AlertCircle } from "lucide-react";
 
+import { useWindowVisibility } from "../hooks/useWindowVisibility";
+
 interface ExtensionModalProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -10,15 +12,16 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 	const [copiedPath, setCopiedPath] = useState(false);
 	const [status, setStatus] = useState<{ connected: boolean; unlocked: boolean } | null>(null);
 	const [isOpeningFolder, setIsOpeningFolder] = useState(false);
+	const { isVisible } = useWindowVisibility();
 
 	const extPath = "d:\\repos\\SafeVaultPro\\src\\extension";
 
 	useEffect(() => {
-		if (!isOpen) return;
+		if (!isOpen || !isVisible) return;
 		checkBridgeStatus();
 		const timer = setInterval(checkBridgeStatus, 3000);
 		return () => clearInterval(timer);
-	}, [isOpen]);
+	}, [isOpen, isVisible]);
 
 	const checkBridgeStatus = async () => {
 		try {

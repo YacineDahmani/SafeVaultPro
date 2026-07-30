@@ -118,6 +118,17 @@ export function useVault() {
 		}
 	}, [isUnlocked, activeCategory, searchQuery, refreshItems]);
 
+	// Auto-refresh when restoring window from minimized/hidden state
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible" && isUnlocked) {
+				refreshItems();
+			}
+		};
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+	}, [isUnlocked, refreshItems]);
+
 	// Actions
 	const unlock = async (masterPassword: string): Promise<boolean> => {
 		try {

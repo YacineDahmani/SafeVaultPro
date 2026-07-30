@@ -21,6 +21,7 @@ import {
 import type { VaultItem } from "../../bun/types";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 import { vaultBackend } from "../../bun/vaultBackendApi";
+import { useWindowVisibility } from "../hooks/useWindowVisibility";
 
 interface ItemDetailPaneProps {
 	item: VaultItem | null;
@@ -51,9 +52,11 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 		progressPercent: 100,
 	});
 
-	// TOTP clock tick
+	const { isVisible } = useWindowVisibility();
+
+	// TOTP clock tick (pauses when minimized / hidden)
 	useEffect(() => {
-		if (item?.type !== "totp") return;
+		if (item?.type !== "totp" || !isVisible) return;
 
 		const updateTotp = () => {
 			const status = vaultBackend.getTotp(item.secret, item.period || 30);
@@ -63,7 +66,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 		updateTotp();
 		const interval = setInterval(updateTotp, 1000);
 		return () => clearInterval(interval);
-	}, [item]);
+	}, [item, isVisible]);
 
 	if (!item) {
 		return (

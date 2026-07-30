@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { SafeVaultLogo } from "../components/SafeVaultLogo";
 import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, AlertTriangle, ArrowRight, Trash2, X } from "lucide-react";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
+import { useWindowVisibility } from "../hooks/useWindowVisibility";
 
 interface UnlockViewProps {
 	isConfigured: boolean;
@@ -27,9 +28,11 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 		return { text: "Strong Master Key", color: "text-emerald-400", bg: "bg-emerald-500" };
 	};
 
-	// Cooldown timer
+	const { isVisible } = useWindowVisibility();
+
+	// Cooldown timer (pauses when minimized / hidden)
 	useEffect(() => {
-		if (cooldown <= 0) return;
+		if (cooldown <= 0 || !isVisible) return;
 		const timer = setInterval(() => {
 			setCooldown((prev) => {
 				if (prev <= 1) {
@@ -40,7 +43,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 			});
 		}, 1000);
 		return () => clearInterval(timer);
-	}, [cooldown]);
+	}, [cooldown, isVisible]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
