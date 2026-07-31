@@ -246,6 +246,60 @@ let savedRestoreFrame: { x: number; y: number; width: number; height: number } |
 					);
 				}
 
+				// Auto-save password endpoint called by browser extension on registration/submit
+				if (url.pathname === "/api/save-password" && req.method === "POST") {
+					try {
+						const body = (await req.json()) as {
+							title?: string;
+							username?: string;
+							password?: string;
+							url?: string;
+							notes?: string;
+						};
+
+						if (!body.password) {
+							return new Response(
+								JSON.stringify({ success: false, error: "Password is required" }),
+								{ headers, status: 400 }
+							);
+						}
+
+						const cleanDomain = (body.url || "")
+							.toLowerCase()
+							.replace(/^(https?:\/\/)?(www\.)?/, "")
+							.split("/")[0];
+
+						const itemTitle = body.title || (cleanDomain ? `${cleanDomain} Account` : "Saved Login");
+
+						const savedItem = await vaultBackend.saveItem({
+							id: `ext-item-${Date.now()}`,
+							type: "password",
+							title: itemTitle,
+							username: body.username || "",
+							password: body.password,
+							url: body.url || "",
+							favorite: false,
+							tags: ["Extension", "Auto-Saved"],
+							notes: body.notes || `Automatically captured & saved from browser extension on ${new Date().toLocaleDateString()}.`,
+							createdAt: Date.now(),
+							updatedAt: Date.now(),
+						});
+
+						syncedItems.unshift(savedItem);
+
+						return new Response(
+							JSON.stringify({ success: true, item: savedItem }),
+							{ headers }
+						);
+					} catch (err: any) {
+						console.error("[SavePassword] Error saving item:", err);
+						return new Response(
+							JSON.stringify({ success: false, error: err.message || "Failed to save item" }),
+							{ headers, status: 500 }
+						);
+					}
+				}
+
 				return new Response(
 					JSON.stringify({ success: false, error: "Endpoint not found" }),
 					{ headers, status: 404 }

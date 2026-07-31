@@ -210,3 +210,77 @@
 	background: #10b981;
 	color: #09090b;
 }
+
+/* Registration Password Suggestion Badge */
+.safevault-register-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	padding: 5px 10px;
+	background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35));
+	border: 1px solid rgba(16, 185, 129, 0.6);
+	border-radius: 8px;
+	color: #34d399;
+	font-size: 11px;
+	font-weight: 700;
+	font-family: system-ui, -apple-system, sans-serif;
+	cursor: pointer;
+	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	z-index: 99999;
+}
+
+.safevault-register-badge:hover {
+	background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.5));
+	border-color: #10b981;
+	color: #ffffff;
+	transform: translateY(-1px);
+	box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+/* Floating Auto-Save Toast Banner */
+.safevault-toast-banner {
+	position: fixed;
+	bottom: 24px;
+	right: 24px;
+	background: #131315;
+	border: 1px solid rgba(16, 185, 129, 0.6);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 16px rgba(16, 185, 129, 0.3);
+	border-radius: 12px;
+	padding: 12px 18px;
+	color: #ffffff;
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 13px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	z-index: 999999;
+	animation: safevault-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes safevault-toast-slide {
+	from {
+		opacity: 0;
+		transform: translateY(20px) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+.safevault-toast-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: rgba(16, 185, 129, 0.2);
+	border: 1px solid #10b981;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #10b981;
+	font-weight: bold;
+	shrink: 0;
+}
+

@@ -77,4 +77,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			.catch((err) => sendResponse({ success: false, error: err.message }));
 		return true;
 	}
+
+	if (message.action === "SAVE_PASSWORD") {
+		const { title, username, password, url, notes } = message;
+		fetch(`${API_BASE}/save-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title, username, password, url, notes }),
+		})
+			.then((res) => res.json())
+			.then((data) => sendResponse(data))
+			.catch((err) => sendResponse({ success: false, error: err.message }));
+		return true;
+	}
 });

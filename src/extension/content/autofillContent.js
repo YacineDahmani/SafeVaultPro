@@ -678,6 +678,154 @@
 		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 	}
 
+	// Helper to display on-page notification toast for extension events
+	function showToastBanner(message) {
+		const existing = document.querySelector('.safevault-toast-banner');
+		if (existing) existing.remove();
+
+		const toast = document.createElement('div');
+		toast.className = 'safevault-toast-banner';
+		toast.innerHTML = `
+			<div class="safevault-toast-icon">✓</div>
+			<div style="flex:1;">
+				<div style="font-weight:700; color:#10b981; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">SafeVaultPro</div>
+				<div style="color:#f4f4f5; font-size:12px; line-height:1.4;">${escapeHtml(message)}</div>
+			</div>
+		`;
+		document.body.appendChild(toast);
+		setTimeout(() => {
+			toast.style.opacity = '0';
+			toast.style.transform = 'translateY(20px)';
+			toast.style.transition = 'all 0.3s ease';
+			setTimeout(() => toast.remove(), 300);
+		}, 4200);
+	}
+
+	// Registration / Sign Up Form Classifier
+	function isRegistrationForm(input, form) {
+		if (!input && !form) return false;
+
+		const formElem = form || (input ? (input.form || input.closest('form')) : null);
+		const formHtml = formElem ? (formElem.action + ' ' + formElem.innerHTML).toLowerCase() : '';
+		const pageUrl = window.location.href.toLowerCase();
+
+		const inputAutoComplete = (input?.autocomplete || '').toLowerCase();
+		const inputAttr = `${input?.name || ''} ${input?.id || ''} ${input?.placeholder || ''}`.toLowerCase();
+
+		// Explicit autocomplete or field hints
+		if (inputAutoComplete === 'new-password' || inputAttr.includes('confirm') || inputAttr.includes('verify') || inputAttr.includes('repeat')) {
+			return true;
+		}
+
+		// Check for multiple password fields in the same form (Password + Confirm Password)
+		if (formElem) {
+			const passInputs = formElem.querySelectorAll('input[type="password"]');
+			if (passInputs.length >= 2) return true;
+		}
+
+		// Registration / Sign up keywords in URL, action, or form content
+		const regKeywords = [
+			'register', 'signup', 'sign-up', 'join', 'create-account', 'create_account',
+			'new-user', 's_inscrire', 'creer-compte', 'inscription', 'إنشاء حساب', 'تسجيل'
+		];
+
+		const hasRegKeyword = regKeywords.some(kw => pageUrl.includes(kw) || formHtml.includes(kw));
+
+		if (hasRegKeyword && (input?.type === 'password' || (formElem && formElem.querySelector('input[type="password"]')))) {
+			return true;
+		}
+
+		return false;
+	}
+
+	// Attach Password Suggestion Badge for Registration Forms
+	function attachRegistrationSuggestionBadge(input) {
+		if (input.dataset.safevaultSuggestAttached) return;
+		input.dataset.safevaultSuggestAttached = "true";
+
+		const form = input.form || input.closest('form') || input.parentElement;
+		if (!form) return;
+
+		const btn = document.createElement('div');
+		btn.className = 'safevault-register-badge';
+		btn.title = 'SafeVaultPro: Click to generate and fill strong password';
+		btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span>Suggest Strong Password</span>`;
+
+		btn.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
+				if (res && res.success && res.password) {
+					const generatedPass = res.password;
+
+					// 1. Fill primary password field
+					setNativeFieldValue(input, generatedPass);
+
+					// 2. Find and fill confirmation password field if present
+					if (form) {
+						const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
+						passFields.forEach((pField) => {
+							setNativeFieldValue(pField, generatedPass);
+						});
+					}
+
+					// 3. Find username / email field value
+					const userFields = form ? Array.from(form.querySelectorAll('input[type="text"], input[type="email"]')) : [];
+					const usernameVal = userFields.length > 0 ? userFields[0].value : '';
+
+					// Store draft for submission
+					if (form) {
+						form.dataset.safevaultCapturedPass = generatedPass;
+						if (usernameVal) form.dataset.safevaultCapturedUser = usernameVal;
+					}
+
+					showToastBanner(`✨ Filled strong password! Submit form to save to SafeVaultPro.`);
+				}
+			});
+		});
+
+		// Attach after input field
+		const parent = input.parentElement || form;
+		if (parent) {
+			parent.appendChild(btn);
+		}
+	}
+
+	// Auto-Save Form Submit Handler
+	function setupAutoSaveSubmitListener() {
+		document.addEventListener('submit', (e) => {
+			const form = e.target;
+			if (!form || !(form instanceof HTMLFormElement)) return;
+
+			// Extract captured or entered credentials from form
+			const passInput = form.querySelector('input[type="password"]');
+			const userInput = form.querySelector('input[type="email"], input[type="text"]');
+
+			const capturedPass = form.dataset.safevaultCapturedPass || (passInput ? passInput.value : '');
+			const capturedUser = form.dataset.safevaultCapturedUser || (userInput ? userInput.value : '');
+
+			if (capturedPass && capturedPass.length >= 4) {
+				const title = `${currentDomain} Account`;
+				chrome.runtime.sendMessage(
+					{
+						action: "SAVE_PASSWORD",
+						title,
+						username: capturedUser,
+						password: capturedPass,
+						url: window.location.href,
+						notes: `Automatically captured from registration/login form on ${currentDomain}.`,
+					},
+					(res) => {
+						if (res && res.success) {
+							showToastBanner(`🔒 Credentials for ${currentDomain} saved to SafeVaultPro!`);
+						}
+					}
+				);
+			}
+		}, true);
+	}
+
 	// Document event listeners for field scan
 	function scanAndAttach() {
 		const inputs = document.querySelectorAll(
@@ -691,6 +839,11 @@
 			}
 			if (classification !== 'generic') {
 				attachBadge(input);
+			}
+
+			// Check registration form for password suggestion badge
+			if (input.type === 'password' && isRegistrationForm(input)) {
+				attachRegistrationSuggestionBadge(input);
 			}
 		});
 	}
@@ -718,6 +871,7 @@
 		}
 	});
 
-	// Initial scan
+	// Initialize auto-save submit listener & initial scan
+	setupAutoSaveSubmitListener();
 	setTimeout(scanAndAttach, 800);
 })();
