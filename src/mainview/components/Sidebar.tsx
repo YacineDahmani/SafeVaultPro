@@ -18,6 +18,7 @@ import {
 	Database,
 	Puzzle,
 	Code2,
+	ExternalLink,
 } from "lucide-react";
 import type { NavCategory } from "../hooks/useVault";
 
@@ -255,9 +256,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 			{/* Footer Status & Lock Button */}
 			<div className="p-3 border-t border-slate-800/60 bg-[#09090b]/50 flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<span className="w-2 h-2 rounded-full bg-emerald-500" />
-				</div>
+				<a
+					href="https://github.com/YacineDahmani"
+					target="_blank"
+					rel="noreferrer"
+					className="text-[11px] font-mono text-slate-400 hover:text-emerald-400 hover:underline flex items-center gap-1 transition-colors"
+					title="YacineDahmani GitHub Profile"
+				>
+					<span>YacineDahmani © 2026</span>
+					<ExternalLink className="w-3 h-3 text-slate-500" />
+				</a>
 				<button
 					onClick={onLock}
 					className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#1c1b1d] hover:bg-red-950/40 text-slate-300 hover:text-red-400 border border-slate-800 hover:border-red-800/50 rounded-md text-xs font-medium transition-all"

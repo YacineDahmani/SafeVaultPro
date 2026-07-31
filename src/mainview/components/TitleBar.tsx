@@ -55,14 +55,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 				className="h-9 bg-[#09090b] border-b border-slate-800/80 flex items-center justify-between px-3.5 select-none shrink-0 cursor-default"
 				style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
 			>
-				{/* Left App Logo & Title Branding with Deep Obsidian Aesthetics */}
-				<div className="flex items-center gap-2.5 pointer-events-none">
-					<SafeVaultLogo className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-					<span className="text-xs font-semibold text-slate-200 tracking-wide font-sans">SafeVaultPro</span>
-					<span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 bg-emerald-950/80 border border-emerald-700/60 text-emerald-400 rounded-sm shadow-[0_0_10px_rgba(16,185,129,0.2)] tracking-wider">
-						LOCAL VAULT
-					</span>
-				</div>
+				{/* Left Drag Region */}
+				<div className="flex items-center gap-2.5 pointer-events-none" />
 
 				{/* Center Drag Region Spacer */}
 				<div className="flex-1 h-full" />
