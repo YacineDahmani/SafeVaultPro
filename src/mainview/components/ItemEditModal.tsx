@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck, Code2, Plus, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck, Code2, Plus, Trash2, Upload, FileUp } from "lucide-react";
 import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
 
@@ -56,6 +56,26 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [project, setProject] = useState("");
 	const [environment, setEnvironment] = useState("Development");
 	const [envContent, setEnvContent] = useState("");
+	const [isDraggingEnvFile, setIsDraggingEnvFile] = useState(false);
+	const envFileInputRef = useRef<HTMLInputElement | null>(null);
+
+	const handleEnvFileRead = (file: File) => {
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const text = e.target?.result;
+			if (typeof text === "string") {
+				setEnvContent(text);
+				if (!title.trim()) {
+					setTitle(file.name === ".env" ? "Environment Variables (.env)" : file.name);
+				}
+				if (!project.trim() && file.name !== ".env") {
+					setProject(file.name.replace(/\.[^/.]+$/, ""));
+				}
+			}
+		};
+		reader.readAsText(file);
+	};
 
 	// Personal Info fields
 	const [firstName, setFirstName] = useState("");
@@ -570,6 +590,49 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{/* TYPE 5: .ENV FILE */}
 					{type === "env" && (
 						<>
+							{/* Hidden File Input */}
+							<input
+								type="file"
+								ref={envFileInputRef}
+								style={{ display: "none" }}
+								accept=".env,text/plain,.txt"
+								onChange={(e) => {
+									if (e.target.files && e.target.files[0]) {
+										handleEnvFileRead(e.target.files[0]);
+									}
+								}}
+							/>
+
+							{/* Drag & Drop File Zone */}
+							<div
+								onDragOver={(e) => {
+									e.preventDefault();
+									setIsDraggingEnvFile(true);
+								}}
+								onDragLeave={() => setIsDraggingEnvFile(false)}
+								onDrop={(e) => {
+									e.preventDefault();
+									setIsDraggingEnvFile(false);
+									if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+										handleEnvFileRead(e.dataTransfer.files[0]);
+									}
+								}}
+								onClick={() => envFileInputRef.current?.click()}
+								className={`p-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+									isDraggingEnvFile
+										? "border-emerald-400 bg-emerald-950/30 text-emerald-300 shadow-lg"
+										: "border-slate-800 hover:border-slate-700 bg-[#09090b]/50 text-slate-400 hover:text-slate-200"
+								}`}
+							>
+								<FileUp className={`w-6 h-6 mb-1.5 ${isDraggingEnvFile ? "text-emerald-400 animate-bounce" : "text-slate-500"}`} />
+								<p className="text-xs font-semibold text-white">
+									Drag & drop your <span className="text-emerald-400 font-mono">.env</span> file here
+								</p>
+								<p className="text-[10px] text-slate-500 font-mono mt-0.5">
+									or <span className="text-emerald-400 hover:underline">click to browse files</span> on your computer
+								</p>
+							</div>
+
 							<div className="grid grid-cols-2 gap-3">
 								<div>
 									<label className="block text-slate-400 font-mono mb-1">Project Name</label>
@@ -598,7 +661,17 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							</div>
 
 							<div>
-								<label className="block text-slate-400 font-mono mb-1">.env File Content (KEY=VALUE)</label>
+								<div className="flex justify-between items-center mb-1">
+									<label className="text-slate-400 font-mono">.env File Content (KEY=VALUE)</label>
+									<button
+										type="button"
+										onClick={() => envFileInputRef.current?.click()}
+										className="text-emerald-400 hover:underline text-[11px] font-mono flex items-center gap-1"
+									>
+										<Upload className="w-3 h-3" />
+										<span>Import File</span>
+									</button>
+								</div>
 								<textarea
 									rows={8}
 									value={envContent}
