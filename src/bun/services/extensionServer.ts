@@ -52,33 +52,70 @@ export function startExtensionServer() {
 					}
 				}
 
-				// Window action endpoint (minimize, maximize, close) from custom TitleBar
+let simulatedMaximized = false;
+let savedRestoreFrame: { x: number; y: number; width: number; height: number } | null = null;
+
+				// Window action endpoint (minimize, maximize, unmaximize, close) from TitleBar
 				if (url.pathname === "/api/window-action" && req.method === "POST") {
 					try {
-						const body = (await req.json()) as { action?: string };
+						const body = (await req.json()) as {
+							action?: string;
+							workArea?: { x: number; y: number; width: number; height: number };
+						};
 						const { mainWindow } = await import("../index");
-						let isMax = false;
+
 						if (body.action === "minimize") {
 							mainWindow?.minimize();
 						} else if (body.action === "maximize") {
-							try { isMax = Boolean(mainWindow?.isMaximized()); } catch {}
-							if (isMax) {
-								mainWindow?.unmaximize();
-								isMax = false;
+							if (simulatedMaximized) {
+								if (savedRestoreFrame) {
+									mainWindow?.setPosition(savedRestoreFrame.x, savedRestoreFrame.y);
+									mainWindow?.setSize(savedRestoreFrame.width, savedRestoreFrame.height);
+								} else {
+									mainWindow?.setPosition(100, 60);
+									mainWindow?.setSize(1160, 750);
+								}
+								simulatedMaximized = false;
 							} else {
-								mainWindow?.maximize();
-								isMax = true;
+								const currentFrame = mainWindow?.getFrame();
+								if (currentFrame && currentFrame.width > 300 && currentFrame.height > 200) {
+									savedRestoreFrame = { ...currentFrame };
+								} else {
+									savedRestoreFrame = { x: 100, y: 60, width: 1160, height: 750 };
+								}
+
+								if (body.workArea && body.workArea.width > 0 && body.workArea.height > 0) {
+									mainWindow?.setPosition(body.workArea.x, body.workArea.y);
+									mainWindow?.setSize(body.workArea.width, body.workArea.height);
+									simulatedMaximized = true;
+								} else {
+									mainWindow?.maximize();
+									simulatedMaximized = true;
+								}
 							}
 						} else if (body.action === "unmaximize") {
-							mainWindow?.unmaximize();
-							isMax = false;
+							if (savedRestoreFrame) {
+								mainWindow?.setPosition(savedRestoreFrame.x, savedRestoreFrame.y);
+								mainWindow?.setSize(savedRestoreFrame.width, savedRestoreFrame.height);
+							} else {
+								mainWindow?.setPosition(100, 60);
+								mainWindow?.setSize(1160, 750);
+							}
+							simulatedMaximized = false;
 						} else if (body.action === "close") {
 							mainWindow?.close();
 						}
-						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
+
+						return new Response(JSON.stringify({ success: true, isMaximized: simulatedMaximized }), { headers });
 					} catch (e) {
-						return new Response(JSON.stringify({ success: false }), { headers, status: 400 });
+						console.error("[WindowAction] Error:", e);
+						return new Response(JSON.stringify({ success: false, error: String(e) }), { headers, status: 400 });
 					}
+				}
+
+				// Query window state endpoint (returns current simulated isMaximized state)
+				if (url.pathname === "/api/window-state") {
+					return new Response(JSON.stringify({ success: true, isMaximized: simulatedMaximized }), { headers });
 				}
 
 				// Status endpoint

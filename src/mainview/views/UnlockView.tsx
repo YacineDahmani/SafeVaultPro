@@ -98,7 +98,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 	const strength = getEntropyLabel(entropy);
 
 	return (
-		<div className="min-h-screen bg-[#09090b] flex items-center justify-center p-6 text-[#e5e1e4] relative overflow-hidden flex-1">
+		<div className="h-full w-full bg-[#09090b] flex items-center justify-center p-6 text-[#e5e1e4] relative overflow-hidden flex-1">
 			{/* Dynamic Background Glow */}
 			<div
 				className={`absolute inset-0 transition-opacity duration-1000 ${

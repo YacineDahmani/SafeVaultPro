@@ -254,7 +254,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			<div className="p-3 border-t border-slate-800/60 bg-[#09090b]/50 flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<span className="w-2 h-2 rounded-full bg-emerald-500" />
-					<span className="text-[11px] font-mono text-slate-400">Sync: Local</span>
 				</div>
 				<button
 					onClick={onLock}
