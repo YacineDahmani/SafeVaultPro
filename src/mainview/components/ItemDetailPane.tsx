@@ -17,6 +17,8 @@ import {
 	ArrowLeft,
 	AlertTriangle,
 	X,
+	Code2,
+	Download,
 } from "lucide-react";
 import type { VaultItem } from "../../bun/types";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
@@ -155,6 +157,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 						{item.type === "totp" && <Smartphone className="w-5 h-5 text-purple-400" />}
 						{item.type === "note" && <FileText className="w-5 h-5 text-amber-400" />}
 						{item.type === "personal_info" && <User className="w-5 h-5 text-cyan-400" />}
+						{item.type === "env" && <Code2 className="w-5 h-5 text-sky-400" />}
 					</div>
 
 					<div className="min-w-0">
@@ -502,7 +505,111 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 					</div>
 				)}
 
-				{/* 4. PERSONAL INFO PROFILE */}
+				{/* 4. .ENV ENVIRONMENT FILE TYPE */}
+				{item.type === "env" && (
+					<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4 shadow-xl">
+						<div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+							<div className="flex items-center gap-3">
+								<span
+									className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase border ${
+										item.environment === "Production"
+											? "bg-emerald-950/60 text-emerald-300 border-emerald-800/60"
+											: item.environment === "Staging"
+											? "bg-amber-950/60 text-amber-300 border-amber-800/60"
+											: "bg-sky-950/60 text-sky-300 border-sky-800/60"
+									}`}
+								>
+									{item.environment || "Development"}
+								</span>
+								<span className="text-xs font-semibold text-white font-mono">
+									Project: <strong className="text-emerald-400">{item.project || "Default Project"}</strong>
+								</span>
+							</div>
+
+							<div className="flex items-center gap-2">
+								<button
+									onClick={() => {
+										const blob = new Blob([item.content], { type: "text/plain;charset=utf-8" });
+										const downloadUrl = URL.createObjectURL(blob);
+										const a = document.createElement("a");
+										a.href = downloadUrl;
+										a.download = `${(item.project || item.title).toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.env`;
+										document.body.appendChild(a);
+										a.click();
+										document.body.removeChild(a);
+										URL.revokeObjectURL(downloadUrl);
+									}}
+									className="px-3 py-1.5 bg-[#1c1b1d] hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+									title="Download .env File"
+								>
+									<Download className="w-3.5 h-3.5 text-sky-400" />
+									<span>Export .env</span>
+								</button>
+								<button
+									onClick={() => handleCopy(item.content, "Full .env File")}
+									className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-md"
+								>
+									{copiedField === "Full .env File" ? (
+										<Check className="w-3.5 h-3.5" />
+									) : (
+										<Copy className="w-3.5 h-3.5" />
+									)}
+									<span>{copiedField === "Full .env File" ? "Copied All!" : "Copy Entire .env"}</span>
+								</button>
+							</div>
+						</div>
+
+						{/* Code Viewer with Line Numbers */}
+						<div className="bg-[#09090b] rounded-xl border border-slate-800/80 divide-y divide-slate-800/40 overflow-hidden font-mono text-xs">
+							{item.content.split("\n").map((line, idx) => {
+								const lineLabel = `Line ${idx + 1}`;
+								const isCopied = copiedField === lineLabel;
+								const trimmed = line.trim();
+								const isComment = trimmed.startsWith("#");
+								const isKeyVal = trimmed.includes("=");
+
+								return (
+									<div
+										key={idx}
+										className="group flex items-center justify-between px-3.5 py-1.5 hover:bg-[#131315]/80 transition-colors gap-3"
+									>
+										<div className="flex items-start gap-3 min-w-0 flex-1">
+											<span className="text-[10px] text-slate-600 select-none w-6 text-right shrink-0 pt-0.5 font-mono">
+												{idx + 1}
+											</span>
+											<span
+												className={`whitespace-pre-wrap break-all select-all ${
+													isComment
+														? "text-slate-500 italic"
+														: isKeyVal
+														? "text-emerald-300"
+														: "text-slate-200"
+												}`}
+											>
+												{line || "\u00A0"}
+											</span>
+										</div>
+										{trimmed.length > 0 && !isComment && (
+											<button
+												onClick={() => handleCopy(line, lineLabel)}
+												className="opacity-70 group-hover:opacity-100 p-1 rounded hover:bg-[#1c1b1d] text-slate-400 hover:text-emerald-400 transition-all shrink-0"
+												title={`Copy line ${idx + 1}`}
+											>
+												{isCopied ? (
+													<Check className="w-3.5 h-3.5 text-emerald-400" />
+												) : (
+													<Copy className="w-3.5 h-3.5" />
+												)}
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* 5. PERSONAL INFO PROFILE */}
 				{item.type === "personal_info" && (
 					<div className="space-y-4">
 						<div className="grid grid-cols-2 gap-4">
@@ -587,7 +694,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 
 						<div className="grid grid-cols-2 gap-4">
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
-								<label className="text-[11px] text-slate-400 font-mono uppercase">Phone Number</label>
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Primary Phone Number</label>
 								<div className="flex justify-between items-center text-sm font-semibold text-white">
 									<span>{item.phone || "—"}</span>
 									{item.phone && (
@@ -599,7 +706,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 							</div>
 
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
-								<label className="text-[11px] text-slate-400 font-mono uppercase">Email Address</label>
+								<label className="text-[11px] text-slate-400 font-mono uppercase">Primary Email Address</label>
 								<div className="flex justify-between items-center text-sm font-semibold text-white">
 									<span className="truncate">{item.email || "—"}</span>
 									{item.email && (
@@ -610,6 +717,46 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 								</div>
 							</div>
 						</div>
+
+						{/* Display Extra Phone Numbers if present */}
+						{item.extraPhones && item.extraPhones.length > 0 && (
+							<div className="space-y-2 pt-1">
+								<span className="text-[11px] text-slate-400 font-mono uppercase block">Additional Phone Numbers</span>
+								<div className="grid grid-cols-2 gap-3">
+									{item.extraPhones.map((entry, idx) => (
+										<div key={idx} className="p-3 bg-[#131315] border border-slate-800/80 rounded-xl flex items-center justify-between">
+											<div>
+												<span className="text-[10px] text-slate-500 font-mono uppercase block">{entry.label || `Phone ${idx + 2}`}</span>
+												<span className="text-xs font-mono font-semibold text-white">{entry.phone}</span>
+											</div>
+											<button onClick={() => handleCopy(entry.phone, entry.label || "Extra Phone")} className="p-1 text-slate-400 hover:text-emerald-400">
+												<Copy className="w-3.5 h-3.5" />
+											</button>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Display Extra Email Addresses if present */}
+						{item.extraEmails && item.extraEmails.length > 0 && (
+							<div className="space-y-2 pt-1">
+								<span className="text-[11px] text-slate-400 font-mono uppercase block">Additional Email Addresses</span>
+								<div className="grid grid-cols-2 gap-3">
+									{item.extraEmails.map((entry, idx) => (
+										<div key={idx} className="p-3 bg-[#131315] border border-slate-800/80 rounded-xl flex items-center justify-between">
+											<div>
+												<span className="text-[10px] text-slate-500 font-mono uppercase block">{entry.label || `Email ${idx + 2}`}</span>
+												<span className="text-xs font-mono font-semibold text-white truncate max-w-[140px] block">{entry.email}</span>
+											</div>
+											<button onClick={() => handleCopy(entry.email, entry.label || "Extra Email")} className="p-1 text-slate-400 hover:text-emerald-400">
+												<Copy className="w-3.5 h-3.5" />
+											</button>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
 
 						<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 							<label className="text-[11px] text-slate-400 font-mono uppercase">Full Address</label>

@@ -12,6 +12,7 @@ export type NavCategory =
 	| "credit_cards"
 	| "ids"
 	| "totp"
+	| "env_files"
 	| "favorites"
 	| "settings";
 
@@ -95,6 +96,8 @@ export function useVault() {
 				fetched = fetched.filter((i) => i.type === "card" && i.subtype !== "credit_card");
 			} else if (activeCategory === "totp") {
 				fetched = fetched.filter((i) => i.type === "totp");
+			} else if (activeCategory === "env_files") {
+				fetched = fetched.filter((i) => i.type === "env");
 			}
 
 			setItems(fetched);
@@ -248,6 +251,10 @@ export function useVault() {
 			setIsCategoryLocked(true);
 		} else if (activeCategory === "totp") {
 			setDefaultEditType("totp");
+			setDefaultEditSubtype(undefined);
+			setIsCategoryLocked(true);
+		} else if (activeCategory === "env_files") {
+			setDefaultEditType("env");
 			setDefaultEditSubtype(undefined);
 			setIsCategoryLocked(true);
 		} else {

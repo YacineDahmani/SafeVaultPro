@@ -17,6 +17,7 @@ import {
 	QrCode,
 	Database,
 	Puzzle,
+	Code2,
 } from "lucide-react";
 import type { NavCategory } from "../hooks/useVault";
 
@@ -38,6 +39,7 @@ interface SidebarProps {
 		credit_cards: number;
 		ids: number;
 		totp: number;
+		env_files: number;
 		favorites: number;
 	};
 }
@@ -66,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 		{ id: "credit_cards" as NavCategory, label: "Payment Cards", icon: CreditCard, count: itemCounts.credit_cards },
 		{ id: "ids" as NavCategory, label: "IDs & Passports", icon: BadgeCheck, count: itemCounts.ids },
 		{ id: "totp" as NavCategory, label: "2FA Authenticator", icon: Smartphone, count: itemCounts.totp },
+		{ id: "env_files" as NavCategory, label: ".env Files", icon: Code2, count: itemCounts.env_files },
 	];
 
 	const securityItems = [

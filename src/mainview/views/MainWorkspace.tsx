@@ -27,6 +27,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 		credit_cards: vault.allItems.filter((i) => i.type === "card" && i.subtype === "credit_card").length,
 		ids: vault.allItems.filter((i) => i.type === "card" && i.subtype !== "credit_card").length,
 		totp: vault.allItems.filter((i) => i.type === "totp").length,
+		env_files: vault.allItems.filter((i) => i.type === "env").length,
 		favorites: vault.allItems.filter((i) => i.favorite).length,
 	};
 

@@ -104,5 +104,24 @@ Store in an offsite physical safe. Requires dual authorization to rotate.`,
 			createdAt: now - 86400000 * 25,
 			updatedAt: now - 86400000 * 3,
 		},
+		{
+			id: "seed-env-1",
+			type: "env",
+			title: "Production Core API Server .env",
+			project: "SafeVaultPro Backend",
+			environment: "Production",
+			content: `PORT=48920
+NODE_ENV=production
+DATABASE_URL=sqlite://data/vault.db
+SQLCIPHER_KEY_KDF=argon2id
+JWT_SECRET=super_secret_argon2id_jwt_key_982341
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379`,
+			favorite: true,
+			tags: ["Development", "Production", "Backend"],
+			notes: "Core production environment variables for local backend services.",
+			createdAt: now - 86400000 * 10,
+			updatedAt: now - 86400000 * 1,
+		},
 	];
 }

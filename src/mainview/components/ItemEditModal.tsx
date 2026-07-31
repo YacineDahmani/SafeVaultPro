@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck } from "lucide-react";
+import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck, Code2, Plus, Trash2 } from "lucide-react";
 import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
 
@@ -52,6 +52,11 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	// Note field
 	const [content, setContent] = useState("");
 
+	// Env File fields
+	const [project, setProject] = useState("");
+	const [environment, setEnvironment] = useState("Development");
+	const [envContent, setEnvContent] = useState("");
+
 	// Personal Info fields
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
@@ -62,6 +67,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [nationalId, setNationalId] = useState("");
 	const [phone, setPhone] = useState("");
 	const [email, setEmail] = useState("");
+	const [extraPhones, setExtraPhones] = useState<{ label?: string; phone: string }[]>([]);
+	const [extraEmails, setExtraEmails] = useState<{ label?: string; email: string }[]>([]);
 	const [addressLine1, setAddressLine1] = useState("");
 	const [addressLine2, setAddressLine2] = useState("");
 	const [city, setCity] = useState("");
@@ -96,6 +103,10 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setSecret(item.secret || "");
 			} else if (item.type === "note") {
 				setContent(item.content || "");
+			} else if (item.type === "env") {
+				setProject(item.project || "");
+				setEnvironment(item.environment || "Development");
+				setEnvContent(item.content || "");
 			} else if (item.type === "personal_info") {
 				setFirstName(item.firstName || "");
 				setLastName(item.lastName || "");
@@ -106,6 +117,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setNationalId(item.nationalId || "");
 				setPhone(item.phone || "");
 				setEmail(item.email || "");
+				setExtraPhones(item.extraPhones ? [...item.extraPhones] : []);
+				setExtraEmails(item.extraEmails ? [...item.extraEmails] : []);
 				setAddressLine1(item.addressLine1 || "");
 				setAddressLine2(item.addressLine2 || "");
 				setCity(item.city || "");
@@ -140,6 +153,10 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
 			setContent("");
 
+			setProject("");
+			setEnvironment("Development");
+			setEnvContent("PORT=8080\nNODE_ENV=development\nAPI_URL=http://localhost:8080/api");
+
 			setFirstName("");
 			setLastName("");
 			setFullName("");
@@ -149,6 +166,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setNationalId("");
 			setPhone("");
 			setEmail("");
+			setExtraPhones([]);
+			setExtraEmails([]);
 			setAddressLine1("");
 			setAddressLine2("");
 			setCity("");
@@ -219,6 +238,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				type: "note",
 				content,
 			};
+		} else if (type === "env") {
+			payload = {
+				...baseItem,
+				type: "env",
+				project,
+				environment,
+				content: envContent,
+			};
 		} else {
 			payload = {
 				...baseItem,
@@ -232,6 +259,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				nationalId,
 				phone,
 				email,
+				extraPhones: extraPhones.filter((p) => p.phone.trim().length > 0),
+				extraEmails: extraEmails.filter((e) => e.email.trim().length > 0),
 				addressLine1,
 				addressLine2,
 				city,
@@ -249,6 +278,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 		if (type === "note") return "Adding Secure Note";
 		if (type === "personal_info") return "Adding Personal Identity Profile";
 		if (type === "totp") return "Adding 2FA Code";
+		if (type === "env") return "Adding Environment Variables (.env)";
 		if (type === "card") {
 			if (subtype === "credit_card") return "Adding Payment Credit Card";
 			return "Adding Identity Document / Passport";
@@ -282,13 +312,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{!item && !isCategoryLocked && (
 						<div>
 							<label className="block text-slate-400 font-mono mb-1">Item Category</label>
-							<div className="grid grid-cols-5 gap-1.5 p-1 bg-[#09090b] rounded-lg border border-slate-800">
+							<div className="grid grid-cols-6 gap-1 p-1 bg-[#09090b] rounded-lg border border-slate-800">
 								{[
 									{ id: "password", label: "Password", icon: KeyRound },
 									{ id: "card", label: "Card/ID", icon: CreditCard },
 									{ id: "totp", label: "2FA Code", icon: Smartphone },
 									{ id: "note", label: "Note", icon: FileText },
 									{ id: "personal_info", label: "Profile", icon: User },
+									{ id: "env", label: ".env File", icon: Code2 },
 								].map((cat) => {
 									const Icon = cat.icon;
 									const active = type === cat.id;
@@ -304,7 +335,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 											}`}
 										>
 											<Icon className="w-3.5 h-3.5" />
-											<span className="text-[10px]">{cat.label}</span>
+											<span className="text-[9px] truncate">{cat.label}</span>
 										</button>
 									);
 								})}
@@ -329,6 +360,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 										: "e.g. Primary International Passport"
 									: type === "note"
 									? "e.g. Emergency Recovery Seed Codes"
+									: type === "env"
+									? "e.g. Production Backend .env"
 									: "e.g. Personal Profile"
 							}
 							className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
@@ -534,7 +567,50 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 						</div>
 					)}
 
-					{/* TYPE 5: PERSONAL INFO */}
+					{/* TYPE 5: .ENV FILE */}
+					{type === "env" && (
+						<>
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Project Name</label>
+									<input
+										type="text"
+										value={project}
+										onChange={(e) => setProject(e.target.value)}
+										placeholder="e.g. SafeVaultPro API"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+									/>
+								</div>
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Environment Target</label>
+									<select
+										value={environment}
+										onChange={(e) => setEnvironment(e.target.value)}
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+									>
+										<option value="Development">Development</option>
+										<option value="Staging">Staging</option>
+										<option value="Production">Production</option>
+										<option value="Testing">Testing</option>
+										<option value="Custom">Custom</option>
+									</select>
+								</div>
+							</div>
+
+							<div>
+								<label className="block text-slate-400 font-mono mb-1">.env File Content (KEY=VALUE)</label>
+								<textarea
+									rows={8}
+									value={envContent}
+									onChange={(e) => setEnvContent(e.target.value)}
+									placeholder={`PORT=8080\nNODE_ENV=production\nDATABASE_URL=sqlite://data.db\nSECRET_KEY=982347102983`}
+									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-emerald-400 font-mono text-xs leading-relaxed focus:outline-none focus:border-emerald-500 whitespace-pre"
+								/>
+							</div>
+						</>
+					)}
+
+					{/* TYPE 6: PERSONAL INFO */}
 					{type === "personal_info" && (
 						<>
 							<div className="grid grid-cols-2 gap-3">
@@ -617,9 +693,10 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 								</div>
 							</div>
 
+							{/* Primary Phone & Email */}
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Phone Number</label>
+									<label className="block text-slate-400 font-mono mb-1">Primary Phone Number</label>
 									<input
 										type="text"
 										value={phone}
@@ -629,7 +706,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									/>
 								</div>
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Email Address</label>
+									<label className="block text-slate-400 font-mono mb-1">Primary Email Address</label>
 									<input
 										type="email"
 										value={email}
@@ -638,6 +715,102 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
 									/>
 								</div>
+							</div>
+
+							{/* Extra Phone Numbers */}
+							<div className="space-y-2 border-t border-slate-800/60 pt-2">
+								<div className="flex justify-between items-center">
+									<label className="text-[11px] font-mono text-slate-400 uppercase">Additional Phone Numbers</label>
+									<button
+										type="button"
+										onClick={() => setExtraPhones([...extraPhones, { label: "Work", phone: "" }])}
+										className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1 font-mono"
+									>
+										<Plus className="w-3 h-3" />
+										<span>Add Phone</span>
+									</button>
+								</div>
+								{extraPhones.map((entry, idx) => (
+									<div key={idx} className="flex items-center gap-2">
+										<input
+											type="text"
+											value={entry.label || ""}
+											onChange={(e) => {
+												const next = [...extraPhones];
+												next[idx].label = e.target.value;
+												setExtraPhones(next);
+											}}
+											placeholder="Label (e.g. Work)"
+											className="w-28 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
+										/>
+										<input
+											type="text"
+											value={entry.phone}
+											onChange={(e) => {
+												const next = [...extraPhones];
+												next[idx].phone = e.target.value;
+												setExtraPhones(next);
+											}}
+											placeholder="+1 (555) 998-1029"
+											className="flex-1 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
+										/>
+										<button
+											type="button"
+											onClick={() => setExtraPhones(extraPhones.filter((_, i) => i !== idx))}
+											className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg"
+										>
+											<Trash2 className="w-3.5 h-3.5" />
+										</button>
+									</div>
+								))}
+							</div>
+
+							{/* Extra Email Addresses */}
+							<div className="space-y-2 border-t border-slate-800/60 pt-2">
+								<div className="flex justify-between items-center">
+									<label className="text-[11px] font-mono text-slate-400 uppercase">Additional Email Addresses</label>
+									<button
+										type="button"
+										onClick={() => setExtraEmails([...extraEmails, { label: "Work", email: "" }])}
+										className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1 font-mono"
+									>
+										<Plus className="w-3 h-3" />
+										<span>Add Email</span>
+									</button>
+								</div>
+								{extraEmails.map((entry, idx) => (
+									<div key={idx} className="flex items-center gap-2">
+										<input
+											type="text"
+											value={entry.label || ""}
+											onChange={(e) => {
+												const next = [...extraEmails];
+												next[idx].label = e.target.value;
+												setExtraEmails(next);
+											}}
+											placeholder="Label (e.g. Backup)"
+											className="w-28 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
+										/>
+										<input
+											type="email"
+											value={entry.email}
+											onChange={(e) => {
+												const next = [...extraEmails];
+												next[idx].email = e.target.value;
+												setExtraEmails(next);
+											}}
+											placeholder="work@company.com"
+											className="flex-1 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
+										/>
+										<button
+											type="button"
+											onClick={() => setExtraEmails(extraEmails.filter((_, i) => i !== idx))}
+											className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg"
+										>
+											<Trash2 className="w-3.5 h-3.5" />
+										</button>
+									</div>
+								))}
 							</div>
 
 							<div>

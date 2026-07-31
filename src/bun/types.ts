@@ -1,4 +1,4 @@
-export type VaultItemType = "password" | "card" | "totp" | "note" | "personal_info";
+export type VaultItemType = "password" | "card" | "totp" | "note" | "personal_info" | "env";
 
 export type CardSubtype = "passport" | "id_card" | "drivers_license" | "credit_card" | "custom";
 
@@ -52,6 +52,14 @@ export interface NoteVaultItem extends BaseVaultItem {
 	notes?: string;
 }
 
+export interface EnvVaultItem extends BaseVaultItem {
+	type: "env";
+	content: string;
+	environment?: string;
+	project?: string;
+	notes?: string;
+}
+
 export interface PersonalInfoVaultItem extends BaseVaultItem {
 	type: "personal_info";
 	firstName?: string;
@@ -69,10 +77,18 @@ export interface PersonalInfoVaultItem extends BaseVaultItem {
 	country?: string;
 	phone?: string;
 	email?: string;
+	extraPhones?: { label?: string; phone: string }[];
+	extraEmails?: { label?: string; email: string }[];
 	notes?: string;
 }
 
-export type VaultItem = PasswordVaultItem | CardVaultItem | TotpVaultItem | NoteVaultItem | PersonalInfoVaultItem;
+export type VaultItem =
+	| PasswordVaultItem
+	| CardVaultItem
+	| TotpVaultItem
+	| NoteVaultItem
+	| PersonalInfoVaultItem
+	| EnvVaultItem;
 
 export interface VaultMetadata {
 	vaultId: string;

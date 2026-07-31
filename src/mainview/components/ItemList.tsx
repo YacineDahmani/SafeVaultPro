@@ -9,6 +9,7 @@ import {
 	Star,
 	BadgeCheck,
 	Lock,
+	Code2,
 } from "lucide-react";
 import type { VaultItem, VaultItemType } from "../../bun/types";
 import type { NavCategory } from "../hooks/useVault";
@@ -45,6 +46,8 @@ export const ItemList: React.FC<ItemListProps> = ({
 				return "IDs & Passports";
 			case "totp":
 				return "2FA Authenticator";
+			case "env_files":
+				return ".env Environment Files";
 			case "favorites":
 				return "Favorite Secrets";
 			default:
@@ -67,6 +70,8 @@ export const ItemList: React.FC<ItemListProps> = ({
 				return <FileText className="w-4 h-4 text-amber-400" />;
 			case "personal_info":
 				return <User className="w-4 h-4 text-cyan-400" />;
+			case "env":
+				return <Code2 className="w-4 h-4 text-[#38bdf8]" />;
 		}
 	};
 
@@ -82,6 +87,8 @@ export const ItemList: React.FC<ItemListProps> = ({
 				return item.content.slice(0, 40) + "...";
 			case "personal_info":
 				return `${item.fullName} • ${item.email || item.city || "Profile"}`;
+			case "env":
+				return `${item.environment || "ENV"} • ${item.project || "Project"}`;
 		}
 	};
 
