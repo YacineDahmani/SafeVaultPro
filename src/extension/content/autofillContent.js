@@ -909,6 +909,67 @@
 		return false;
 	}
 
+	// Auto-Save Form Submit Handler & Click Interceptor
+	function setupAutoSaveSubmitListener() {
+		const triggerSaveFromForm = (form) => {
+			if (!form) return;
+
+			// Extract captured or entered credentials from form
+			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
+			const userInput = form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]');
+
+			const passVal = form.dataset.safevaultCapturedPass || (passInputs.length > 0 ? passInputs[0].value : '');
+			const userVal = form.dataset.safevaultCapturedUser || (userInput ? userInput.value : '');
+
+			if (passVal && passVal.length >= 4) {
+				const title = `${currentDomain} Account`;
+				chrome.runtime.sendMessage(
+					{
+						action: "SAVE_PASSWORD",
+						id: form.dataset.safevaultItemId,
+						title,
+						username: userVal,
+						password: passVal,
+						url: window.location.href,
+						notes: `Captured from form on ${currentDomain}.`,
+					},
+					(res) => {
+						if (res && res.success) {
+							if (res.item) form.dataset.safevaultItemId = res.item.id;
+							showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
+						}
+					}
+				);
+			}
+		};
+
+		// Listener 1: Standard form submit
+		document.addEventListener('submit', (e) => {
+			const form = e.target;
+			if (form && form instanceof HTMLFormElement) {
+				triggerSaveFromForm(form);
+			}
+		}, true);
+
+		// Listener 2: Click on submit/register buttons (for SPAs & AJAX forms)
+		document.addEventListener('click', (e) => {
+			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
+			if (!target) return;
+
+			const btnText = (target.textContent || target.value || '').toLowerCase();
+			const isRegisterBtn = target.type === 'submit' || [
+				'register', 'signup', 'sign-up', 'join', 'create', 'submit', 's\'inscrire', 'إنشاء'
+			].some(kw => btnText.includes(kw));
+
+			if (isRegisterBtn) {
+				const form = target.form || target.closest('form') || target.closest('div');
+				if (form) {
+					setTimeout(() => triggerSaveFromForm(form), 100);
+				}
+			}
+		}, true);
+	}
+
 	// Document event listeners for field scan
 	function scanAndAttach() {
 		const inputs = document.querySelectorAll(
