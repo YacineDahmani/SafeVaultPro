@@ -281,7 +281,7 @@
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
 		badge.title = 'SafeVaultPro Autofill (Click to open, Drag to move)';
-		badge.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
+		badge.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
 
 		// Drag state management
 		let isDragging = false;
@@ -466,6 +466,19 @@
 			}
 		});
 
+		if (input.type === 'password') {
+			itemsHtml += `
+				<div class="safevault-dropdown-item safevault-gen-action" data-action="generate">
+					<div class="safevault-item-icon">⚡</div>
+					<div class="safevault-item-details">
+						<div class="safevault-item-title" style="color:#34d399;">Generate Strong Password</div>
+						<div class="safevault-item-sub">Create & fill secure 20-char password</div>
+					</div>
+					<span class="safevault-fill-btn">Generate</span>
+				</div>
+			`;
+		}
+
 		dropdown.innerHTML = `
 			<div class="safevault-dropdown-header">
 				<span class="safevault-brand">SafeVaultPro</span>
@@ -482,6 +495,23 @@
 		dropdown.addEventListener('click', (e) => {
 			const itemElem = e.target.closest('.safevault-dropdown-item');
 			if (!itemElem) return;
+
+			if (itemElem.dataset.action === 'generate') {
+				closeDropdown();
+				chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
+					if (res && res.success && res.password) {
+						setNativeFieldValue(input, res.password);
+						const form = input.form || input.closest('form');
+						if (form) {
+							const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
+							passFields.forEach((pField) => setNativeFieldValue(pField, res.password));
+						}
+						showToastBanner(`⚡ Generated & filled strong password!`);
+					}
+				});
+				return;
+			}
+
 			const id = itemElem.dataset.id;
 			const targetItem = items.find((i) => i.id === id);
 			if (!targetItem) return;
@@ -687,52 +717,87 @@
 		toast.className = 'safevault-toast-banner';
 		toast.innerHTML = `
 			<div class="safevault-toast-icon">✓</div>
-			<div style="flex:1;">
-				<div style="font-weight:700; color:#10b981; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">SafeVaultPro</div>
-				<div style="color:#f4f4f5; font-size:12px; line-height:1.4;">${escapeHtml(message)}</div>
-			</div>
+			<div style="color:#f4f4f5; font-size:11px; font-weight:500; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(message)}</div>
 		`;
 		document.body.appendChild(toast);
 		setTimeout(() => {
 			toast.style.opacity = '0';
-			toast.style.transform = 'translateY(20px)';
-			toast.style.transition = 'all 0.3s ease';
-			setTimeout(() => toast.remove(), 300);
-		}, 4200);
+			toast.style.transform = 'translateY(8px)';
+			toast.style.transition = 'all 0.25s ease';
+			setTimeout(() => toast.remove(), 250);
+		}, 3000);
 	}
 
-	// Registration / Sign Up Form Classifier
+	// Smart Multilingual Registration / Sign Up Form Classifier
 	function isRegistrationForm(input, form) {
-		if (!input && !form) return false;
+		if (!input) return false;
+		if (input.type !== 'password') return false;
 
-		const formElem = form || (input ? (input.form || input.closest('form')) : null);
-		const formHtml = formElem ? (formElem.action + ' ' + formElem.innerHTML).toLowerCase() : '';
-		const pageUrl = window.location.href.toLowerCase();
+		const inputAutoComplete = (input.autocomplete || '').toLowerCase();
+		const inputAttr = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.getAttribute('aria-label') || ''}`.toLowerCase();
 
-		const inputAutoComplete = (input?.autocomplete || '').toLowerCase();
-		const inputAttr = `${input?.name || ''} ${input?.id || ''} ${input?.placeholder || ''}`.toLowerCase();
+		// 1. Explicit negative check: Login / current password fields are NEVER registration fields
+		if (
+			inputAutoComplete === 'current-password' ||
+			inputAttr.includes('current-password') ||
+			inputAttr.includes('current_password') ||
+			inputAttr.includes('old_password') ||
+			inputAttr.includes('old-password') ||
+			inputAttr.includes('login_password') ||
+			inputAttr.includes('login-password') ||
+			inputAttr.includes('user_password') ||
+			inputAttr.includes('auth_password') ||
+			inputAttr.includes('signin')
+		) {
+			return false;
+		}
 
-		// Explicit autocomplete or field hints
-		if (inputAutoComplete === 'new-password' || inputAttr.includes('confirm') || inputAttr.includes('verify') || inputAttr.includes('repeat')) {
+		const formElem = form || input.form || input.closest('form');
+
+		// 2. Explicit positive checks: New password or confirmation attributes
+		if (
+			inputAutoComplete === 'new-password' ||
+			inputAttr.includes('new-password') ||
+			inputAttr.includes('new_password') ||
+			inputAttr.includes('newpassword') ||
+			inputAttr.includes('create_password') ||
+			inputAttr.includes('create-password') ||
+			inputAttr.includes('signup_password') ||
+			inputAttr.includes('register_password') ||
+			inputAttr.includes('confirm') ||
+			inputAttr.includes('verify') ||
+			inputAttr.includes('repeat')
+		) {
 			return true;
 		}
 
-		// Check for multiple password fields in the same form (Password + Confirm Password)
+		// 3. Form-level inspection
 		if (formElem) {
-			const passInputs = formElem.querySelectorAll('input[type="password"]');
-			if (passInputs.length >= 2) return true;
-		}
+			const passInputs = Array.from(formElem.querySelectorAll('input[type="password"]'));
+			
+			// If form has 2 or more password fields (Password + Confirm Password)
+			if (passInputs.length >= 2) {
+				return true;
+			}
 
-		// Registration / Sign up keywords in URL, action, or form content
-		const regKeywords = [
-			'register', 'signup', 'sign-up', 'join', 'create-account', 'create_account',
-			'new-user', 's_inscrire', 'creer-compte', 'inscription', 'إنشاء حساب', 'تسجيل'
-		];
+			// Check submit button or form action explicitly
+			const submitBtn = formElem.querySelector('button[type="submit"], input[type="submit"], button');
+			const submitText = submitBtn ? (submitBtn.textContent || submitBtn.value || '').toLowerCase() : '';
+			const formAction = (formElem.action || '').toLowerCase();
+			const formId = (formElem.id || formElem.name || '').toLowerCase();
 
-		const hasRegKeyword = regKeywords.some(kw => pageUrl.includes(kw) || formHtml.includes(kw));
+			const isRegisterSubmit = [
+				'register', 'signup', 'sign-up', 'create account', 'create_account',
+				's\'inscrire', 'creer compte', 'إنشاء حساب', 'تسجيل حساب'
+			].some(kw => submitText.includes(kw) || formAction.includes(kw) || formId.includes(kw));
 
-		if (hasRegKeyword && (input?.type === 'password' || (formElem && formElem.querySelector('input[type="password"]')))) {
-			return true;
+			const isLoginSubmit = [
+				'login', 'log in', 'sign in', 'signin', 'connexion', 'تسجيل الدخول'
+			].some(kw => submitText.includes(kw) || formAction.includes(kw) || formId.includes(kw));
+
+			if (isRegisterSubmit && !isLoginSubmit) {
+				return true;
+			}
 		}
 
 		return false;
@@ -749,7 +814,7 @@
 		const btn = document.createElement('div');
 		btn.className = 'safevault-register-badge';
 		btn.title = 'SafeVaultPro: Click to generate, fill, and save strong password directly to app';
-		btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span>Suggest Strong Password</span>`;
+		btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span>Suggest Strong Password</span>`;
 
 		btn.addEventListener('click', (e) => {
 			e.preventDefault();
@@ -797,9 +862,9 @@
 						(saveRes) => {
 							if (saveRes && saveRes.success && saveRes.item) {
 								if (form) form.dataset.safevaultItemId = saveRes.item.id;
-								showToastBanner(`🔒 Strong password generated & saved directly to SafeVaultPro!`);
+								showToastBanner(`🔒 Strong password saved to SafeVaultPro!`);
 							} else {
-								showToastBanner(`✨ Filled strong password! Submit form to save to SafeVaultPro.`);
+								showToastBanner(`✨ Filled strong password! Submit form to save.`);
 							}
 						}
 					);
@@ -868,7 +933,7 @@
 					(res) => {
 						if (res && res.success) {
 							if (res.item) form.dataset.safevaultItemId = res.item.id;
-							showToastBanner(`🔒 Credentials for ${currentDomain} saved to SafeVaultPro!`);
+							showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
 						}
 					}
 				);
@@ -917,9 +982,17 @@
 				attachBadge(input);
 			}
 
-			// Check registration form for password suggestion badge
+			// Check registration form for password suggestion badge (only attach to primary password field in registration form)
 			if (input.type === 'password' && isRegistrationForm(input)) {
-				attachRegistrationSuggestionBadge(input);
+				const form = input.form || input.closest('form');
+				if (form) {
+					const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
+					if (passInputs.length === 0 || passInputs[0] === input) {
+						attachRegistrationSuggestionBadge(input);
+					}
+				} else {
+					attachRegistrationSuggestionBadge(input);
+				}
 			}
 		});
 	}

@@ -1,11 +1,11 @@
 .safevault-input-badge {
 	position: absolute;
-	right: 10px;
+	right: 8px;
 	top: 50%;
 	transform: translateY(-50%);
-	width: 24px;
-	height: 24px;
-	border-radius: 6px;
+	width: 20px;
+	height: 20px;
+	border-radius: 5px;
 	background: rgba(24, 24, 27, 0.9);
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	display: flex;
@@ -14,7 +14,7 @@
 	cursor: grab;
 	z-index: 99999;
 	transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 	user-select: none;
 	touch-action: none;
 }
@@ -22,22 +22,22 @@
 .safevault-input-badge:active,
 .safevault-input-badge.safevault-dragging {
 	cursor: grabbing !important;
-	box-shadow: 0 0 16px rgba(16, 185, 129, 0.6) !important;
+	box-shadow: 0 0 12px rgba(16, 185, 129, 0.6) !important;
 	border-color: rgba(16, 185, 129, 0.8) !important;
 }
 
 .safevault-input-badge:hover {
 	background: rgba(16, 185, 129, 0.2);
 	border-color: rgba(16, 185, 129, 0.6);
-	box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+	box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 .safevault-dropdown-menu {
-	width: 300px;
+	width: 260px;
 	background: #09090b;
 	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-radius: 12px;
-	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
+	border-radius: 10px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	color: #f4f4f5;
 	overflow: hidden;
@@ -57,7 +57,7 @@
 }
 
 .safevault-dropdown-header {
-	padding: 10px 14px;
+	padding: 8px 12px;
 	background: rgba(24, 24, 27, 0.95);
 	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 	display: flex;
@@ -68,22 +68,22 @@
 .safevault-header-right {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 }
 
 .safevault-brand {
 	font-weight: 700;
-	font-size: 12px;
+	font-size: 11px;
 	letter-spacing: 0.05em;
 	color: #10b981;
 	text-transform: uppercase;
 }
 
 .safevault-badge-count {
-	font-size: 11px;
+	font-size: 10px;
 	color: #a1a1aa;
 	background: rgba(255, 255, 255, 0.08);
-	padding: 2px 6px;
+	padding: 1px 5px;
 	border-radius: 4px;
 }
 
@@ -91,11 +91,11 @@
 	background: transparent;
 	border: none;
 	color: #a1a1aa;
-	font-size: 16px;
+	font-size: 14px;
 	font-weight: bold;
 	cursor: pointer;
 	line-height: 1;
-	padding: 2px 6px;
+	padding: 1px 4px;
 	border-radius: 4px;
 	transition: all 0.15s ease;
 }
@@ -106,28 +106,28 @@
 }
 
 .safevault-dropdown-empty {
-	padding: 16px 14px;
-	font-size: 13px;
+	padding: 12px 10px;
+	font-size: 11px;
 	color: #a1a1aa;
 	text-align: center;
 	display: flex;
-	flex-col;
-	gap: 10px;
+	flex-direction: column;
+	gap: 8px;
 	align-items: center;
 }
 
 .safevault-dropdown-actions {
 	display: flex;
-	gap: 8px;
+	gap: 6px;
 	justify-content: center;
-	margin-top: 8px;
+	margin-top: 4px;
 	width: 100%;
 }
 
 .safevault-action-btn {
-	font-size: 11px;
-	padding: 4px 10px;
-	border-radius: 6px;
+	font-size: 10px;
+	padding: 3px 8px;
+	border-radius: 4px;
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	background: rgba(255, 255, 255, 0.05);
 	color: #d4d4d8;
@@ -147,15 +147,15 @@
 }
 
 .safevault-dropdown-list {
-	max-height: 250px;
+	max-height: 230px;
 	overflow-y: auto;
 }
 
 .safevault-dropdown-item {
-	padding: 10px 14px;
+	padding: 8px 12px;
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: 8px;
 	cursor: pointer;
 	transition: background 0.15s ease;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -170,7 +170,7 @@
 }
 
 .safevault-item-icon {
-	font-size: 16px;
+	font-size: 14px;
 }
 
 .safevault-item-details {
@@ -179,7 +179,7 @@
 }
 
 .safevault-item-title {
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 600;
 	color: #f4f4f5;
 	white-space: nowrap;
@@ -188,7 +188,7 @@
 }
 
 .safevault-item-sub {
-	font-size: 11px;
+	font-size: 10px;
 	color: #71717a;
 	white-space: nowrap;
 	overflow: hidden;
@@ -196,11 +196,11 @@
 }
 
 .safevault-fill-btn {
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: 600;
 	color: #10b981;
 	background: rgba(16, 185, 129, 0.12);
-	padding: 4px 8px;
+	padding: 3px 6px;
 	border-radius: 4px;
 	border: 1px solid rgba(16, 185, 129, 0.25);
 	transition: all 0.15s ease;
@@ -211,58 +211,62 @@
 	color: #09090b;
 }
 
-/* Registration Password Suggestion Badge */
+/* Compact Registration Password Suggestion Pill */
 .safevault-register-badge {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	margin-top: 6px;
-	padding: 5px 10px;
-	background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35));
-	border: 1px solid rgba(16, 185, 129, 0.6);
-	border-radius: 8px;
+	gap: 5px;
+	margin-top: 4px;
+	padding: 3px 8px;
+	background: rgba(16, 185, 129, 0.12);
+	border: 1px solid rgba(16, 185, 129, 0.35);
+	border-radius: 6px;
 	color: #34d399;
-	font-size: 11px;
-	font-weight: 700;
+	font-size: 10px;
+	font-weight: 600;
 	font-family: system-ui, -apple-system, sans-serif;
 	cursor: pointer;
-	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	transition: all 0.15s ease;
 	z-index: 99999;
+	user-select: none;
+	width: max-content;
 }
 
 .safevault-register-badge:hover {
-	background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.5));
+	background: rgba(16, 185, 129, 0.25);
 	border-color: #10b981;
 	color: #ffffff;
 	transform: translateY(-1px);
-	box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+	box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
-/* Floating Auto-Save Toast Banner */
+/* Compact Floating Auto-Save Toast Banner */
 .safevault-toast-banner {
 	position: fixed;
-	bottom: 24px;
-	right: 24px;
-	background: #131315;
-	border: 1px solid rgba(16, 185, 129, 0.6);
-	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 16px rgba(16, 185, 129, 0.3);
-	border-radius: 12px;
-	padding: 12px 18px;
+	bottom: 16px;
+	right: 16px;
+	background: rgba(19, 19, 21, 0.95);
+	border: 1px solid rgba(16, 185, 129, 0.4);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(16, 185, 129, 0.15);
+	border-radius: 8px;
+	padding: 6px 12px;
 	color: #ffffff;
 	font-family: system-ui, -apple-system, sans-serif;
-	font-size: 13px;
+	font-size: 11px;
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 8px;
 	z-index: 999999;
-	animation: safevault-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	animation: safevault-toast-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+	backdrop-filter: blur(8px);
+	pointer-events: none;
+	max-width: 320px;
 }
 
 @keyframes safevault-toast-slide {
 	from {
 		opacity: 0;
-		transform: translateY(20px) scale(0.95);
+		transform: translateY(12px) scale(0.96);
 	}
 	to {
 		opacity: 1;
@@ -271,8 +275,8 @@
 }
 
 .safevault-toast-icon {
-	width: 24px;
-	height: 24px;
+	width: 16px;
+	height: 16px;
 	border-radius: 50%;
 	background: rgba(16, 185, 129, 0.2);
 	border: 1px solid #10b981;
@@ -281,6 +285,8 @@
 	justify-content: center;
 	color: #10b981;
 	font-weight: bold;
-	shrink: 0;
+	font-size: 10px;
+	flex-shrink: 0;
 }
+
 
