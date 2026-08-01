@@ -211,62 +211,34 @@
 	color: #09090b;
 }
 
-/* Compact Registration Password Suggestion Pill */
-.safevault-register-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	margin-top: 4px;
-	padding: 3px 8px;
-	background: rgba(16, 185, 129, 0.12);
-	border: 1px solid rgba(16, 185, 129, 0.35);
-	border-radius: 6px;
-	color: #34d399;
-	font-size: 10px;
-	font-weight: 600;
-	font-family: system-ui, -apple-system, sans-serif;
-	cursor: pointer;
-	transition: all 0.15s ease;
-	z-index: 99999;
-	user-select: none;
-	width: max-content;
-}
-
-.safevault-register-badge:hover {
-	background: rgba(16, 185, 129, 0.25);
-	border-color: #10b981;
-	color: #ffffff;
-	transform: translateY(-1px);
-	box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-}
-
-/* Compact Floating Auto-Save Toast Banner */
+/* Micro Toast Notification */
 .safevault-toast-banner {
 	position: fixed;
-	bottom: 16px;
-	right: 16px;
-	background: rgba(19, 19, 21, 0.95);
+	bottom: 12px;
+	right: 12px;
+	background: rgba(15, 15, 18, 0.92);
 	border: 1px solid rgba(16, 185, 129, 0.4);
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(16, 185, 129, 0.15);
-	border-radius: 8px;
-	padding: 6px 12px;
-	color: #ffffff;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+	border-radius: 6px;
+	padding: 4px 10px;
+	color: #f4f4f5;
 	font-family: system-ui, -apple-system, sans-serif;
-	font-size: 11px;
+	font-size: 10px;
+	font-weight: 500;
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 	z-index: 999999;
-	animation: safevault-toast-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-	backdrop-filter: blur(8px);
+	animation: safevault-toast-slide 0.2s ease-out;
+	backdrop-filter: blur(6px);
 	pointer-events: none;
-	max-width: 320px;
+	max-width: 260px;
 }
 
 @keyframes safevault-toast-slide {
 	from {
 		opacity: 0;
-		transform: translateY(12px) scale(0.96);
+		transform: translateY(8px) scale(0.96);
 	}
 	to {
 		opacity: 1;
@@ -275,8 +247,8 @@
 }
 
 .safevault-toast-icon {
-	width: 16px;
-	height: 16px;
+	width: 14px;
+	height: 14px;
 	border-radius: 50%;
 	background: rgba(16, 185, 129, 0.2);
 	border: 1px solid #10b981;
@@ -285,8 +257,9 @@
 	justify-content: center;
 	color: #10b981;
 	font-weight: bold;
-	font-size: 10px;
+	font-size: 9px;
 	flex-shrink: 0;
 }
+
 
 

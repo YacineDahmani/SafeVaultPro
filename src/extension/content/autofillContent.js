@@ -343,30 +343,69 @@
 		container.appendChild(badge);
 	}
 
-	// Toggle autofill dropdown menu
+	// Toggle autofill dropdown menu - Context Aware (Login vs Register)
 	async function toggleDropdown(input, badge) {
 		if (activeDropdown) {
 			closeDropdown();
 			return;
 		}
 
+		const isRegister = isRegistrationForm(input);
 		const fieldType = classifyField(input);
 
-		// Request matched items from service worker
-		chrome.runtime.sendMessage(
-			{ action: "QUERY_ITEMS", domain: currentDomain, fieldType },
-			(response) => {
-				if (!response || !response.success) {
-					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro desktop app.", true);
-					return;
-				}
-				if (!response.items || response.items.length === 0) {
-					showEmptyDropdown(badge, "No matching vault items for this field/domain.", false);
-					return;
-				}
-				renderDropdownMenu(input, badge, response.items);
+		if (isRegister) {
+			// =========================================================================
+			// 1. REGISTRATION PAGE CONTEXT
+			// =========================================================================
+			if (input.type === 'password' || fieldType === 'password') {
+				// Password field on Register page: Offer ONLY password generation
+				renderRegisterPasswordDropdown(input, badge);
+			} else {
+				// Email / Username / Identity field on Register page: Fetch Personal Information
+				chrome.runtime.sendMessage(
+					{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "personal" },
+					(response) => {
+						const items = (response && response.success && Array.isArray(response.items)) ? response.items : [];
+						if (items.length === 0) {
+							// Query overall items if specific personal query yields empty
+							chrome.runtime.sendMessage(
+								{ action: "QUERY_ITEMS", domain: currentDomain },
+								(resp) => {
+									const allPersonal = (resp?.items || []).filter(i => i.type === 'personal_info' || i.type === 'identity');
+									renderRegisterIdentityDropdown(input, badge, allPersonal);
+								}
+							);
+						} else {
+							renderRegisterIdentityDropdown(input, badge, items);
+						}
+					}
+				);
 			}
-		);
+		} else {
+			// =========================================================================
+			// 2. LOGIN PAGE CONTEXT
+			// =========================================================================
+			// DO NOT suggest generating passwords on login pages! Only fetch saved credentials matching domain
+			chrome.runtime.sendMessage(
+				{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "password", type: "password" },
+				(response) => {
+					if (!response || !response.success) {
+						showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+						return;
+					}
+
+					// Filter items strictly to saved logins for this domain
+					const matchedLogins = (response.items || []).filter(i => i.type === 'password');
+
+					if (matchedLogins.length === 0) {
+						showEmptyDropdown(badge, `No saved credentials for ${currentDomain}`, false);
+						return;
+					}
+
+					renderLoginDropdownMenu(input, badge, matchedLogins);
+				}
+			);
+		}
 	}
 
 	function closeDropdown() {
@@ -409,66 +448,20 @@
 		activeDropdown = dropdown;
 	}
 
-	function renderDropdownMenu(input, badge, items) {
+	// Dropdown Renderer: Registration Password Field (Generate Only)
+	function renderRegisterPasswordDropdown(input, badge) {
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
-
-		let itemsHtml = '';
-		items.forEach((item) => {
-			if (item.type === 'password') {
-				itemsHtml += `
-					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="password">
-						<div class="safevault-item-icon">🔑</div>
-						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.title)}</div>
-							<div class="safevault-item-sub">${escapeHtml(item.username || 'No username')}</div>
-						</div>
-						<span class="safevault-fill-btn">Autofill</span>
-					</div>
-				`;
-			} else if (item.type === 'totp') {
-				itemsHtml += `
-					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="totp">
-						<div class="safevault-item-icon">⚡</div>
-						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.title || item.issuer)}</div>
-							<div class="safevault-item-sub">2FA Code (${escapeHtml(item.accountName || '')})</div>
-						</div>
-						<span class="safevault-fill-btn">Insert 2FA</span>
-					</div>
-				`;
-			} else if (item.type === 'card') {
-				const cardNum = item.number ? `•••• ${item.number.slice(-4)}` : 'Card';
-				const cardHolder = item.cardholderName ? escapeHtml(item.cardholderName) : '';
-				const cvvCode = (item.cvv || item.pin) ? ` | CVV: ${escapeHtml(item.cvv || item.pin)}` : '';
-				itemsHtml += `
-					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
-						<div class="safevault-item-icon">💳</div>
-						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.title)} ${cardHolder ? `(${cardHolder})` : ''}</div>
-							<div class="safevault-item-sub">${escapeHtml(item.subtype ? item.subtype.toUpperCase().replace('_', ' ') : 'CARD')} ${cardNum}${cvvCode}</div>
-						</div>
-						<span class="safevault-fill-btn">Fill Card</span>
-					</div>
-				`;
-			} else if (item.type === 'personal_info') {
-				itemsHtml += `
-					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="personal">
-						<div class="safevault-item-icon">👤</div>
-						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.fullName)}</div>
-							<div class="safevault-item-sub">${escapeHtml(item.email || item.city || 'Personal Identity')}</div>
-						</div>
-						<span class="safevault-fill-btn">Fill Info</span>
-					</div>
-				`;
-			}
-		});
-
-		if (input.type === 'password') {
-			itemsHtml += `
-				<div class="safevault-dropdown-item safevault-gen-action" data-action="generate">
+		dropdown.innerHTML = `
+			<div class="safevault-dropdown-header">
+				<span class="safevault-brand">SafeVaultPro • New Password</span>
+				<div class="safevault-header-right">
+					<button class="safevault-close-btn" title="Close overlay">&times;</button>
+				</div>
+			</div>
+			<div class="safevault-dropdown-list">
+				<div class="safevault-dropdown-item" data-action="generate">
 					<div class="safevault-item-icon">⚡</div>
 					<div class="safevault-item-details">
 						<div class="safevault-item-title" style="color:#34d399;">Generate Strong Password</div>
@@ -476,22 +469,10 @@
 					</div>
 					<span class="safevault-fill-btn">Generate</span>
 				</div>
-			`;
-		}
-
-		dropdown.innerHTML = `
-			<div class="safevault-dropdown-header">
-				<span class="safevault-brand">SafeVaultPro</span>
-				<div class="safevault-header-right">
-					<span class="safevault-badge-count">${items.length} item${items.length === 1 ? '' : 's'}</span>
-					<button class="safevault-close-btn" title="Close overlay">&times;</button>
-				</div>
 			</div>
-			<div class="safevault-dropdown-list">${itemsHtml}</div>
 		`;
 
 		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
-
 		dropdown.addEventListener('click', (e) => {
 			const itemElem = e.target.closest('.safevault-dropdown-item');
 			if (!itemElem) return;
@@ -500,23 +481,147 @@
 				closeDropdown();
 				chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
 					if (res && res.success && res.password) {
-						setNativeFieldValue(input, res.password);
+						const generatedPass = res.password;
+						setNativeFieldValue(input, generatedPass);
+
 						const form = input.form || input.closest('form');
 						if (form) {
 							const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
-							passFields.forEach((pField) => setNativeFieldValue(pField, res.password));
+							passFields.forEach((pField) => setNativeFieldValue(pField, generatedPass));
 						}
-						showToastBanner(`⚡ Generated & filled strong password!`);
+
+						const userField = form
+							? form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]')
+							: null;
+						const usernameVal = userField ? userField.value : '';
+
+						const title = `${currentDomain} Account`;
+						chrome.runtime.sendMessage(
+							{
+								action: "SAVE_PASSWORD",
+								id: form?.dataset.safevaultItemId,
+								title,
+								username: usernameVal,
+								password: generatedPass,
+								url: window.location.href,
+								notes: `Generated & saved on ${currentDomain}.`,
+							},
+							(saveRes) => {
+								if (saveRes && saveRes.success && saveRes.item && form) {
+									form.dataset.safevaultItemId = saveRes.item.id;
+								}
+								showToastBanner(`🔒 Password saved to SafeVaultPro!`);
+							}
+						);
 					}
 				});
-				return;
 			}
+		});
 
-			const id = itemElem.dataset.id;
-			const targetItem = items.find((i) => i.id === id);
-			if (!targetItem) return;
+		positionDropdown(badge, dropdown);
+		document.body.appendChild(dropdown);
+		activeDropdown = dropdown;
+	}
 
-			autofillItem(input, targetItem);
+	// Dropdown Renderer: Registration Identity / Email Field (Fetch Personal Info)
+	function renderRegisterIdentityDropdown(input, badge, items) {
+		closeDropdown();
+		const dropdown = document.createElement('div');
+		dropdown.className = 'safevault-dropdown-menu';
+
+		let itemsHtml = '';
+		if (items.length === 0) {
+			itemsHtml = `
+				<div class="safevault-dropdown-empty">
+					<div>No personal profile saved in SafeVaultPro.</div>
+				</div>
+			`;
+		} else {
+			items.forEach((item) => {
+				const emailVal = item.email || item.username || '';
+				const nameVal = item.fullName || item.title || 'Personal Profile';
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}">
+						<div class="safevault-item-icon">👤</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(nameVal)}</div>
+							<div class="safevault-item-sub">${escapeHtml(emailVal || 'Select to fill identity')}</div>
+						</div>
+						<span class="safevault-fill-btn">Fill Info</span>
+					</div>
+				`;
+			});
+		}
+
+		dropdown.innerHTML = `
+			<div class="safevault-dropdown-header">
+				<span class="safevault-brand">SafeVaultPro • Identity</span>
+				<div class="safevault-header-right">
+					<button class="safevault-close-btn" title="Close overlay">&times;</button>
+				</div>
+			</div>
+			<div class="safevault-dropdown-list">${itemsHtml}</div>
+		`;
+
+		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
+		dropdown.addEventListener('click', (e) => {
+			const itemElem = e.target.closest('.safevault-dropdown-item');
+			if (!itemElem || !itemElem.dataset.id) return;
+
+			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
+			if (targetItem) {
+				autofillItem(input, targetItem);
+				showToastBanner(`👤 Filled personal details!`);
+			}
+			closeDropdown();
+		});
+
+		positionDropdown(badge, dropdown);
+		document.body.appendChild(dropdown);
+		activeDropdown = dropdown;
+	}
+
+	// Dropdown Renderer: Login Page Saved Logins (Domain Matched Only)
+	function renderLoginDropdownMenu(input, badge, items) {
+		closeDropdown();
+		const dropdown = document.createElement('div');
+		dropdown.className = 'safevault-dropdown-menu';
+
+		let itemsHtml = '';
+		items.forEach((item) => {
+			itemsHtml += `
+				<div class="safevault-dropdown-item" data-id="${item.id}">
+					<div class="safevault-item-icon">🔑</div>
+					<div class="safevault-item-details">
+						<div class="safevault-item-title">${escapeHtml(item.title)}</div>
+						<div class="safevault-item-sub">${escapeHtml(item.username || 'No username')}</div>
+					</div>
+					<span class="safevault-fill-btn">Autofill</span>
+				</div>
+			`;
+		});
+
+		dropdown.innerHTML = `
+			<div class="safevault-dropdown-header">
+				<span class="safevault-brand">SafeVaultPro • Saved Logins</span>
+				<div class="safevault-header-right">
+					<span class="safevault-badge-count">${items.length}</span>
+					<button class="safevault-close-btn" title="Close overlay">&times;</button>
+				</div>
+			</div>
+			<div class="safevault-dropdown-list">${itemsHtml}</div>
+		`;
+
+		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
+		dropdown.addEventListener('click', (e) => {
+			const itemElem = e.target.closest('.safevault-dropdown-item');
+			if (!itemElem || !itemElem.dataset.id) return;
+
+			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
+			if (targetItem) {
+				autofillItem(input, targetItem);
+				showToastBanner(`🔑 Credentials filled!`);
+			}
 			closeDropdown();
 		});
 
@@ -528,8 +633,8 @@
 	function positionDropdown(badge, dropdown) {
 		const rect = badge.getBoundingClientRect();
 		dropdown.style.position = 'fixed';
-		dropdown.style.top = `${Math.min(window.innerHeight - 300, rect.bottom + 6)}px`;
-		dropdown.style.left = `${Math.max(10, Math.min(window.innerWidth - 310, rect.left - 180))}px`;
+		dropdown.style.top = `${Math.min(window.innerHeight - 260, rect.bottom + 4)}px`;
+		dropdown.style.left = `${Math.max(10, Math.min(window.innerWidth - 270, rect.left - 160))}px`;
 		dropdown.style.zIndex = '999999';
 	}
 
@@ -665,8 +770,6 @@
 			const container = targetInput.form || targetInput.closest('form') || document;
 			const inputs = Array.from(container.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]), select'));
 
-			const getVal = (f) => (f || '').trim();
-
 			inputs.forEach((field) => {
 				const attr = `${field.name || ''} ${field.id || ''} ${field.placeholder || ''} ${field.getAttribute('aria-label') || ''} ${field.autocomplete || ''} ${field.type || ''}`.toLowerCase();
 
@@ -685,7 +788,7 @@
 				} else if (attr.includes('passport') || attr.includes('nin') || attr.includes('national_id') || attr.includes('carte_identite') || attr.includes('identity')) {
 					if (item.nationalId) setNativeFieldValue(field, item.nationalId);
 				} else if (attr.includes('email') || attr.includes('courriel') || field.type === 'email') {
-					if (item.email) setNativeFieldValue(field, item.email);
+					if (item.email || item.username) setNativeFieldValue(field, item.email || item.username);
 				} else if (attr.includes('phone') || attr.includes('tele') || attr.includes('mobile') || field.type === 'tel') {
 					if (item.phone) setNativeFieldValue(field, item.phone);
 				} else if (attr.includes('address') || attr.includes('adresse') || attr.includes('street')) {
@@ -700,6 +803,12 @@
 					if (item.country) setNativeFieldValue(field, item.country);
 				}
 			});
+
+			// If target input was not populated by attribute match, set its value to email/fullName
+			if (!targetInput.value) {
+				if (item.email) setNativeFieldValue(targetInput, item.email);
+				else if (item.fullName) setNativeFieldValue(targetInput, item.fullName);
+			}
 		}
 	}
 
@@ -708,7 +817,7 @@
 		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 	}
 
-	// Helper to display on-page notification toast for extension events
+	// Helper to display ultra-compact micro notification toast
 	function showToastBanner(message) {
 		const existing = document.querySelector('.safevault-toast-banner');
 		if (existing) existing.remove();
@@ -717,22 +826,22 @@
 		toast.className = 'safevault-toast-banner';
 		toast.innerHTML = `
 			<div class="safevault-toast-icon">✓</div>
-			<div style="color:#f4f4f5; font-size:11px; font-weight:500; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(message)}</div>
+			<div>${escapeHtml(message)}</div>
 		`;
 		document.body.appendChild(toast);
 		setTimeout(() => {
 			toast.style.opacity = '0';
-			toast.style.transform = 'translateY(8px)';
-			toast.style.transition = 'all 0.25s ease';
-			setTimeout(() => toast.remove(), 250);
-		}, 3000);
+			toast.style.transform = 'translateY(6px)';
+			toast.style.transition = 'all 0.2s ease';
+			setTimeout(() => toast.remove(), 200);
+		}, 1800);
 	}
 
 	// Smart Multilingual Registration / Sign Up Form Classifier
 	function isRegistrationForm(input, form) {
 		if (!input) return false;
-		if (input.type !== 'password') return false;
 
+		const formElem = form || input.form || input.closest('form');
 		const inputAutoComplete = (input.autocomplete || '').toLowerCase();
 		const inputAttr = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.getAttribute('aria-label') || ''}`.toLowerCase();
 
@@ -752,8 +861,6 @@
 			return false;
 		}
 
-		const formElem = form || input.form || input.closest('form');
-
 		// 2. Explicit positive checks: New password or confirmation attributes
 		if (
 			inputAutoComplete === 'new-password' ||
@@ -765,206 +872,41 @@
 			inputAttr.includes('signup_password') ||
 			inputAttr.includes('register_password') ||
 			inputAttr.includes('confirm') ||
-			inputAttr.includes('verify') ||
+			inputAttr.includes('verify_password') ||
 			inputAttr.includes('repeat')
 		) {
 			return true;
 		}
 
-		// 3. Form-level inspection
+		// 3. Form & Page Context Inspection
+		const pageUrl = window.location.href.toLowerCase();
+		const pageTitle = document.title.toLowerCase();
+		const formHtml = formElem ? (formElem.action + ' ' + (formElem.id || '') + ' ' + (formElem.name || '') + ' ' + (formElem.className || '')).toLowerCase() : '';
+		const submitBtn = formElem ? formElem.querySelector('button[type="submit"], input[type="submit"], button') : null;
+		const submitText = submitBtn ? (submitBtn.textContent || submitBtn.value || '').toLowerCase() : '';
+
+		const isRegisterContext = [
+			'register', 'signup', 'sign-up', 'create account', 'create_account',
+			's\'inscrire', 'creer compte', 'إنشاء حساب', 'تسجيل حساب'
+		].some(kw => pageUrl.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw));
+
+		const isLoginContext = [
+			'login', 'log in', 'log-in', 'sign in', 'signin', 'connexion', 'تسجيل الدخول'
+		].some(kw => pageUrl.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw));
+
+		if (isRegisterContext && !isLoginContext) {
+			return true;
+		}
+
+		// 4. Form-level multi password check (Password + Confirm Password)
 		if (formElem) {
 			const passInputs = Array.from(formElem.querySelectorAll('input[type="password"]'));
-			
-			// If form has 2 or more password fields (Password + Confirm Password)
 			if (passInputs.length >= 2) {
-				return true;
-			}
-
-			// Check submit button or form action explicitly
-			const submitBtn = formElem.querySelector('button[type="submit"], input[type="submit"], button');
-			const submitText = submitBtn ? (submitBtn.textContent || submitBtn.value || '').toLowerCase() : '';
-			const formAction = (formElem.action || '').toLowerCase();
-			const formId = (formElem.id || formElem.name || '').toLowerCase();
-
-			const isRegisterSubmit = [
-				'register', 'signup', 'sign-up', 'create account', 'create_account',
-				's\'inscrire', 'creer compte', 'إنشاء حساب', 'تسجيل حساب'
-			].some(kw => submitText.includes(kw) || formAction.includes(kw) || formId.includes(kw));
-
-			const isLoginSubmit = [
-				'login', 'log in', 'sign in', 'signin', 'connexion', 'تسجيل الدخول'
-			].some(kw => submitText.includes(kw) || formAction.includes(kw) || formId.includes(kw));
-
-			if (isRegisterSubmit && !isLoginSubmit) {
 				return true;
 			}
 		}
 
 		return false;
-	}
-
-	// Attach Password Suggestion Badge for Registration Forms
-	function attachRegistrationSuggestionBadge(input) {
-		if (input.dataset.safevaultSuggestAttached) return;
-		input.dataset.safevaultSuggestAttached = "true";
-
-		const form = input.form || input.closest('form') || input.parentElement;
-		if (!form) return;
-
-		const btn = document.createElement('div');
-		btn.className = 'safevault-register-badge';
-		btn.title = 'SafeVaultPro: Click to generate, fill, and save strong password directly to app';
-		btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span>Suggest Strong Password</span>`;
-
-		btn.addEventListener('click', (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-
-			chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
-				if (res && res.success && res.password) {
-					const generatedPass = res.password;
-
-					// 1. Fill primary password field
-					setNativeFieldValue(input, generatedPass);
-
-					// 2. Find and fill confirmation password field if present
-					if (form) {
-						const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
-						passFields.forEach((pField) => {
-							setNativeFieldValue(pField, generatedPass);
-						});
-					}
-
-					// 3. Find username / email field value
-					const userField = form
-						? form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"], input[id*="user"], input[id*="email"]')
-						: null;
-					const usernameVal = userField ? userField.value : '';
-
-					// Store draft for submission
-					if (form) {
-						form.dataset.safevaultCapturedPass = generatedPass;
-						if (usernameVal) form.dataset.safevaultCapturedUser = usernameVal;
-					}
-
-					// 4. DIRECT AUTO-SAVE TO SAFEVAULTPRO DESKTOP APP IMMEDIATELY
-					const title = `${currentDomain} Account`;
-					chrome.runtime.sendMessage(
-						{
-							action: "SAVE_PASSWORD",
-							id: form?.dataset.safevaultItemId,
-							title,
-							username: usernameVal,
-							password: generatedPass,
-							url: window.location.href,
-							notes: `Automatically generated & saved from registration form on ${currentDomain}.`,
-						},
-						(saveRes) => {
-							if (saveRes && saveRes.success && saveRes.item) {
-								if (form) form.dataset.safevaultItemId = saveRes.item.id;
-								showToastBanner(`🔒 Strong password saved to SafeVaultPro!`);
-							} else {
-								showToastBanner(`✨ Filled strong password! Submit form to save.`);
-							}
-						}
-					);
-
-					// 5. Watch username field changes to automatically update saved item in SafeVaultPro
-					if (userField && !userField.dataset.safevaultUserWatchAttached) {
-						userField.dataset.safevaultUserWatchAttached = "true";
-						const updateSavedUsername = () => {
-							const currentPass = form ? (form.dataset.safevaultCapturedPass || input.value) : input.value;
-							const updatedUser = userField.value;
-							if (currentPass && updatedUser) {
-								chrome.runtime.sendMessage({
-									action: "SAVE_PASSWORD",
-									id: form?.dataset.safevaultItemId,
-									title,
-									username: updatedUser,
-									password: currentPass,
-									url: window.location.href,
-									notes: `Automatically generated & saved from registration form on ${currentDomain}.`,
-								}, (upRes) => {
-									if (upRes && upRes.success && upRes.item && form) {
-										form.dataset.safevaultItemId = upRes.item.id;
-									}
-								});
-							}
-						};
-
-						userField.addEventListener('blur', updateSavedUsername);
-						userField.addEventListener('change', updateSavedUsername);
-					}
-				}
-			});
-		});
-
-		// Attach after input field
-		const parent = input.parentElement || form;
-		if (parent) {
-			parent.appendChild(btn);
-		}
-	}
-
-	// Auto-Save Form Submit Handler & Click Interceptor
-	function setupAutoSaveSubmitListener() {
-		const triggerSaveFromForm = (form) => {
-			if (!form) return;
-
-			// Extract captured or entered credentials from form
-			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
-			const userInput = form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]');
-
-			const passVal = form.dataset.safevaultCapturedPass || (passInputs.length > 0 ? passInputs[0].value : '');
-			const userVal = form.dataset.safevaultCapturedUser || (userInput ? userInput.value : '');
-
-			if (passVal && passVal.length >= 4) {
-				const title = `${currentDomain} Account`;
-				chrome.runtime.sendMessage(
-					{
-						action: "SAVE_PASSWORD",
-						id: form.dataset.safevaultItemId,
-						title,
-						username: userVal,
-						password: passVal,
-						url: window.location.href,
-						notes: `Automatically captured from registration/login form on ${currentDomain}.`,
-					},
-					(res) => {
-						if (res && res.success) {
-							if (res.item) form.dataset.safevaultItemId = res.item.id;
-							showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
-						}
-					}
-				);
-			}
-		};
-
-		// Listener 1: Standard form submit
-		document.addEventListener('submit', (e) => {
-			const form = e.target;
-			if (form && form instanceof HTMLFormElement) {
-				triggerSaveFromForm(form);
-			}
-		}, true);
-
-		// Listener 2: Click on submit/register buttons (for SPAs & AJAX forms)
-		document.addEventListener('click', (e) => {
-			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
-			if (!target) return;
-
-			const btnText = (target.textContent || target.value || '').toLowerCase();
-			const isRegisterBtn = target.type === 'submit' || [
-				'register', 'signup', 'sign-up', 'join', 'create', 'submit', 's\'inscrire', 'إنشاء'
-			].some(kw => btnText.includes(kw));
-
-			if (isRegisterBtn) {
-				const form = target.form || target.closest('form') || target.closest('div');
-				if (form) {
-					setTimeout(() => triggerSaveFromForm(form), 100);
-				}
-			}
-		}, true);
 	}
 
 	// Document event listeners for field scan
@@ -980,19 +922,6 @@
 			}
 			if (classification !== 'generic') {
 				attachBadge(input);
-			}
-
-			// Check registration form for password suggestion badge (only attach to primary password field in registration form)
-			if (input.type === 'password' && isRegistrationForm(input)) {
-				const form = input.form || input.closest('form');
-				if (form) {
-					const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
-					if (passInputs.length === 0 || passInputs[0] === input) {
-						attachRegistrationSuggestionBadge(input);
-					}
-				} else {
-					attachRegistrationSuggestionBadge(input);
-				}
 			}
 		});
 	}
