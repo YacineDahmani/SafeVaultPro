@@ -250,6 +250,7 @@ let savedRestoreFrame: { x: number; y: number; width: number; height: number } |
 				if (url.pathname === "/api/save-password" && req.method === "POST") {
 					try {
 						const body = (await req.json()) as {
+							id?: string;
 							title?: string;
 							username?: string;
 							password?: string;
@@ -271,21 +272,45 @@ let savedRestoreFrame: { x: number; y: number; width: number; height: number } |
 
 						const itemTitle = body.title || (cleanDomain ? `${cleanDomain} Account` : "Saved Login");
 
-						const savedItem = await vaultBackend.saveItem({
-							id: `ext-item-${Date.now()}`,
-							type: "password",
-							title: itemTitle,
-							username: body.username || "",
-							password: body.password,
-							url: body.url || "",
-							favorite: false,
-							tags: ["Extension", "Auto-Saved"],
-							notes: body.notes || `Automatically captured & saved from browser extension on ${new Date().toLocaleDateString()}.`,
-							createdAt: Date.now(),
-							updatedAt: Date.now(),
-						});
+						// Check if an existing item for this domain + username or id already exists
+						const allItems = syncedItems.length > 0 ? syncedItems : (vaultBackend.getUnlockStatus() ? vaultBackend.getItems() : []);
+						const existingItem = body.id
+							? allItems.find((i) => i.id === body.id)
+							: allItems.find(
+									(i) =>
+										i.type === "password" &&
+										((i as any).username || "").toLowerCase() === (body.username || "").toLowerCase() &&
+										((i as any).url || "").toLowerCase().includes(cleanDomain)
+								);
 
-						syncedItems.unshift(savedItem);
+						const itemId = body.id || (existingItem ? existingItem.id : `ext-item-${Date.now()}`);
+
+						const itemToSave = {
+							id: itemId,
+							type: "password" as const,
+							title: existingItem ? existingItem.title : itemTitle,
+							username: body.username || (existingItem ? (existingItem as any).username : ""),
+							password: body.password,
+							url: body.url || (existingItem ? (existingItem as any).url : ""),
+							favorite: existingItem ? existingItem.favorite : false,
+							tags: existingItem ? existingItem.tags : ["Extension", "Auto-Saved"],
+							notes: body.notes || `Automatically captured & saved from browser extension on ${new Date().toLocaleDateString()}.`,
+							createdAt: existingItem ? existingItem.createdAt : Date.now(),
+							updatedAt: Date.now(),
+						};
+
+						let savedItem = itemToSave;
+						if (vaultBackend.getUnlockStatus()) {
+							savedItem = await vaultBackend.saveItem(itemToSave);
+						}
+
+						// Update synced items cache
+						const idx = syncedItems.findIndex((i) => i.id === itemId);
+						if (idx >= 0) {
+							syncedItems[idx] = savedItem;
+						} else {
+							syncedItems.unshift(savedItem);
+						}
 
 						return new Response(
 							JSON.stringify({ success: true, item: savedItem }),

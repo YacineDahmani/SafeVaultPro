@@ -748,7 +748,7 @@
 
 		const btn = document.createElement('div');
 		btn.className = 'safevault-register-badge';
-		btn.title = 'SafeVaultPro: Click to generate and fill strong password';
+		btn.title = 'SafeVaultPro: Click to generate, fill, and save strong password directly to app';
 		btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <span>Suggest Strong Password</span>`;
 
 		btn.addEventListener('click', (e) => {
@@ -771,8 +771,10 @@
 					}
 
 					// 3. Find username / email field value
-					const userFields = form ? Array.from(form.querySelectorAll('input[type="text"], input[type="email"]')) : [];
-					const usernameVal = userFields.length > 0 ? userFields[0].value : '';
+					const userField = form
+						? form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"], input[id*="user"], input[id*="email"]')
+						: null;
+					const usernameVal = userField ? userField.value : '';
 
 					// Store draft for submission
 					if (form) {
@@ -780,7 +782,54 @@
 						if (usernameVal) form.dataset.safevaultCapturedUser = usernameVal;
 					}
 
-					showToastBanner(`✨ Filled strong password! Submit form to save to SafeVaultPro.`);
+					// 4. DIRECT AUTO-SAVE TO SAFEVAULTPRO DESKTOP APP IMMEDIATELY
+					const title = `${currentDomain} Account`;
+					chrome.runtime.sendMessage(
+						{
+							action: "SAVE_PASSWORD",
+							id: form?.dataset.safevaultItemId,
+							title,
+							username: usernameVal,
+							password: generatedPass,
+							url: window.location.href,
+							notes: `Automatically generated & saved from registration form on ${currentDomain}.`,
+						},
+						(saveRes) => {
+							if (saveRes && saveRes.success && saveRes.item) {
+								if (form) form.dataset.safevaultItemId = saveRes.item.id;
+								showToastBanner(`🔒 Strong password generated & saved directly to SafeVaultPro!`);
+							} else {
+								showToastBanner(`✨ Filled strong password! Submit form to save to SafeVaultPro.`);
+							}
+						}
+					);
+
+					// 5. Watch username field changes to automatically update saved item in SafeVaultPro
+					if (userField && !userField.dataset.safevaultUserWatchAttached) {
+						userField.dataset.safevaultUserWatchAttached = "true";
+						const updateSavedUsername = () => {
+							const currentPass = form ? (form.dataset.safevaultCapturedPass || input.value) : input.value;
+							const updatedUser = userField.value;
+							if (currentPass && updatedUser) {
+								chrome.runtime.sendMessage({
+									action: "SAVE_PASSWORD",
+									id: form?.dataset.safevaultItemId,
+									title,
+									username: updatedUser,
+									password: currentPass,
+									url: window.location.href,
+									notes: `Automatically generated & saved from registration form on ${currentDomain}.`,
+								}, (upRes) => {
+									if (upRes && upRes.success && upRes.item && form) {
+										form.dataset.safevaultItemId = upRes.item.id;
+									}
+								});
+							}
+						};
+
+						userField.addEventListener('blur', updateSavedUsername);
+						userField.addEventListener('change', updateSavedUsername);
+					}
 				}
 			});
 		});
@@ -792,36 +841,63 @@
 		}
 	}
 
-	// Auto-Save Form Submit Handler
+	// Auto-Save Form Submit Handler & Click Interceptor
 	function setupAutoSaveSubmitListener() {
-		document.addEventListener('submit', (e) => {
-			const form = e.target;
-			if (!form || !(form instanceof HTMLFormElement)) return;
+		const triggerSaveFromForm = (form) => {
+			if (!form) return;
 
 			// Extract captured or entered credentials from form
-			const passInput = form.querySelector('input[type="password"]');
-			const userInput = form.querySelector('input[type="email"], input[type="text"]');
+			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
+			const userInput = form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]');
 
-			const capturedPass = form.dataset.safevaultCapturedPass || (passInput ? passInput.value : '');
-			const capturedUser = form.dataset.safevaultCapturedUser || (userInput ? userInput.value : '');
+			const passVal = form.dataset.safevaultCapturedPass || (passInputs.length > 0 ? passInputs[0].value : '');
+			const userVal = form.dataset.safevaultCapturedUser || (userInput ? userInput.value : '');
 
-			if (capturedPass && capturedPass.length >= 4) {
+			if (passVal && passVal.length >= 4) {
 				const title = `${currentDomain} Account`;
 				chrome.runtime.sendMessage(
 					{
 						action: "SAVE_PASSWORD",
+						id: form.dataset.safevaultItemId,
 						title,
-						username: capturedUser,
-						password: capturedPass,
+						username: userVal,
+						password: passVal,
 						url: window.location.href,
 						notes: `Automatically captured from registration/login form on ${currentDomain}.`,
 					},
 					(res) => {
 						if (res && res.success) {
+							if (res.item) form.dataset.safevaultItemId = res.item.id;
 							showToastBanner(`🔒 Credentials for ${currentDomain} saved to SafeVaultPro!`);
 						}
 					}
 				);
+			}
+		};
+
+		// Listener 1: Standard form submit
+		document.addEventListener('submit', (e) => {
+			const form = e.target;
+			if (form && form instanceof HTMLFormElement) {
+				triggerSaveFromForm(form);
+			}
+		}, true);
+
+		// Listener 2: Click on submit/register buttons (for SPAs & AJAX forms)
+		document.addEventListener('click', (e) => {
+			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
+			if (!target) return;
+
+			const btnText = (target.textContent || target.value || '').toLowerCase();
+			const isRegisterBtn = target.type === 'submit' || [
+				'register', 'signup', 'sign-up', 'join', 'create', 'submit', 's\'inscrire', 'إنشاء'
+			].some(kw => btnText.includes(kw));
+
+			if (isRegisterBtn) {
+				const form = target.form || target.closest('form') || target.closest('div');
+				if (form) {
+					setTimeout(() => triggerSaveFromForm(form), 100);
+				}
 			}
 		}, true);
 	}
