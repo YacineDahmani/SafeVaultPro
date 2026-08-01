@@ -1,30 +1,72 @@
 # SafeVaultPro
 
-SafeVaultPro is a native desktop credentials manager with browser extension integration, built for local security and low power consumption.
+SafeVaultPro is a highly secure, offline-first local credentials manager designed to run as a native desktop application. It follows a strict security model where all cryptographic operations and data storage occur exclusively on the local machine.
 
-## Features
+---
 
-- Local Security: Password generation, encrypted vault storage, and Argon2id key derivation performed entirely offline.
-- TOTP Authenticator: Real-time 6-digit TOTP code generation with countdown timer.
-- Browser Extension Bridge: Native HTTP bridge on port 48920 for Chrome, Edge, Brave, and Firefox field detection and autofill.
-- Power Efficiency: Automatic low-power idle state when minimized to minimize CPU and RAM usage.
+## 🚀 Key Features
 
-## Development Commands
+*   **Offline-First & Local Cryptography:** Argon2id key derivation for master password validation and AES-256-GCM for encrypting item schemas locally.
+*   **SQLCipher Local Database:** Secure, fully encrypted-at-rest SQLite data storage.
+*   **Keymaster (TOTP Engine):** Built-in clock-synced 2FA verification code generation and countdown visualizer.
+*   **Intelligent Browser Integration:**
+    *   **IPC Bridge:** Local loopback HTTP server (`localhost:48920`) to serve secure queries, TOTP codes, and credentials.
+    *   **Manifest V3 Extension:** Dynamic field detection, custom badge injectors, and autofill mechanisms.
+*   **Screen-Capture OCR QR Scan:** Native screen area capture with local parsing of `otpauth://` QR codes.
+*   **System Integrity Services:** Clipboard auto-clearing (30-second timeout), global hotkey listeners, and system tray integration.
+*   **Deep Obsidian UI:** A custom-themed dark interface with glowing states, clean animations, and structured three-column navigation.
 
+
+## 💻 Development & Build Commands
+
+Before running, ensure you have [Bun](https://bun.sh) installed.
+
+### 1. Install Dependencies
 ```bash
-# Install dependencies
 npm install
-
-# Start development mode
-npm run dev
-
-# Build release executable package
-npm run package:release
 ```
 
-## Production Release
+### 2. Development Mode
+Run the application in watch mode:
+```bash
+npm run dev
+```
 
-Running `npm run package:release` generates:
-- Release Folder: `release/SafeVaultPro-v1.0.0-win-x64/`
-- Desktop Executable: `release/SafeVaultPro-v1.0.0-win-x64/SafeVaultPro.exe`
-- Distribution Zip: `release/SafeVaultPro-v1.0.0-win-x64.zip`
+For hot module replacement (HMR) during frontend view development:
+```bash
+npm run dev:hmr
+```
+
+### 3. Browser Extension Setup
+The extension is available in `./src/extension`. To load it:
+1. Open your browser's Extension Management page (`chrome://extensions` or equivalent).
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `src/extension` directory.
+
+### 4. Build and Package
+To build the frontend assets:
+```bash
+npm run build
+```
+
+To compile and package the app for local execution:
+```bash
+npm run build:exe
+```
+
+To bundle a production-ready release:
+```bash
+npm run package:release
+```
+This generates the following distribution deliverables:
+*   **Release Folder:** `release/SafeVaultPro-v1.0.0-win-x64/`
+*   **Desktop Executable:** `release/SafeVaultPro-v1.0.0-win-x64/SafeVaultPro.exe`
+*   **Distribution Zip:** `release/SafeVaultPro-v1.0.0-win-x64.zip`
+
+---
+
+## 🔒 Security Design Principles
+
+1.  **Zero-Network Core:** Zero internet-facing analytics or storage syncing in the core application.
+2.  **Encrypted-at-Rest Storage:** Data cannot be decrypted or read without the Argon2id-derived key from your master password.
+3.  **Local Loopback IPC:** Communication between the browser extension and the desktop app is isolated to localhost with origin checks and request validation.
