@@ -17,7 +17,7 @@ SafeVaultPro is a highly secure, offline-first local credentials manager designe
 *   **Deep Obsidian UI:** A custom-themed dark interface with glowing states, clean animations, and structured three-column navigation.
 
 
-## 💻 Development & Build Commands
+## Development & Build Commands
 
 Before running, ensure you have [Bun](https://bun.sh) installed.
 
