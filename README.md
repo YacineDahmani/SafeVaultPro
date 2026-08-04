@@ -54,17 +54,6 @@ To compile and package the app for local execution:
 npm run build:exe
 ```
 
-To bundle a production-ready release:
-```bash
-npm run package:release
-```
-This generates the following distribution deliverables:
-*   **Release Folder:** `release/SafeVaultPro-v1.0.0-win-x64/`
-*   **Desktop Executable:** `release/SafeVaultPro-v1.0.0-win-x64/SafeVaultPro.exe`
-*   **Distribution Zip:** `release/SafeVaultPro-v1.0.0-win-x64.zip`
-
----
-
 ## 🔒 Security Design Principles
 
 1.  **Zero-Network Core:** Zero internet-facing analytics or storage syncing in the core application.
