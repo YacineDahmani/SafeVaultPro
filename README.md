@@ -4,7 +4,7 @@ SafeVaultPro is a highly secure, offline-first local credentials manager designe
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 *   **Offline-First & Local Cryptography:** Argon2id key derivation for master password validation and AES-256-GCM for encrypting item schemas locally.
 *   **SQLCipher Local Database:** Secure, fully encrypted-at-rest SQLite data storage.
