@@ -54,7 +54,7 @@ To compile and package the app for local execution:
 npm run build:exe
 ```
 
-## 🔒 Security Design Principles
+##  Security Design Principles
 
 1.  **Zero-Network Core:** Zero internet-facing analytics or storage syncing in the core application.
 2.  **Encrypted-at-Rest Storage:** Data cannot be decrypted or read without the Argon2id-derived key from your master password.
