@@ -4,7 +4,7 @@ SafeVaultPro is a highly secure, offline-first local credentials manager designe
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 *   **Offline-First & Local Cryptography:** Argon2id key derivation for master password validation and AES-256-GCM for encrypting item schemas locally.
 *   **SQLCipher Local Database:** Secure, fully encrypted-at-rest SQLite data storage.
@@ -17,7 +17,7 @@ SafeVaultPro is a highly secure, offline-first local credentials manager designe
 *   **Deep Obsidian UI:** A custom-themed dark interface with glowing states, clean animations, and structured three-column navigation.
 
 
-## 💻 Development & Build Commands
+## Development & Build Commands
 
 Before running, ensure you have [Bun](https://bun.sh) installed.
 
@@ -54,18 +54,7 @@ To compile and package the app for local execution:
 npm run build:exe
 ```
 
-To bundle a production-ready release:
-```bash
-npm run package:release
-```
-This generates the following distribution deliverables:
-*   **Release Folder:** `release/SafeVaultPro-v1.0.0-win-x64/`
-*   **Desktop Executable:** `release/SafeVaultPro-v1.0.0-win-x64/SafeVaultPro.exe`
-*   **Distribution Zip:** `release/SafeVaultPro-v1.0.0-win-x64.zip`
-
----
-
-## 🔒 Security Design Principles
+##  Security Design Principles
 
 1.  **Zero-Network Core:** Zero internet-facing analytics or storage syncing in the core application.
 2.  **Encrypted-at-Rest Storage:** Data cannot be decrypted or read without the Argon2id-derived key from your master password.
