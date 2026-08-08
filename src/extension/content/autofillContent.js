@@ -343,69 +343,114 @@
 		container.appendChild(badge);
 	}
 
-	// Toggle autofill dropdown menu - Context Aware (Login vs Register)
+	// Toggle autofill dropdown menu - Context & Field Classification Aware
 	async function toggleDropdown(input, badge) {
 		if (activeDropdown) {
 			closeDropdown();
 			return;
 		}
 
-		const isRegister = isRegistrationForm(input);
 		const fieldType = classifyField(input);
+		const isRegister = isRegistrationForm(input);
 
+		// 1. Credit Card Payment Fields (card_number, card_cvv, card_exp, card_holder)
+		if (fieldType.startsWith('card')) {
+			chrome.runtime.sendMessage(
+				{ action: "QUERY_ITEMS", domain: currentDomain, fieldType },
+				(response) => {
+					if (!response || !response.success) {
+						showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+						return;
+					}
+					const cardItems = (response.items || []).filter(i => i.type === 'card');
+					if (cardItems.length === 0) {
+						showEmptyDropdown(badge, "No payment cards saved in SafeVaultPro.", false);
+						return;
+					}
+					renderGenericDropdownMenu(input, badge, cardItems);
+				}
+			);
+			return;
+		}
+
+		// 2. 2FA / TOTP Verification Fields
+		if (fieldType === 'totp') {
+			chrome.runtime.sendMessage(
+				{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "totp" },
+				(response) => {
+					if (!response || !response.success) {
+						showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+						return;
+					}
+					const totpItems = (response.items || []).filter(i => i.type === 'totp');
+					if (totpItems.length === 0) {
+						showEmptyDropdown(badge, "No 2FA items saved in SafeVaultPro.", false);
+						return;
+					}
+					renderGenericDropdownMenu(input, badge, totpItems);
+				}
+			);
+			return;
+		}
+
+		// 3. Personal Identity Fields
+		if (fieldType === 'personal') {
+			chrome.runtime.sendMessage(
+				{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "personal" },
+				(response) => {
+					if (!response || !response.success) {
+						showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+						return;
+					}
+					const personalItems = (response.items || []).filter(i => i.type === 'personal_info');
+					if (personalItems.length === 0) {
+						showEmptyDropdown(badge, "No personal profiles saved in SafeVaultPro.", false);
+						return;
+					}
+					renderGenericDropdownMenu(input, badge, personalItems);
+				}
+			);
+			return;
+		}
+
+		// 4. Registration Page Context (New Password or Identity Signup)
 		if (isRegister) {
-			// =========================================================================
-			// 1. REGISTRATION PAGE CONTEXT
-			// =========================================================================
 			if (input.type === 'password' || fieldType === 'password') {
-				// Password field on Register page: Offer ONLY password generation
 				renderRegisterPasswordDropdown(input, badge);
 			} else {
-				// Email / Username / Identity field on Register page: Fetch Personal Information
 				chrome.runtime.sendMessage(
 					{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "personal" },
 					(response) => {
 						const items = (response && response.success && Array.isArray(response.items)) ? response.items : [];
 						if (items.length === 0) {
-							// Query overall items if specific personal query yields empty
-							chrome.runtime.sendMessage(
-								{ action: "QUERY_ITEMS", domain: currentDomain },
-								(resp) => {
-									const allPersonal = (resp?.items || []).filter(i => i.type === 'personal_info' || i.type === 'identity');
-									renderRegisterIdentityDropdown(input, badge, allPersonal);
-								}
-							);
+							showEmptyDropdown(badge, "No personal profiles saved in SafeVaultPro.", false);
 						} else {
 							renderRegisterIdentityDropdown(input, badge, items);
 						}
 					}
 				);
 			}
-		} else {
-			// =========================================================================
-			// 2. LOGIN PAGE CONTEXT
-			// =========================================================================
-			// DO NOT suggest generating passwords on login pages! Only fetch saved credentials matching domain
-			chrome.runtime.sendMessage(
-				{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "password", type: "password" },
-				(response) => {
-					if (!response || !response.success) {
-						showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
-						return;
-					}
-
-					// Filter items strictly to saved logins for this domain
-					const matchedLogins = (response.items || []).filter(i => i.type === 'password');
-
-					if (matchedLogins.length === 0) {
-						showEmptyDropdown(badge, `No saved credentials for ${currentDomain}`, false);
-						return;
-					}
-
-					renderLoginDropdownMenu(input, badge, matchedLogins);
-				}
-			);
+			return;
 		}
+
+		// 5. Standard Login Page Context (Domain-Matched Logins Only)
+		chrome.runtime.sendMessage(
+			{ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "password", type: "password" },
+			(response) => {
+				if (!response || !response.success) {
+					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+					return;
+				}
+
+				const matchedLogins = (response.items || []).filter(i => i.type === 'password');
+				if (matchedLogins.length === 0) {
+					showEmptyDropdown(badge, `No saved credentials for ${currentDomain}`, false);
+					return;
+				}
+
+				renderGenericDropdownMenu(input, badge, matchedLogins);
+			}
+		);
 	}
 
 	function closeDropdown() {
@@ -442,6 +487,102 @@
 				closeDropdown();
 			});
 		}
+
+		positionDropdown(badge, dropdown);
+		document.body.appendChild(dropdown);
+		activeDropdown = dropdown;
+	}
+
+	// Unified Generic Dropdown Renderer for Cards, 2FA, Personal Profiles, and Saved Logins
+	function renderGenericDropdownMenu(input, badge, items) {
+		closeDropdown();
+		const dropdown = document.createElement('div');
+		dropdown.className = 'safevault-dropdown-menu';
+
+		let itemsHtml = '';
+		items.forEach((item) => {
+			if (item.type === 'password') {
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="password">
+						<div class="safevault-item-icon">🔑</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(item.title)}</div>
+							<div class="safevault-item-sub">${escapeHtml(item.username || 'No username')}</div>
+						</div>
+						<span class="safevault-fill-btn">Autofill</span>
+					</div>
+				`;
+			} else if (item.type === 'totp') {
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="totp">
+						<div class="safevault-item-icon">⚡</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(item.title || item.issuer)}</div>
+							<div class="safevault-item-sub">2FA Code (${escapeHtml(item.accountName || '')})</div>
+						</div>
+						<span class="safevault-fill-btn">Insert 2FA</span>
+					</div>
+				`;
+			} else if (item.type === 'card') {
+				const cardNum = item.number ? `•••• ${item.number.slice(-4)}` : 'Card';
+				const cardHolder = item.cardholderName ? escapeHtml(item.cardholderName) : '';
+				const cvvCode = (item.cvv || item.pin) ? ` | CVV: ${escapeHtml(item.cvv || item.pin)}` : '';
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
+						<div class="safevault-item-icon">💳</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(item.title)} ${cardHolder ? `(${cardHolder})` : ''}</div>
+							<div class="safevault-item-sub">${escapeHtml(item.subtype ? item.subtype.toUpperCase().replace('_', ' ') : 'CARD')} ${cardNum}${cvvCode}</div>
+						</div>
+						<span class="safevault-fill-btn">Fill Card</span>
+					</div>
+				`;
+			} else if (item.type === 'personal_info') {
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="personal">
+						<div class="safevault-item-icon">👤</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(item.fullName || item.title)}</div>
+							<div class="safevault-item-sub">${escapeHtml(item.email || item.city || 'Personal Identity')}</div>
+						</div>
+						<span class="safevault-fill-btn">Fill Info</span>
+					</div>
+				`;
+			}
+		});
+
+		dropdown.innerHTML = `
+			<div class="safevault-dropdown-header">
+				<span class="safevault-brand">SafeVaultPro</span>
+				<div class="safevault-header-right">
+					<span class="safevault-badge-count">${items.length} item${items.length === 1 ? '' : 's'}</span>
+					<button class="safevault-close-btn" title="Close overlay">&times;</button>
+				</div>
+			</div>
+			<div class="safevault-dropdown-list">${itemsHtml}</div>
+		`;
+
+		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
+
+		dropdown.addEventListener('click', (e) => {
+			const itemElem = e.target.closest('.safevault-dropdown-item');
+			if (!itemElem || !itemElem.dataset.id) return;
+
+			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
+			if (targetItem) {
+				autofillItem(input, targetItem);
+				if (targetItem.type === 'card') {
+					showToastBanner(`💳 Payment card filled!`);
+				} else if (targetItem.type === 'personal_info') {
+					showToastBanner(`👤 Identity info filled!`);
+				} else if (targetItem.type === 'totp') {
+					showToastBanner(`⚡ 2FA code inserted!`);
+				} else {
+					showToastBanner(`🔑 Credentials filled!`);
+				}
+			}
+			closeDropdown();
+		});
 
 		positionDropdown(badge, dropdown);
 		document.body.appendChild(dropdown);
@@ -572,55 +713,6 @@
 			if (targetItem) {
 				autofillItem(input, targetItem);
 				showToastBanner(`👤 Filled personal details!`);
-			}
-			closeDropdown();
-		});
-
-		positionDropdown(badge, dropdown);
-		document.body.appendChild(dropdown);
-		activeDropdown = dropdown;
-	}
-
-	// Dropdown Renderer: Login Page Saved Logins (Domain Matched Only)
-	function renderLoginDropdownMenu(input, badge, items) {
-		closeDropdown();
-		const dropdown = document.createElement('div');
-		dropdown.className = 'safevault-dropdown-menu';
-
-		let itemsHtml = '';
-		items.forEach((item) => {
-			itemsHtml += `
-				<div class="safevault-dropdown-item" data-id="${item.id}">
-					<div class="safevault-item-icon">🔑</div>
-					<div class="safevault-item-details">
-						<div class="safevault-item-title">${escapeHtml(item.title)}</div>
-						<div class="safevault-item-sub">${escapeHtml(item.username || 'No username')}</div>
-					</div>
-					<span class="safevault-fill-btn">Autofill</span>
-				</div>
-			`;
-		});
-
-		dropdown.innerHTML = `
-			<div class="safevault-dropdown-header">
-				<span class="safevault-brand">SafeVaultPro • Saved Logins</span>
-				<div class="safevault-header-right">
-					<span class="safevault-badge-count">${items.length}</span>
-					<button class="safevault-close-btn" title="Close overlay">&times;</button>
-				</div>
-			</div>
-			<div class="safevault-dropdown-list">${itemsHtml}</div>
-		`;
-
-		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
-		dropdown.addEventListener('click', (e) => {
-			const itemElem = e.target.closest('.safevault-dropdown-item');
-			if (!itemElem || !itemElem.dataset.id) return;
-
-			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
-			if (targetItem) {
-				autofillItem(input, targetItem);
-				showToastBanner(`🔑 Credentials filled!`);
 			}
 			closeDropdown();
 		});
