@@ -454,7 +454,22 @@
 			return 'personal_country';
 		}
 
-		// 19. Contact: Phone
+		// Check if this input is within a Login context (has password or login URL)
+		const isLogin = isLoginForm(input);
+		if (isLogin) {
+			if (
+				type === 'email' ||
+				type === 'tel' ||
+				autocomplete === 'username' ||
+				autocomplete === 'email' ||
+				matchToken(norm, /\b(username|user\s*name|login|email|e\s*mail|mail|phone|telephone|mobile|identifiant|account|identifier|auth\s*user|session|ident)\b/i) ||
+				matchToken(raw, /(اسم[-_]?المستخدم|المعرف|البريد|الهاتف)/i)
+			) {
+				return 'login_username';
+			}
+		}
+
+		// 19. Contact: Phone (Only when not in a login context)
 		if (
 			type === 'tel' ||
 			autocomplete.includes('tel') ||
@@ -486,6 +501,25 @@
 		}
 
 		return 'generic';
+	}
+
+	// Determine if field belongs to a Login context
+	function isLoginForm(input) {
+		if (!input) return false;
+		if (isRegistrationForm(input)) return false;
+		const form = input.form || input.closest('form, [class*="login" i], [class*="signin" i], [id*="login" i], [id*="signin" i], main') || document;
+		const hasPassword = form.querySelector('input[type="password"]') !== null;
+		if (hasPassword) return true;
+
+		const autocomplete = (input.autocomplete || '').toLowerCase();
+		if (autocomplete === 'username' || autocomplete === 'current-password') return true;
+
+		const pageUrl = window.location.href.toLowerCase();
+		const pageTitle = document.title.toLowerCase();
+		const isLoginSite = ['login', 'signin', 'sign-in', 'log-in', 'connexion', 'auth', 'sessions/new', 'identifier', 'accounts.google.com', 'login.live.com', 'login.microsoftonline.com', 'تسجيل الدخول'].some(
+			kw => pageUrl.includes(kw) || pageTitle.includes(kw)
+		);
+		return isLoginSite;
 	}
 
 	// Determine if field belongs to a Registration / Signup context
@@ -1309,21 +1343,31 @@
 	function autofillItem(targetInput, item) {
 		const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
 
-		// 1. Password credentials
+		// 1. Password credentials (fills both username and password in one click)
 		if (item.type === 'password') {
-			const passFields = Array.from(root.querySelectorAll('input[type="password"]'));
-			const userFields = Array.from(root.querySelectorAll('input[type="text"], input[type="email"]')).filter(i => {
-				const cl = classifyField(i);
-				return cl === 'login_username' || cl === 'personal_email' || i.type === 'email';
-			});
+			const passInput = root.querySelector('input[type="password"]') || (targetInput && targetInput.type === 'password' ? targetInput : null);
+			let userInput = null;
 
-			if (passFields.length > 0 && item.password) {
-				setNativeFieldValue(passFields[0], item.password);
+			if (targetInput && targetInput.type !== 'password' && targetInput.tagName === 'INPUT') {
+				userInput = targetInput;
+			} else {
+				const allInputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"])'));
+				const passIdx = passInput ? allInputs.indexOf(passInput) : -1;
+				if (passIdx > 0) {
+					userInput = allInputs.slice(0, passIdx).reverse().find(i => 
+						classifyField(i) === 'login_username' || i.type === 'email' || i.type === 'text' || i.type === 'tel'
+					);
+				}
+				if (!userInput) {
+					userInput = allInputs.find(i => i !== passInput && (classifyField(i) === 'login_username' || i.type === 'email' || i.type === 'text' || i.type === 'tel'));
+				}
 			}
-			if (userFields.length > 0 && item.username) {
-				setNativeFieldValue(userFields[0], item.username);
-			} else if (item.username && (targetInput.type === 'text' || targetInput.type === 'email')) {
-				setNativeFieldValue(targetInput, item.username);
+
+			if (userInput && item.username) {
+				setNativeFieldValue(userInput, item.username);
+			}
+			if (passInput && item.password) {
+				setNativeFieldValue(passInput, item.password);
 			}
 		}
 
