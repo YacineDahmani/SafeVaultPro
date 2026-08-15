@@ -145,6 +145,52 @@
 		return regex.test(text);
 	}
 
+	// Context Helper: Determine if field is inside a payment or checkout context
+	function isPaymentContext(input) {
+		if (!input) return false;
+		const ac = (input.autocomplete || '').toLowerCase();
+		if (ac.startsWith('cc-')) return true;
+
+		const container = input.form || input.closest('form') || input.closest('table') || input.closest('.payment, .checkout, .paiement, #payment, #checkout') || document;
+		if (container) {
+			const inputs = Array.from(container.querySelectorAll('input, select'));
+			const hasCardSignals = inputs.some(el => {
+				const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''} ${el.autocomplete || ''}`.toLowerCase();
+				return a.includes('cc-') ||
+					a.includes('cvv') ||
+					a.includes('cvc') ||
+					a.includes('cvw') ||
+					a.includes('cardnumber') ||
+					a.includes('card-number') ||
+					a.includes('card_number') ||
+					a.includes('pan') ||
+					a.includes('num_carte') ||
+					a.includes('numero_carte') ||
+					a.includes('n_carte') ||
+					a.includes('edahabia') ||
+					a.includes('cib') ||
+					a.includes('baridi') ||
+					a.includes('satim');
+			});
+			if (hasCardSignals) return true;
+		}
+
+		const pageUrl = window.location.href.toLowerCase();
+		if (
+			pageUrl.includes('payment') ||
+			pageUrl.includes('paiement') ||
+			pageUrl.includes('checkout') ||
+			pageUrl.includes('satim') ||
+			pageUrl.includes('eccp.poste.dz/payment') ||
+			pageUrl.includes('epay.poste.dz') ||
+			pageUrl.includes('baridimob')
+		) {
+			return true;
+		}
+
+		return false;
+	}
+
 	// Robust Field Classification Engine
 	function classifyField(input) {
 		if (shouldIgnoreField(input)) return 'generic';
@@ -162,6 +208,8 @@
 			.replace(/[\u0300-\u036f]/g, '')
 			.toLowerCase();
 
+		const inPayment = isPaymentContext(input);
+
 		// 1. Google Accounts / Gmail Login Specific Detection
 		if (
 			id === 'identifierid' ||
@@ -178,7 +226,7 @@
 			return 'password';
 		}
 
-		// 2. Credit Card CVV / CVC
+		// 2. Credit Card CVV / CVC (Algerian SATIM, ECCP, CIB, Edahabia, International)
 		if (
 			autocomplete === 'cc-csc' ||
 			matchToken(norm, /\b(cvv|cvc|cvw|cvp|cvv2|cvc2|security[-_]?code|code[-_]?(securite|secu|verification)|cryptogramme)\b/i) ||
@@ -190,7 +238,7 @@
 		// 3. Credit Card Number (Algerian CIB, Edahabia, BaridiMob, SATIM, Visa, MC, Amex)
 		if (
 			autocomplete === 'cc-number' ||
-			matchToken(norm, /\b(card[-_]?num(ber)?|cc[-_]?num(ber)?|creditcard|num[-_]?carte|numero[-_]?carte|pan|carte[-_]?(cib|edahabia|bancaire)|edahabia|baridi)\b/i) ||
+			matchToken(norm, /\b(card[-_]?num(ber)?|cc[-_]?num(ber)?|creditcard|num[-_]?carte|numero[-_]?carte|n[-_]?carte|pan|carte[-_]?(cib|edahabia|bancaire)|edahabia|baridi|satim)\b/i) ||
 			matchToken(norm, /(رقم[-_]?(البطاقة|الائتمان)|الذهبية|البطاقة)/i)
 		) {
 			return 'card_number';
@@ -205,13 +253,19 @@
 			return 'card_exp';
 		}
 
-		// 5. Cardholder Name
+		// 5. Cardholder Name (Nom et prénom / Titulaire / Porteur on Payment pages)
 		if (
 			autocomplete === 'cc-name' ||
 			matchToken(norm, /\b(card[-_]?holder|name[-_]?on[-_]?card|cc[-_]?name|titulaire|porteur|nom[-_]?porteur)\b/i) ||
-			matchToken(norm, /(اسم[-_]?(صاحب|حامل)[-_]?البطاقة)/i)
+			matchToken(norm, /(اسم[-_]?(صاحب|حامل)[-_]?البطاقة)/i) ||
+			(inPayment && (matchToken(norm, /\b(nom|prenom|holder|owner|name)\b/i) || matchToken(norm, /(الاسم|اللقب)/i)))
 		) {
 			return 'card_holder';
+		}
+
+		// IF IN PAYMENT CONTEXT: Disallow any further classification as personal_* or login_username
+		if (inPayment) {
+			return 'generic';
 		}
 
 		// 6. 2FA / TOTP / Verification code
@@ -1109,45 +1163,76 @@
 		else if (item.type === 'card') {
 			const cvvVal = item.cvv || item.pin || '';
 			const holderVal = item.cardholderName || item.fullName || item.title || '';
-			const numVal = item.number || '';
+			const numVal = (item.number || '').replace(/\s+/g, '');
 			const expVal = item.expirationDate || '';
 
-			const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select'));
+			const container = targetInput.form || targetInput.closest('form') || targetInput.closest('table') || document;
+			const inputs = Array.from(container.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select'));
 
-			// Card number
+			// 1. Card Number
 			const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || targetInput;
-			if (cardNumInput && numVal) setNativeFieldValue(cardNumInput, numVal);
+			if (cardNumInput && numVal) {
+				setNativeFieldValue(cardNumInput, numVal);
+			}
 
-			// CVV
-			const cvvInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_cvv');
-			if (cvvInput && cvvVal) setNativeFieldValue(cvvInput, cvvVal);
+			// 2. CVV / CVC
+			const cvvInput = inputs.find(i => i !== cardNumInput && (classifyField(i) === 'card_cvv' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/cvv|cvc|cvw|crypto|secu/)));
+			if (cvvInput && cvvVal) {
+				setNativeFieldValue(cvvInput, cvvVal);
+			}
 
-			// Cardholder
-			const holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && classifyField(i) === 'card_holder');
-			if (holderInput && holderVal) setNativeFieldValue(holderInput, holderVal);
+			// 3. Cardholder Name
+			let holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && classifyField(i) === 'card_holder');
+			if (!holderInput) {
+				holderInput = inputs.find(i => {
+					if (i === cardNumInput || i === cvvInput || i.tagName !== 'INPUT') return false;
+					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${getFieldLabelText(i)}`.toLowerCase();
+					return attr.includes('nom') || attr.includes('prenom') || attr.includes('holder') || attr.includes('titulaire') || attr.includes('porteur') || attr.includes('name') || attr.includes('اسم');
+				});
+			}
+			if (holderInput && holderVal) {
+				setNativeFieldValue(holderInput, holderVal);
+			}
 
-			// Expiration Date (Single input or Month/Year selects)
+			// 4. Expiration Date (Single input vs Month / Year Selects)
 			if (expVal) {
-				const expInput = inputs.find(i => classifyField(i) === 'card_exp' && i.tagName === 'INPUT');
+				const parts = expVal.split(/[/.-]/);
+				const monthVal = parts[0] ? parts[0].padStart(2, '0') : '';
+				let yearVal = parts[1] || '';
+				const fullYear = yearVal.length === 2 ? `20${yearVal}` : yearVal;
+				const shortYear = yearVal.length === 4 ? yearVal.slice(-2) : yearVal;
+
+				// Single Expiration Date Input
+				const expInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && classifyField(i) === 'card_exp' && i.tagName === 'INPUT' && !i.name?.toLowerCase().match(/month|mois|year|annee|mm|yy/));
 				if (expInput) {
 					setNativeFieldValue(expInput, expVal);
 				}
 
-				const parts = expVal.split(/[/.-]/);
-				if (parts.length >= 2) {
-					const monthVal = parts[0].padStart(2, '0');
-					let yearVal = parts[1];
-					const fullYear = yearVal.length === 2 ? `20${yearVal}` : yearVal;
-					const shortYear = yearVal.slice(-2);
-
-					const monthSelect = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && (classifyField(i) === 'card_exp' || (i.name || i.id || '').toLowerCase().match(/month|mois|expm/)) && i.tagName === 'SELECT');
-					if (monthSelect) {
-						selectMatchingOption(monthSelect, [monthVal, String(parseInt(monthVal, 10))]);
+				// Separate Month Select or Input
+				const monthField = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && (
+					(classifyField(i) === 'card_exp' && i !== expInput) ||
+					(i.name || i.id || '').toLowerCase().match(/^(mm|month|mois|exp_?m(onth)?)$/i) ||
+					(i.tagName === 'SELECT' && Array.from(i.options).some(o => o.value === '01' || o.value === '1' || o.text === '01' || o.text === '1'))
+				));
+				if (monthField) {
+					if (monthField.tagName === 'SELECT') {
+						selectMatchingOption(monthField, [monthVal, String(parseInt(monthVal, 10))]);
+					} else {
+						setNativeFieldValue(monthField, monthVal);
 					}
+				}
 
-					const yearSelect = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && i !== monthSelect && (classifyField(i) === 'card_exp' || (i.name || i.id || '').toLowerCase().match(/year|annee|expy/)) && i.tagName === 'SELECT');
-					if (yearSelect) {
-						selectMatchingOption(yearSelect, [fullYear, shortYear]);
+				// Separate Year Select or Input
+				const yearField = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && i !== monthField && (
+					(classifyField(i) === 'card_exp' && i !== expInput) ||
+					(i.name || i.id || '').toLowerCase().match(/^(yy|year|annee|exp_?y(ear)?)$/i) ||
+					(i.tagName === 'SELECT' && Array.from(i.options).some(o => o.value === fullYear || o.value === shortYear || o.text === fullYear || o.text === shortYear))
+				));
+				if (yearField) {
+					if (yearField.tagName === 'SELECT') {
+						selectMatchingOption(yearField, [fullYear, shortYear]);
+					} else {
+						setNativeFieldValue(yearField, fullYear);
 					}
 				}
 			}
