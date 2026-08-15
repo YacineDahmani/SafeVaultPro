@@ -215,9 +215,15 @@ let savedRestoreFrame: { x: number; y: number; width: number; height: number } |
 							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""} ${(item as any).cardholderName || ""} ${(item as any).number || ""}`.toLowerCase();
 							return searchTarget.includes(cleanQ);
 						});
-					} else if (fieldType && fieldType.startsWith("card_")) {
-						// Focused on a credit card payment field -> ONLY return payment cards (exclude ID/Passport)
-						const cards = allItems.filter((i) => i.type === "card" && ((i as any).subtype === "credit_card" || !(i as any).subtype));
+					} else if (fieldType && (fieldType.startsWith("card_") || fieldType === "card")) {
+						// Focused on a credit card payment field -> ONLY return payment cards (exclude ID/Passport/Driver license)
+						const cards = allItems.filter(
+							(i) =>
+								i.type === "card" &&
+								(i as any).subtype !== "passport" &&
+								(i as any).subtype !== "id_card" &&
+								(i as any).subtype !== "drivers_license"
+						);
 						const domainCards = cards.filter((i) => (i as any).url && matchDomain((i as any).url, domain));
 						matches = domainCards.length > 0 ? domainCards : cards;
 					} else if (fieldType === "totp") {

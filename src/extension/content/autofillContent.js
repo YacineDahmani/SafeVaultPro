@@ -145,50 +145,72 @@
 		return regex.test(text);
 	}
 
-	// Context Helper: Determine if field is inside a payment or checkout context
+	// Month select dropdown detector
+	function isMonthSelect(el) {
+		if (!el || el.tagName !== 'SELECT') return false;
+		const options = Array.from(el.options);
+		if (options.length < 12 || options.length > 15) return false;
+		const norm = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+		if (norm.includes('bday') || norm.includes('birth') || norm.includes('naissance') || norm.includes('dob')) return false;
+		return options.some(o => {
+			const v = (o.value || '').trim();
+			const t = (o.text || '').trim().toLowerCase();
+			return v === '01' || v === '1' || t === 'jan' || t === 'january' || t === 'janvier' || t === '01' || t === '1';
+		}) && options.some(o => {
+			const v = (o.value || '').trim();
+			const t = (o.text || '').trim().toLowerCase();
+			return v === '12' || t === 'dec' || t === 'december' || t === 'decembre' || t === '12';
+		});
+	}
+
+	// Year select dropdown detector
+	function isYearSelect(el) {
+		if (!el || el.tagName !== 'SELECT') return false;
+		const options = Array.from(el.options);
+		if (options.length < 3 || options.length > 30) return false;
+		const norm = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+		if (norm.includes('bday') || norm.includes('birth') || norm.includes('naissance') || norm.includes('dob')) return false;
+		const currentYear = new Date().getFullYear();
+		const currentShort = currentYear % 100;
+		return options.some(o => {
+			const v = parseInt((o.value || '').trim(), 10);
+			const t = parseInt((o.text || '').trim(), 10);
+			return (v >= currentYear && v <= currentYear + 25) || (t >= currentYear && t <= currentYear + 25) ||
+				(v >= currentShort && v <= currentShort + 25) || (t >= currentShort && t <= currentShort + 25);
+		});
+	}
+
+	// Context Helper: Determine if field is inside a dedicated credit card payment container
 	function isPaymentContext(input) {
 		if (!input) return false;
 		const ac = (input.autocomplete || '').toLowerCase();
 		if (ac.startsWith('cc-')) return true;
 
-		const container = input.form || input.closest('form') || input.closest('table') || input.closest('.payment, .checkout, .paiement, #payment, #checkout') || document;
-		if (container) {
-			const inputs = Array.from(container.querySelectorAll('input, select'));
-			const hasCardSignals = inputs.some(el => {
-				const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''} ${el.autocomplete || ''}`.toLowerCase();
-				return a.includes('cc-') ||
-					a.includes('cvv') ||
-					a.includes('cvc') ||
-					a.includes('cvw') ||
-					a.includes('cardnumber') ||
-					a.includes('card-number') ||
-					a.includes('card_number') ||
-					a.includes('pan') ||
-					a.includes('num_carte') ||
-					a.includes('numero_carte') ||
-					a.includes('n_carte') ||
-					a.includes('edahabia') ||
-					a.includes('cib') ||
-					a.includes('baridi') ||
-					a.includes('satim');
-			});
-			if (hasCardSignals) return true;
-		}
-
-		const pageUrl = window.location.href.toLowerCase();
-		if (
-			pageUrl.includes('payment') ||
-			pageUrl.includes('paiement') ||
-			pageUrl.includes('checkout') ||
-			pageUrl.includes('satim') ||
-			pageUrl.includes('eccp.poste.dz/payment') ||
-			pageUrl.includes('epay.poste.dz') ||
-			pageUrl.includes('baridimob')
-		) {
-			return true;
-		}
-
-		return false;
+		// Check the form if available, or entire document
+		const root = (input.form && input.form.querySelectorAll('input, select').length >= 3) ? input.form : document;
+		const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]), select'));
+		return inputs.some(el => {
+			const label = getFieldLabelText(el);
+			const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''} ${el.autocomplete || ''} ${label}`.toLowerCase();
+			return a.includes('cc-') ||
+				a.includes('cvv') ||
+				a.includes('cvc') ||
+				a.includes('cvw') ||
+				a.includes('carte') ||
+				a.includes('credit card') ||
+				a.includes('card number') ||
+				a.includes('card_number') ||
+				a.includes('cardnumber') ||
+				a.includes('pan') ||
+				a.includes('edahabia') ||
+				a.includes('cib') ||
+				a.includes('baridi') ||
+				a.includes('satim') ||
+				a.includes('expiration') ||
+				a.includes('validite') ||
+				a.includes('cvv2') ||
+				a.includes('cvc2');
+		});
 	}
 
 	// Robust Field Classification Engine
@@ -203,12 +225,19 @@
 		const type = (input.type || '').toLowerCase();
 		const labelText = getFieldLabelText(input);
 
-		const norm = `${name} ${id} ${placeholder} ${aria} ${autocomplete} ${type} ${labelText}`
+		const raw = `${name} ${id} ${placeholder} ${aria} ${autocomplete} ${type} ${labelText}`
 			.normalize('NFD')
 			.replace(/[\u0300-\u036f]/g, '')
 			.toLowerCase();
 
-		const inPayment = isPaymentContext(input);
+		// Replace underscores, dashes, dots, slashes with spaces so word boundary \b matches compound names (e.g. billing_first_name)
+		const norm = raw.replace(/[-_./:]+/g, ' ');
+
+		// 0. Select-specific immediate check for Month & Year dropdowns
+		if (input.tagName === 'SELECT') {
+			if (isMonthSelect(input)) return 'card_exp_month';
+			if (isYearSelect(input)) return 'card_exp_year';
+		}
 
 		// 1. Google Accounts / Gmail Login Specific Detection
 		if (
@@ -226,173 +255,193 @@
 			return 'password';
 		}
 
-		// 2. Credit Card CVV / CVC (Algerian SATIM, ECCP, CIB, Edahabia, International)
-		if (
-			autocomplete === 'cc-csc' ||
-			matchToken(norm, /\b(cvv|cvc|cvw|cvp|cvv2|cvc2|security[-_]?code|code[-_]?(securite|secu|verification)|cryptogramme)\b/i) ||
-			matchToken(norm, /(رمز[-_]?(الأمان|الحماية|التحقق|الامان))/i)
-		) {
-			return 'card_cvv';
-		}
-
-		// 3. Credit Card Number (Algerian CIB, Edahabia, BaridiMob, SATIM, Visa, MC, Amex)
-		if (
-			autocomplete === 'cc-number' ||
-			matchToken(norm, /\b(card[-_]?num(ber)?|cc[-_]?num(ber)?|creditcard|num[-_]?carte|numero[-_]?carte|n[-_]?carte|pan|carte[-_]?(cib|edahabia|bancaire)|edahabia|baridi|satim)\b/i) ||
-			matchToken(norm, /(رقم[-_]?(البطاقة|الائتمان)|الذهبية|البطاقة)/i)
-		) {
-			return 'card_number';
-		}
-
-		// 4. Credit Card Expiry Date
-		if (
-			autocomplete.includes('cc-exp') ||
-			matchToken(norm, /\b(exp[-_]?(date|month|year)|expiry|expiration|mm\/yy|date[-_]?exp(iration)?|mois[-_]?exp|annee[-_]?exp)\b/i) ||
-			matchToken(norm, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
-		) {
-			return 'card_exp';
-		}
-
-		// 5. Cardholder Name (Nom et prénom / Titulaire / Porteur on Payment pages)
-		if (
-			autocomplete === 'cc-name' ||
-			matchToken(norm, /\b(card[-_]?holder|name[-_]?on[-_]?card|cc[-_]?name|titulaire|porteur|nom[-_]?porteur)\b/i) ||
-			matchToken(norm, /(اسم[-_]?(صاحب|حامل)[-_]?البطاقة)/i) ||
-			(inPayment && (matchToken(norm, /\b(nom|prenom|holder|owner|name)\b/i) || matchToken(norm, /(الاسم|اللقب)/i)))
-		) {
-			return 'card_holder';
-		}
-
-		// IF IN PAYMENT CONTEXT: Disallow any further classification as personal_* or login_username
-		if (inPayment) {
-			return 'generic';
-		}
-
-		// 6. 2FA / TOTP / Verification code
+		// 2. 2FA / TOTP / Verification code
 		if (
 			autocomplete === 'one-time-code' ||
-			matchToken(norm, /\b(totp|2fa|mfa|otp|one[-_]?time[-_]?code|verification[-_]?code|validation[-_]?code|security[-_]?token)\b/i) ||
-			matchToken(norm, /(رمز[-_]?(التحقق|التأكيد|التفعيل|الأمان))/i)
+			matchToken(norm, /\b(totp|2fa|mfa|otp|one\s*time\s*code|verification\s*code|validation\s*code|security\s*token)\b/i) ||
+			matchToken(raw, /(رمز[-_]?(التحقق|التأكيد|التفعيل|الأمان))/i)
 		) {
 			return 'totp';
 		}
 
-		// 7. Password Fields (Categorize between Login & New/Registration Password)
-		if (type === 'password' || matchToken(norm, /\b(password|mot[-_]?de[-_]?passe|mdp|code[-_]?secret)\b/i) || matchToken(norm, /(كلمة[-_]?(السر|المرور)|الرمز[-_]?السري)/i)) {
-			if (autocomplete === 'new-password' || matchToken(norm, /\b(new[-_]?pass(word)?|create[-_]?pass(word)?|signup[-_]?pass|confirm[-_]?pass(word)?|verify[-_]?pass)\b/i)) {
+		// 3. Password Fields (Categorize between Login & New/Registration Password)
+		if (type === 'password' || matchToken(norm, /\b(password|mot\s*de\s*passe|mdp|code\s*secret)\b/i) || matchToken(raw, /(كلمة[-_]?(السر|المرور)|الرمز[-_]?السري)/i)) {
+			if (autocomplete === 'new-password' || matchToken(norm, /\b(new\s*pass(word)?|create\s*pass(word)?|signup\s*pass|confirm\s*pass(word)?|verify\s*pass)\b/i)) {
 				return 'new_password';
 			}
 			return 'password';
 		}
 
-		// 8. Personal Info: First Name
+		// 4. Credit Card CVV / CVC
+		if (
+			autocomplete === 'cc-csc' ||
+			matchToken(norm, /\b(cvv|cvc|cvw|cvp|cvv2|cvc2|cid|cvn|security\s*code|card\s*security|code\s*(securite|secu|verification)|cryptogramme|crypto)\b/i) ||
+			matchToken(raw, /(رمز[-_]?(الأمان|الحماية|التحقق|الامان))/i)
+		) {
+			return 'card_cvv';
+		}
+
+		// 5. Credit Card Number (Algerian CIB, Edahabia, BaridiMob, SATIM, Visa, MC, Amex)
+		if (
+			autocomplete === 'cc-number' ||
+			matchToken(norm, /\b(card\s*num(ber)?|cc\s*num(ber)?|credit\s*card|num\s*carte|numero\s*carte|n\s*carte|pan|carte\s*(cib|edahabia|bancaire)|edahabia|baridi|satim|cardno|card_no)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(البطاقة|الائتمان)|الذهبية|البطاقة)/i)
+		) {
+			return 'card_number';
+		}
+
+		// 6. Credit Card Expiry Month
+		if (
+			autocomplete === 'cc-exp-month' ||
+			(matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))
+		) {
+			return 'card_exp_month';
+		}
+
+		// 7. Credit Card Expiry Year
+		if (
+			autocomplete === 'cc-exp-year' ||
+			(matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))
+		) {
+			return 'card_exp_year';
+		}
+
+		// 8. Credit Card Expiry Date (Combined Date)
+		if (
+			autocomplete === 'cc-exp' ||
+			(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee)\b/i)) ||
+			matchToken(raw, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
+		) {
+			return 'card_exp';
+		}
+
+		// 9. Cardholder Name (Strictly distinct from personal profile names)
+		const inPayment = isPaymentContext(input);
+		if (
+			autocomplete === 'cc-name' ||
+			autocomplete === 'cc-given-name' ||
+			autocomplete === 'cc-family-name' ||
+			matchToken(norm, /\b(card\s*holder|cardholder|name\s*on\s*card|name\s*on\s*the\s*card|card\s*name|cc\s*name|titulaire|porteur|nom\s*porteur|nom\s*titulaire|nom\s*carte|nom\s*sur\s*carte|titulaire\s*carte|karteninhaber|titular|nombre\s*titular|nombre\s*tarjeta|card\s*owner|cardowner)\b/i) ||
+			(inPayment && matchToken(norm, /\b(my\s*name|your\s*name|mon\s*nom|nom\s*prenom|nom\s*et\s*prenom|nom|name|owner|client\s*name|nom\s*client)\b/i) && !matchToken(norm, /\b(billing[-_]?address|shipping[-_]?address|street|city|zip|state|country|email|phone)\b/i)) ||
+			matchToken(raw, /(اسم[-_]?(صاحب|حامل)[-_]?البطاقة|صاحب[-_]?البطاقة|حامل[-_]?البطاقة)/i) ||
+			(inPayment && matchToken(raw, /(اسمي|الاسم[-_]?واللقب|اسم[-_]?الزبون|اسم[-_]?العميل)/i))
+		) {
+			return 'card_holder';
+		}
+
+		// If inside a payment form context, NEVER classify remaining fields as personal profile info
+		if (inPayment) {
+			return 'generic';
+		}
+
+		// 10. Personal Info: First Name
 		if (
 			autocomplete === 'given-name' ||
-			matchToken(norm, /\b(first[-_]?name|given[-_]?name|forename|fname|prenom)\b/i) ||
-			matchToken(norm, /(الاسم[-_]?الأول|الاسم[-_]?الاول|الاسم[-_]?الشخصي)/i)
+			(matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			matchToken(raw, /(الاسم[-_]?الأول|الاسم[-_]?الاول|الاسم[-_]?الشخصي)/i)
 		) {
 			return 'personal_firstName';
 		}
 
-		// 9. Personal Info: Last Name
+		// 11. Personal Info: Last Name
 		if (
 			autocomplete === 'family-name' ||
-			matchToken(norm, /\b(last[-_]?name|family[-_]?name|surname|lname|nom[-_]?de[-_]?famille)\b/i) ||
-			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|full|user|card|holder)\b/i)) ||
-			matchToken(norm, /(اللقب|اسم[-_]?العائلة|اسم[-_]?النسب)/i)
+			(matchToken(norm, /\b(last\s*name|family\s*name|surname|lname|nom\s*de\s*famille)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|full|user|card|holder|titulaire|porteur|cc)\b/i)) ||
+			matchToken(raw, /(اللقب|اسم[-_]?العائلة|اسم[-_]?النسب)/i)
 		) {
 			return 'personal_lastName';
 		}
 
-		// 10. Personal Info: Full Name
+		// 12. Personal Info: Full Name
 		if (
 			autocomplete === 'name' ||
-			matchToken(norm, /\b(full[-_]?name|your[-_]?name|nom[-_]?prenom|nom[-_]?et[-_]?prenom)\b/i) ||
-			matchToken(norm, /(الاسم[-_]?الكامل|الاسم[-_]?الثلاثي|الاسم[-_]?واللقب)/i)
+			(matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			matchToken(raw, /(الاسم[-_]?الكامل|الاسم[-_]?الثلاثي|الاسم[-_]?واللقب)/i)
 		) {
 			return 'personal_fullName';
 		}
 
-		// 11. Personal Info: Birth Date (Universal / Specific)
+		// 13. Personal Info: Birth Date (Universal / Specific)
 		if (
 			type === 'date' ||
 			autocomplete === 'bday' ||
-			matchToken(norm, /\b(birth[-_]?date|dob|date[-_]?of[-_]?birth|date[-_]?naissance|bday)\b/i) ||
-			matchToken(norm, /(تاريخ[-_]?(الميلاد|الولادة))/i)
+			matchToken(norm, /\b(birth\s*date|dob|date\s*of\s*birth|date\s*naissance|bday)\b/i) ||
+			matchToken(raw, /(تاريخ[-_]?(الميلاد|الولادة))/i)
 		) {
 			return 'personal_birthDate';
 		}
-		if (autocomplete === 'bday-day' || matchToken(norm, /\b(birth[-_]?day|dob[-_]?day|jour[-_]?naissance)\b/i) || matchToken(norm, /(يوم[-_]?الميلاد)/i)) {
+		if (autocomplete === 'bday-day' || matchToken(norm, /\b(birth\s*day|dob\s*day|jour\s*naissance)\b/i) || matchToken(raw, /(يوم[-_]?الميلاد)/i)) {
 			return 'personal_birthDay';
 		}
-		if (autocomplete === 'bday-month' || matchToken(norm, /\b(birth[-_]?month|dob[-_]?month|mois[-_]?naissance)\b/i) || matchToken(norm, /(شهر[-_]?الميلاد)/i)) {
+		if (autocomplete === 'bday-month' || matchToken(norm, /\b(birth\s*month|dob\s*month|mois\s*naissance)\b/i) || matchToken(raw, /(شهر[-_]?الميلاد)/i)) {
 			return 'personal_birthMonth';
 		}
-		if (autocomplete === 'bday-year' || matchToken(norm, /\b(birth[-_]?year|dob[-_]?year|annee[-_]?naissance)\b/i) || matchToken(norm, /(سنة[-_]?الميلاد|عام[-_]?الميلاد)/i)) {
+		if (autocomplete === 'bday-year' || matchToken(norm, /\b(birth\s*year|dob\s*year|annee\s*naissance)\b/i) || matchToken(raw, /(سنة[-_]?الميلاد|عام[-_]?الميلاد)/i)) {
 			return 'personal_birthYear';
 		}
 
-		// 12. Personal Info: Gender
+		// 14. Personal Info: Gender
 		if (
 			autocomplete === 'sex' ||
 			matchToken(norm, /\b(gender|sex|sexe)\b/i) ||
-			matchToken(norm, /(الجنس|النوع)/i)
+			matchToken(raw, /(الجنس|النوع)/i)
 		) {
 			return 'personal_gender';
 		}
 
-		// 13. Personal Info: Age
+		// 15. Personal Info: Age
 		if (
 			matchToken(norm, /\b(age|âge)\b/i) ||
-			matchToken(norm, /(العمر|السن)/i)
+			matchToken(raw, /(العمر|السن)/i)
 		) {
 			return 'personal_age';
 		}
 
-		// 14. Personal Info: National ID / Passport / NIN
+		// 16. Personal Info: National ID / Passport / NIN
 		if (
-			matchToken(norm, /\b(national[-_]?id|nin|ssn|social[-_]?security|passport|passeport|carte[-_]?identite|n[-_]?national|cin|cni|identity[-_]?card)\b/i) ||
-			matchToken(norm, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف|جواز[-_]?السفر)/i)
+			matchToken(norm, /\b(national\s*id|nin|ssn|social\s*security|passport|passeport|carte\s*identite|n\s*national|cin|cni|identity\s*card)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف|جواز[-_]?السفر)/i)
 		) {
 			return 'personal_nationalId';
 		}
 
-		// 15. Personal Info: Address
+		// 17. Personal Info: Address
 		if (
 			autocomplete === 'address-line2' ||
-			matchToken(norm, /\b(address[-_]?line2|address2|apt|suite|complement[-_]?adresse|batiment|etage)\b/i) ||
-			matchToken(norm, /(شقة|عمارة|رقم[-_]?الشقة)/i)
+			matchToken(norm, /\b(address\s*line2|address\s*line\s*2|address2|address\s*2|apt|suite|complement\s*adresse|batiment|etage)\b/i) ||
+			matchToken(raw, /(شقة|عمارة|رقم[-_]?الشقة)/i)
 		) {
 			return 'personal_address2';
 		}
 		if (
 			autocomplete === 'address-line1' ||
 			autocomplete === 'street-address' ||
-			matchToken(norm, /\b(address[-_]?line1|address1|street[-_]?address|street|adresse|rue)\b/i) ||
-			matchToken(norm, /(العنوان|الشارع|عنوان[-_]?الاقامة)/i)
+			matchToken(norm, /\b(address\s*line1|address\s*line\s*1|address1|address\s*1|street\s*address|street|adresse|rue)\b/i) ||
+			matchToken(raw, /(العنوان|الشارع|عنوان[-_]?الاقامة)/i)
 		) {
 			return 'personal_address1';
 		}
 
-		// 16. Personal Info: City & State/Wilaya & Postal Code & Country
+		// 18. Personal Info: City & State/Wilaya & Postal Code & Country
 		if (
 			autocomplete === 'address-level2' ||
 			matchToken(norm, /\b(city|ville|town|commune|municipality)\b/i) ||
-			matchToken(norm, /(المدينة|البلدية)/i)
+			matchToken(raw, /(المدينة|البلدية)/i)
 		) {
 			return 'personal_city';
 		}
 		if (
 			autocomplete === 'address-level1' ||
 			matchToken(norm, /\b(state|province|wilaya|region|departement|county)\b/i) ||
-			matchToken(norm, /(الولاية|المحافظة|الاقليم|المنطقة)/i)
+			matchToken(raw, /(الولاية|المحافظة|الاقليم|المنطقة)/i)
 		) {
 			return 'personal_state';
 		}
 		if (
 			autocomplete === 'postal-code' ||
-			matchToken(norm, /\b(zip|zip[-_]?code|postal[-_]?code|postcode|code[-_]?postal)\b/i) ||
-			matchToken(norm, /(الرمز[-_]?البريدي)/i)
+			matchToken(norm, /\b(zip|zip\s*code|postal\s*code|postcode|code\s*postal)\b/i) ||
+			matchToken(raw, /(الرمز[-_]?البريدي)/i)
 		) {
 			return 'personal_zip';
 		}
@@ -400,27 +449,27 @@
 			autocomplete === 'country' ||
 			autocomplete === 'country-name' ||
 			matchToken(norm, /\b(country|pays|nation)\b/i) ||
-			matchToken(norm, /(الدولة|البلد)/i)
+			matchToken(raw, /(الدولة|البلد)/i)
 		) {
 			return 'personal_country';
 		}
 
-		// 17. Contact: Phone
+		// 19. Contact: Phone
 		if (
 			type === 'tel' ||
 			autocomplete.includes('tel') ||
-			matchToken(norm, /\b(phone|telephone|mobile|cell|cellphone|num[-_]?tel)\b/i) ||
-			matchToken(norm, /(الهاتف|المحمول|الجوال|رقم[-_]?الهاتف)/i)
+			matchToken(norm, /\b(phone|telephone|mobile|cell|cellphone|num\s*tel)\b/i) ||
+			matchToken(raw, /(الهاتف|المحمول|الجوال|رقم[-_]?الهاتف)/i)
 		) {
 			return 'personal_phone';
 		}
 
-		// 18. Contact: Email / Username / Login
+		// 20. Contact: Email / Username / Login
 		if (
 			type === 'email' ||
 			autocomplete === 'email' ||
-			matchToken(norm, /\b(email|e-mail|mail|courriel|adresse[-_]?email)\b/i) ||
-			matchToken(norm, /(البريد[-_]?(الإلكتروني|الالكتروني|البريد)?)/i)
+			matchToken(norm, /\b(email|e\s*mail|mail|courriel|adresse\s*email)\b/i) ||
+			matchToken(raw, /(البريد[-_]?(الإلكتروني|الالكتروني|البريد)?)/i)
 		) {
 			if (isRegistrationForm(input)) {
 				return 'personal_email';
@@ -430,8 +479,8 @@
 
 		if (
 			autocomplete === 'username' ||
-			matchToken(norm, /\b(username|user[-_]?name|login|identifiant|num[-_]?ccp|rip|user[-_]?id|auth[-_]?user)\b/i) ||
-			matchToken(norm, /(اسم[-_]?المستخدم|المعرف|رقم[-_]?الحساب)/i)
+			matchToken(norm, /\b(username|user\s*name|login|identifiant|num\s*ccp|rip|user\s*id|auth\s*user)\b/i) ||
+			matchToken(raw, /(اسم[-_]?المستخدم|المعرف|رقم[-_]?الحساب)/i)
 		) {
 			return 'login_username';
 		}
@@ -480,8 +529,16 @@
 		if (attachedBadges.has(input)) return;
 
 		const classification = classifyField(input);
-		// Do not attach badges to secondary card fields (CVV, Expiry, Holder) -> Only to Card Number
-		if (classification === 'card_cvv' || classification === 'card_exp' || classification === 'card_holder') {
+		// In payment contexts, only attach a badge to the card number field — one badge is enough
+		if (isPaymentContext(input) && classification !== 'card_number') {
+			return;
+		}
+		// Do not attach badges to secondary card fields (CVV, Expiry, Month, Year, Holder) -> Only to Card Number
+		if (classification === 'card_cvv' || classification === 'card_exp' || classification === 'card_exp_month' || classification === 'card_exp_year' || classification === 'card_holder') {
+			return;
+		}
+		// Do not attach badges to secondary personal info fields (Last Name, Address Line 2, City, State, Zip, Country, Birth fields, Gender, Age)
+		if (['personal_lastName', 'personal_address2', 'personal_city', 'personal_state', 'personal_zip', 'personal_country', 'personal_birthDay', 'personal_birthMonth', 'personal_birthYear', 'personal_age', 'personal_gender'].includes(classification)) {
 			return;
 		}
 		if (classification === 'generic') {
@@ -584,8 +641,8 @@
 		const classification = classifyField(input);
 		const isRegister = isRegistrationForm(input);
 
-		// 1. Credit Card Number Field
-		if (classification === 'card_number') {
+		// 1. Credit Card Number Field or Payment Context
+		if (classification === 'card_number' || classification === 'card_holder' || classification === 'card_exp' || classification === 'card_exp_month' || classification === 'card_exp_year' || classification === 'card_cvv' || isPaymentContext(input)) {
 			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "card_number" }, (response) => {
 				if (!response || !response.success) {
 					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
@@ -905,7 +962,18 @@
 	// High-Accuracy Autofill Engine for Personal Information Profiles
 	function fillPersonalInfo(targetInput, item) {
 		const form = targetInput.form || targetInput.closest('form') || document.body;
-		const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select'));
+		const allInputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select'));
+		// Filter out fields that are inside a payment context to prevent personal data leaking into cardholder / card fields
+		const inputs = allInputs.filter(field => {
+			const cl = classifyField(field);
+			if (cl === 'card_number' || cl === 'card_cvv' || cl === 'card_exp' || cl === 'card_exp_month' || cl === 'card_exp_year' || cl === 'card_holder') return false;
+			// Also skip any text input inside a payment form that looks like a cardholder name
+			if (isPaymentContext(field)) {
+				const attr = `${field.name || ''} ${field.id || ''} ${field.placeholder || ''} ${field.autocomplete || ''}`.toLowerCase();
+				if (attr.includes('cc-') || attr.includes('card') || attr.includes('holder') || attr.includes('titulaire') || attr.includes('porteur')) return false;
+			}
+			return true;
+		});
 
 		// 1. First & Last Names vs Full Name Decomposition
 		let first = item.firstName || '';
@@ -1105,37 +1173,146 @@
 
 		// Fallback for target input if not filled
 		if (!targetInput.value) {
-			if (item.email) setNativeFieldValue(targetInput, item.email);
-			else if (full) setNativeFieldValue(targetInput, full);
+			const targetCl = classifyField(targetInput);
+			if (targetCl === 'personal_email' && item.email) {
+				setNativeFieldValue(targetInput, item.email);
+			} else if ((targetCl === 'personal_fullName' || targetCl === 'personal_firstName') && full) {
+				setNativeFieldValue(targetInput, full);
+			}
 		}
 	}
 
-	function selectMatchingOption(selectElement, candidateValues) {
-		if (!selectElement || selectElement.tagName !== 'SELECT') return;
-		const options = Array.from(selectElement.options);
-		const cleanCandidates = candidateValues.map(c => String(c).toLowerCase().trim());
+	// Dedicated Expiration Date Parser (Supports YYYY-MM-DD, YYYY-MM, MM/YY, MM/YYYY, DD/MM/YYYY, MMYY, MM-YY, MM-YYYY, M/YY)
+	function parseCardExpiry(expStr) {
+		if (!expStr) return null;
+		const clean = String(expStr).trim();
 
-		const matched = options.find(opt => {
+		// 1. YYYY-MM-DD or YYYY/MM/DD or YYYY-MM or YYYY/MM
+		let m = clean.match(/^(\d{4})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?$/);
+		if (m) {
+			const fullYear = m[1];
+			const month = m[2].padStart(2, '0');
+			const monthNum = parseInt(month, 10);
+			const shortYear = fullYear.slice(-2);
+			return {
+				month,
+				year: fullYear,
+				fullYear,
+				shortYear,
+				monthNum,
+				formatted: `${month}/${shortYear}`
+			};
+		}
+
+		// 2. DD/MM/YYYY or DD-MM-YYYY or MM/DD/YYYY
+		m = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+		if (m) {
+			const p1 = parseInt(m[1], 10);
+			const p2 = parseInt(m[2], 10);
+			const fullYear = m[3];
+			let monthNum;
+			if (p1 > 12) {
+				monthNum = p2;
+			} else if (p2 > 12) {
+				monthNum = p1;
+			} else {
+				monthNum = p2; // Default DD/MM/YYYY
+			}
+			const month = String(monthNum).padStart(2, '0');
+			const shortYear = fullYear.slice(-2);
+			return {
+				month,
+				year: fullYear,
+				fullYear,
+				shortYear,
+				monthNum,
+				formatted: `${month}/${shortYear}`
+			};
+		}
+
+		// 3. MM/YY or MM/YYYY or MM-YY or MM-YYYY or M/YY or M/YYYY
+		m = clean.match(/^(\d{1,2})[-/.](\d{2,4})$/);
+		if (m) {
+			const monthNum = parseInt(m[1], 10);
+			const month = String(monthNum).padStart(2, '0');
+			const y = m[2];
+			const fullYear = y.length === 2 ? `20${y}` : y;
+			const shortYear = y.length === 4 ? y.slice(-2) : y;
+			return {
+				month,
+				year: fullYear,
+				fullYear,
+				shortYear,
+				monthNum,
+				formatted: `${month}/${shortYear}`
+			};
+		}
+
+		// 4. MMYY (4 digits)
+		m = clean.match(/^(\d{2})(\d{2})$/);
+		if (m) {
+			const monthNum = parseInt(m[1], 10);
+			if (monthNum >= 1 && monthNum <= 12) {
+				const month = m[1];
+				const shortYear = m[2];
+				const fullYear = `20${shortYear}`;
+				return {
+					month,
+					year: fullYear,
+					fullYear,
+					shortYear,
+					monthNum,
+					formatted: `${month}/${shortYear}`
+				};
+			}
+		}
+
+		return null;
+	}
+
+	function selectMatchingOption(selectElement, candidateValues) {
+		if (!selectElement || selectElement.tagName !== 'SELECT') return false;
+		const options = Array.from(selectElement.options);
+		const candidates = Array.isArray(candidateValues) ? candidateValues : [candidateValues];
+		const cleanCandidates = candidates.flat().map(c => String(c).toLowerCase().trim()).filter(Boolean);
+
+		// 1. Exact value or text match
+		let matched = options.find(opt => {
 			const val = (opt.value || '').toLowerCase().trim();
 			const txt = (opt.text || '').toLowerCase().trim();
-			return cleanCandidates.some(c => val === c || txt === c || txt.startsWith(c) || val.startsWith(c));
+			return cleanCandidates.some(c => val === c || txt === c);
 		});
+
+		// 2. Prefix / StartsWith match
+		if (!matched) {
+			matched = options.find(opt => {
+				const val = (opt.value || '').toLowerCase().trim();
+				const txt = (opt.text || '').toLowerCase().trim();
+				return cleanCandidates.some(c => 
+					(c.length >= 2 && (val.startsWith(c) || txt.startsWith(c))) ||
+					(c.length >= 3 && (val.includes(c) || txt.includes(c)))
+				);
+			});
+		}
 
 		if (matched) {
 			selectElement.value = matched.value;
+			selectElement.selectedIndex = matched.index;
 			selectElement.dispatchEvent(new Event('change', { bubbles: true }));
 			selectElement.dispatchEvent(new Event('input', { bubbles: true }));
+			return true;
 		}
+		return false;
 	}
 
 	// Smart Autofill Engine dispatcher
 	function autofillItem(targetInput, item) {
-		const form = targetInput.form || targetInput.closest('form') || document.body;
+		const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
 
 		// 1. Password credentials
 		if (item.type === 'password') {
-			const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
-			const userFields = Array.from(form.querySelectorAll('input[type="text"], input[type="email"]')).filter(i => {
+			const passFields = Array.from(root.querySelectorAll('input[type="password"]'));
+			const userFields = Array.from(root.querySelectorAll('input[type="text"], input[type="email"]')).filter(i => {
 				const cl = classifyField(i);
 				return cl === 'login_username' || cl === 'personal_email' || i.type === 'email';
 			});
@@ -1162,77 +1339,235 @@
 		// 3. Credit Card Payment Details
 		else if (item.type === 'card') {
 			const cvvVal = item.cvv || item.pin || '';
-			const holderVal = item.cardholderName || item.fullName || item.title || '';
+			const holderVal = item.cardholderName || item.fullName || item.title || (item.firstName ? `${item.firstName} ${item.lastName || ''}`.trim() : '');
 			const numVal = (item.number || '').replace(/\s+/g, '');
-			const expVal = item.expirationDate || '';
+			const parsedExp = parseCardExpiry(item.expirationDate);
 
-			const container = targetInput.form || targetInput.closest('form') || targetInput.closest('table') || document;
-			const inputs = Array.from(container.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select'));
+			const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
+			const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]), select'));
 
 			// 1. Card Number
-			const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || targetInput;
+			const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || (classifyField(targetInput) === 'card_number' ? targetInput : null) || targetInput;
 			if (cardNumInput && numVal) {
 				setNativeFieldValue(cardNumInput, numVal);
 			}
 
 			// 2. CVV / CVC
-			const cvvInput = inputs.find(i => i !== cardNumInput && (classifyField(i) === 'card_cvv' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/cvv|cvc|cvw|crypto|secu/)));
+			const cvvInput = inputs.find(i => i !== cardNumInput && (classifyField(i) === 'card_cvv' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/cvv|cvc|cvw|crypto|secu|security/)));
 			if (cvvInput && cvvVal) {
 				setNativeFieldValue(cvvInput, cvvVal);
 			}
 
-			// 3. Cardholder Name
+			// 3. Cardholder Name (My name / Nom et prénom / Titulaire / Porteur / Name on card)
+			// Priority 1: classifyField matches 'card_holder'
 			let holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && classifyField(i) === 'card_holder');
+
+			// Priority 2: Direct attribute/label scan for cardholder-specific markers
 			if (!holderInput) {
 				holderInput = inputs.find(i => {
-					if (i === cardNumInput || i === cvvInput || i.tagName !== 'INPUT') return false;
-					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${getFieldLabelText(i)}`.toLowerCase();
-					return attr.includes('nom') || attr.includes('prenom') || attr.includes('holder') || attr.includes('titulaire') || attr.includes('porteur') || attr.includes('name') || attr.includes('اسم');
+					if (i === cardNumInput || i === cvvInput) return false;
+					if (i.tagName !== 'INPUT') return false;
+					const iType = (i.type || '').toLowerCase();
+					if (iType && iType !== 'text' && iType !== 'string' && iType !== 'search') return false;
+
+					const ac = (i.autocomplete || '').toLowerCase();
+					if (ac === 'cc-name' || ac === 'cc-given-name' || ac === 'cc-family-name') return true;
+
+					const labelText = getFieldLabelText(i);
+					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${i.className || ''}`.toLowerCase();
+					const norm = (attr + ' ' + labelText).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+					return (
+						norm.includes('holder') ||
+						norm.includes('cardholder') ||
+						norm.includes('titulaire') ||
+						norm.includes('porteur') ||
+						norm.includes('card name') ||
+						norm.includes('name on card') ||
+						norm.includes('name on the card') ||
+						norm.includes('nom sur carte') ||
+						norm.includes('nom carte') ||
+						norm.includes('cc name') ||
+						norm.includes('card owner') ||
+						norm.includes('cardowner') ||
+						norm.includes('صاحب') ||
+						norm.includes('حامل')
+					);
 				});
 			}
-			if (holderInput && holderVal) {
+
+			// Priority 3: In a payment context, find a name/nom field that isn't address/email/phone
+			if (!holderInput) {
+				holderInput = inputs.find(i => {
+					if (i === cardNumInput || i === cvvInput) return false;
+					if (i.tagName !== 'INPUT') return false;
+					const iType = (i.type || '').toLowerCase();
+					if (iType && iType !== 'text' && iType !== 'string') return false;
+
+					const labelText = getFieldLabelText(i);
+					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''}`.toLowerCase();
+					const norm = (attr + ' ' + labelText).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+					// Must have a name-related keyword
+					const hasNameHint = norm.includes('name') || norm.includes('nom') || norm.includes('prenom') || norm.includes('اسم');
+					if (!hasNameHint) return false;
+
+					// Must NOT be an address / billing address / email / phone / city / state / zip field
+					const isOtherField = norm.includes('email') || norm.includes('phone') || norm.includes('address') ||
+						norm.includes('street') || norm.includes('city') || norm.includes('state') ||
+						norm.includes('zip') || norm.includes('postal') || norm.includes('country') ||
+						norm.includes('user') || norm.includes('login');
+					return !isOtherField;
+				});
+			}
+
+			// Priority 4: Fallback — first remaining text input in the form that isn't card number or CVV
+			if (!holderInput) {
+				holderInput = inputs.find(i => 
+					i !== cardNumInput && 
+					i !== cvvInput && 
+					i.tagName === 'INPUT' && 
+					((i.type || '').toLowerCase() === 'text' || !(i.type))
+				);
+			}
+
+			if (holderInput && holderVal && holderInput !== cardNumInput && holderInput !== cvvInput) {
 				setNativeFieldValue(holderInput, holderVal);
 			}
 
-			// 4. Expiration Date (Single input vs Month / Year Selects)
-			if (expVal) {
-				const parts = expVal.split(/[/.-]/);
-				const monthVal = parts[0] ? parts[0].padStart(2, '0') : '';
-				let yearVal = parts[1] || '';
-				const fullYear = yearVal.length === 2 ? `20${yearVal}` : yearVal;
-				const shortYear = yearVal.length === 4 ? yearVal.slice(-2) : yearVal;
+			// 4. Expiration Date (Single input vs separate Month/Year dropdowns)
+			if (parsedExp) {
+				const { month, fullYear, shortYear, monthNum, formatted } = parsedExp;
+				const monthName = MONTH_NAMES[monthNum] ? MONTH_NAMES[monthNum][0] : '';
+				const monthAliases = MONTH_NAMES[monthNum] || [month];
 
-				// Single Expiration Date Input
-				const expInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && classifyField(i) === 'card_exp' && i.tagName === 'INPUT' && !i.name?.toLowerCase().match(/month|mois|year|annee|mm|yy/));
-				if (expInput) {
-					setNativeFieldValue(expInput, expVal);
+				// Helper: check if field looks like a combined expiry input via attributes/label
+				function looksLikeExpiryInput(el) {
+					if (el.tagName !== 'INPUT') return false;
+					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''} ${getFieldLabelText(el)}`.toLowerCase();
+					return a.includes('expir') || a.includes('exp date') || a.includes('exp_date') || a.includes('expdate') ||
+						a.includes('cc-exp') || a.includes('validite') || a.includes('valid thru') || a.includes('validthru') ||
+						a.includes('mm/yy') || a.includes('mm / yy') || a.includes('mm/aa') || a.includes('mm-yy') ||
+						a.includes('انتهاء') || a.includes('صلاحية') ||
+						(a.includes('date') && (a.includes('card') || a.includes('carte') || a.includes('cc')));
 				}
 
-				// Separate Month Select or Input
-				const monthField = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && (
-					(classifyField(i) === 'card_exp' && i !== expInput) ||
-					(i.name || i.id || '').toLowerCase().match(/^(mm|month|mois|exp_?m(onth)?)$/i) ||
-					(i.tagName === 'SELECT' && Array.from(i.options).some(o => o.value === '01' || o.value === '1' || o.text === '01' || o.text === '1'))
-				));
-				if (monthField) {
-					if (monthField.tagName === 'SELECT') {
-						selectMatchingOption(monthField, [monthVal, String(parseInt(monthVal, 10))]);
+				// Helper: check if field looks like a separate month field via attributes/label
+				function looksLikeMonthField(el) {
+					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+					if (a.includes('bday') || a.includes('birth') || a.includes('naissance') || a.includes('dob')) return false;
+					return a.includes('cc-exp-month') || a.includes('exp_month') || a.includes('exp-month') || a.includes('expmonth') ||
+						a.includes('card_month') || a.includes('card-month') || a.includes('cardmonth') ||
+						a.includes('expm') || (a.includes('month') && (a.includes('exp') || a.includes('card') || a.includes('cc'))) ||
+						(el.tagName === 'SELECT' && isMonthSelect(el));
+				}
+
+				// Helper: check if field looks like a separate year field via attributes/label
+				function looksLikeYearField(el) {
+					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+					if (a.includes('bday') || a.includes('birth') || a.includes('naissance') || a.includes('dob')) return false;
+					return a.includes('cc-exp-year') || a.includes('exp_year') || a.includes('exp-year') || a.includes('expyear') ||
+						a.includes('card_year') || a.includes('card-year') || a.includes('cardyear') ||
+						a.includes('expy') || (a.includes('year') && (a.includes('exp') || a.includes('card') || a.includes('cc'))) ||
+						(el.tagName === 'SELECT' && isYearSelect(el));
+				}
+
+				const usedFields = [cardNumInput, cvvInput, holderInput].filter(Boolean);
+				const remaining = inputs.filter(i => !usedFields.includes(i));
+
+				// Single Expiration Date Input (e.g. MM/YY)
+				let expInput = remaining.find(i => classifyField(i) === 'card_exp' && i.tagName === 'INPUT');
+				// Fallback: attribute-based search for combined expiry input
+				if (!expInput) {
+					expInput = remaining.find(i => looksLikeExpiryInput(i));
+				}
+				if (expInput) {
+					const placeholder = (expInput.placeholder || '').toLowerCase();
+					if (expInput.type === 'month') {
+						setNativeFieldValue(expInput, `${fullYear}-${month}`);
+					} else if (expInput.type === 'date') {
+						setNativeFieldValue(expInput, `${fullYear}-${month}-01`);
+					} else if (expInput.maxLength === 4 || placeholder.includes('mmyy')) {
+						setNativeFieldValue(expInput, `${month}${shortYear}`);
+					} else if (placeholder.includes('mm / yy')) {
+						setNativeFieldValue(expInput, `${month} / ${shortYear}`);
+					} else if (placeholder.includes('mm/yyyy') || expInput.maxLength === 7) {
+						setNativeFieldValue(expInput, `${month}/${fullYear}`);
 					} else {
-						setNativeFieldValue(monthField, monthVal);
+						setNativeFieldValue(expInput, formatted);
+					}
+				}
+
+				const remainingAfterExp = remaining.filter(i => i !== expInput);
+
+				// Separate Month Select or Input
+				let monthInput = remainingAfterExp.find(i =>
+					classifyField(i) === 'card_exp_month' || looksLikeMonthField(i)
+				);
+				// Fallback: any remaining SELECT that has month-like options (1-12) and isn't a year select
+				if (!monthInput) {
+					monthInput = remainingAfterExp.find(i =>
+						i.tagName === 'SELECT' && isMonthSelect(i) && !isYearSelect(i)
+					);
+				}
+
+				if (monthInput) {
+					if (monthInput.tagName === 'SELECT') {
+						const options = Array.from(monthInput.options);
+						const matchedOpt = options.find(opt => {
+							const val = (opt.value || '').trim().toLowerCase();
+							const txt = (opt.text || '').trim().toLowerCase();
+							return val === month || 
+								val === String(monthNum) || 
+								txt === month || 
+								txt === String(monthNum) ||
+								txt.startsWith(month) || 
+								txt.startsWith(String(monthNum)) ||
+								(monthName && txt.includes(monthName)) ||
+								monthAliases.some(a => val === a || txt === a || txt.includes(a));
+						});
+						if (matchedOpt) {
+							monthInput.value = matchedOpt.value;
+							monthInput.dispatchEvent(new Event('change', { bubbles: true }));
+							monthInput.dispatchEvent(new Event('input', { bubbles: true }));
+						}
+					} else {
+						setNativeFieldValue(monthInput, month);
 					}
 				}
 
 				// Separate Year Select or Input
-				const yearField = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && i !== monthField && (
-					(classifyField(i) === 'card_exp' && i !== expInput) ||
-					(i.name || i.id || '').toLowerCase().match(/^(yy|year|annee|exp_?y(ear)?)$/i) ||
-					(i.tagName === 'SELECT' && Array.from(i.options).some(o => o.value === fullYear || o.value === shortYear || o.text === fullYear || o.text === shortYear))
-				));
-				if (yearField) {
-					if (yearField.tagName === 'SELECT') {
-						selectMatchingOption(yearField, [fullYear, shortYear]);
+				const remainingAfterMonth = remainingAfterExp.filter(i => i !== monthInput);
+				let yearInput = remainingAfterMonth.find(i =>
+					classifyField(i) === 'card_exp_year' || looksLikeYearField(i)
+				);
+				// Fallback: any remaining SELECT that has year-like options and isn't a month select
+				if (!yearInput) {
+					yearInput = remainingAfterMonth.find(i =>
+						i.tagName === 'SELECT' && isYearSelect(i) && !isMonthSelect(i)
+					);
+				}
+
+				if (yearInput) {
+					if (yearInput.tagName === 'SELECT') {
+						const options = Array.from(yearInput.options);
+						const matchedOpt = options.find(opt => {
+							const val = (opt.value || '').trim().toLowerCase();
+							const txt = (opt.text || '').trim().toLowerCase();
+							return val === fullYear || 
+								val === shortYear || 
+								txt === fullYear || 
+								txt === shortYear ||
+								txt.includes(fullYear) || 
+								txt.includes(shortYear);
+						});
+						if (matchedOpt) {
+							yearInput.value = matchedOpt.value;
+							yearInput.dispatchEvent(new Event('change', { bubbles: true }));
+							yearInput.dispatchEvent(new Event('input', { bubbles: true }));
+						}
 					} else {
-						setNativeFieldValue(yearField, fullYear);
+						setNativeFieldValue(yearInput, yearInput.maxLength === 2 ? shortYear : fullYear);
 					}
 				}
 			}
