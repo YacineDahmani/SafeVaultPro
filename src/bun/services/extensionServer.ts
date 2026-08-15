@@ -6,11 +6,55 @@ const PORT = 48920;
 let syncedUnlocked = false;
 let syncedItems: VaultItem[] = [];
 
+function extractBaseDomain(rawUrlOrHost: string): string {
+	if (!rawUrlOrHost) return "";
+	const clean = rawUrlOrHost
+		.toLowerCase()
+		.trim()
+		.replace(/^(https?:\/\/)?(www\.)?/, "")
+		.split("/")[0]
+		.split(":")[0];
+	const parts = clean.split(".");
+	if (parts.length <= 2) return clean;
+	// Handle standard second-level domains like co.uk, com.au, com.dz
+	const sldList = ["co.uk", "org.uk", "gov.uk", "ac.uk", "com.dz", "edu.dz", "gov.dz", "com.au", "net.au", "co.nz", "co.jp"];
+	const lastTwo = parts.slice(-2).join(".");
+	if (sldList.includes(lastTwo) && parts.length >= 3) {
+		return parts.slice(-3).join(".");
+	}
+	return parts.slice(-2).join(".");
+}
+
+// Known authentication alias clusters (e.g. Google services share credentials)
+const AUTH_ALIAS_CLUSTERS: string[][] = [
+	["google.com", "accounts.google.com", "mail.google.com", "myaccount.google.com", "youtube.com", "gmail.com"],
+	["microsoft.com", "login.microsoftonline.com", "live.com", "login.live.com", "outlook.com", "office.com", "microsoftonline.com"],
+	["apple.com", "appleid.apple.com", "icloud.com"],
+	["amazon.com", "amazon.co.uk", "amazon.de", "amazon.fr", "amazon.ca", "amazon.es", "amazon.it"],
+	["yahoo.com", "login.yahoo.com", "mail.yahoo.com"],
+	["github.com", "gist.github.com"],
+];
+
 function matchDomain(itemUrl: string | undefined, domain: string): boolean {
 	if (!itemUrl || !domain) return false;
-	const cleanDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0];
-	const cleanUrl = itemUrl.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0];
-	return cleanUrl.includes(cleanDomain) || cleanDomain.includes(cleanUrl);
+	const cleanDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0].split(":")[0];
+	const cleanItemUrl = itemUrl.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0].split(":")[0];
+
+	if (cleanItemUrl === cleanDomain) return true;
+	if (cleanItemUrl.endsWith("." + cleanDomain) || cleanDomain.endsWith("." + cleanItemUrl)) return true;
+
+	const base1 = extractBaseDomain(cleanDomain);
+	const base2 = extractBaseDomain(cleanItemUrl);
+	if (base1 && base2 && base1 === base2) return true;
+
+	// Check auth clusters
+	for (const cluster of AUTH_ALIAS_CLUSTERS) {
+		const inCluster1 = cluster.some((c) => cleanDomain === c || cleanDomain.endsWith("." + c) || base1 === c);
+		const inCluster2 = cluster.some((c) => cleanItemUrl === c || cleanItemUrl.endsWith("." + c) || base2 === c);
+		if (inCluster1 && inCluster2) return true;
+	}
+
+	return false;
 }
 
 function handleCors(_req?: Request): Headers {
