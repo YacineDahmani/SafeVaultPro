@@ -39,8 +39,8 @@ export class VaultBackendAPI {
 	}
 
 	public async setupVault(masterPassword: string): Promise<boolean> {
-		if (!masterPassword || masterPassword.length < 6) {
-			throw new Error("Master password must be at least 6 characters long.");
+		if (!masterPassword || masterPassword.length < 10) {
+			throw new Error("Master password must be at least 10 characters long.");
 		}
 
 		const saltHex = generateSaltHex();

@@ -32,7 +32,7 @@ export async function deriveMasterKey(
 
 	let rawKey: Uint8Array;
 	try {
-		// Use Argon2id via hash-wasm for high security key derivation
+		// Enforce Argon2id key derivation
 		const hashHex = await argon2id({
 			password,
 			salt,
@@ -44,26 +44,8 @@ export async function deriveMasterKey(
 		});
 		rawKey = hexToBuf(hashHex);
 	} catch (e) {
-		console.warn("Argon2id fallback to PBKDF2:", e);
-		const enc = new TextEncoder();
-		const keyMaterial = await crypto.subtle.importKey(
-			"raw",
-			enc.encode(password),
-			"PBKDF2",
-			false,
-			["deriveBits"],
-		);
-		const derivedBits = await crypto.subtle.deriveBits(
-			{
-				name: "PBKDF2",
-				salt: salt as BufferSource,
-				iterations: 100000,
-				hash: "SHA-256",
-			},
-			keyMaterial,
-			256,
-		);
-		rawKey = new Uint8Array(derivedBits);
+		console.error("Argon2id key derivation error:", e);
+		throw new Error("Failed to derive master cryptographic key using Argon2id.");
 	}
 
 	return await crypto.subtle.importKey(
@@ -126,6 +108,18 @@ export async function decryptVaultData<T = unknown>(
 	return JSON.parse(plaintext) as T;
 }
 
+function getRandomChar(charset: string): string {
+	const len = charset.length;
+	const maxValid = 256 - (256 % len);
+	const buf = new Uint8Array(1);
+	while (true) {
+		crypto.getRandomValues(buf);
+		if (buf[0] < maxValid) {
+			return charset[buf[0] % len];
+		}
+	}
+}
+
 export function generatePassword(options?: {
 	length?: number;
 	uppercase?: boolean;
@@ -133,27 +127,67 @@ export function generatePassword(options?: {
 	numbers?: boolean;
 	symbols?: boolean;
 }): string {
-	const length = options?.length ?? 20;
+	const length = Math.max(options?.length ?? 20, 8);
 	const uppercase = options?.uppercase ?? true;
 	const lowercase = options?.lowercase ?? true;
 	const numbers = options?.numbers ?? true;
 	const symbols = options?.symbols ?? true;
 
+	const LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+	const UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const NUMBERS = "0123456789";
+	const SYMBOLS = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
 	let charset = "";
-	if (lowercase) charset += "abcdefghijklmnopqrstuvwxyz";
-	if (uppercase) charset += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	if (numbers) charset += "0123456789";
-	if (symbols) charset += "!@#$%^&*()_+-=[]{}|;:,.<>?";
+	const requiredChars: string[] = [];
 
-	if (!charset) charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-	const bytes = new Uint8Array(length);
-	crypto.getRandomValues(bytes);
-	let result = "";
-	for (let i = 0; i < length; i++) {
-		result += charset[bytes[i] % charset.length];
+	if (lowercase) {
+		charset += LOWERCASE;
+		requiredChars.push(getRandomChar(LOWERCASE));
 	}
-	return result;
+	if (uppercase) {
+		charset += UPPERCASE;
+		requiredChars.push(getRandomChar(UPPERCASE));
+	}
+	if (numbers) {
+		charset += NUMBERS;
+		requiredChars.push(getRandomChar(NUMBERS));
+	}
+	if (symbols) {
+		charset += SYMBOLS;
+		requiredChars.push(getRandomChar(SYMBOLS));
+	}
+
+	if (!charset) {
+		charset = LOWERCASE + UPPERCASE + NUMBERS;
+		requiredChars.push(getRandomChar(LOWERCASE));
+	}
+
+	const resultChars: string[] = [...requiredChars];
+	const remaining = length - resultChars.length;
+	for (let i = 0; i < remaining; i++) {
+		resultChars.push(getRandomChar(charset));
+	}
+
+	// Cryptographic Fisher-Yates shuffle with unbiased sampling
+	const randIndexBuf = new Uint8Array(1);
+	for (let i = resultChars.length - 1; i > 0; i--) {
+		const range = i + 1;
+		const maxValid = 256 - (256 % range);
+		let j: number;
+		while (true) {
+			crypto.getRandomValues(randIndexBuf);
+			if (randIndexBuf[0] < maxValid) {
+				j = randIndexBuf[0] % range;
+				break;
+			}
+		}
+		const temp = resultChars[i];
+		resultChars[i] = resultChars[j];
+		resultChars[j] = temp;
+	}
+
+	return resultChars.join("");
 }
 
 export function calculatePasswordEntropy(password: string): number {

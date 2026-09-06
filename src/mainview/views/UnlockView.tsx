@@ -52,8 +52,8 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 		setErrorMsg("");
 
 		if (!isConfigured) {
-			if (password.length < 6) {
-				setErrorMsg("Master password must be at least 6 characters.");
+			if (password.length < 10) {
+				setErrorMsg("Master password must be at least 10 characters.");
 				triggerShake();
 				return;
 			}
