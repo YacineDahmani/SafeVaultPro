@@ -1,5 +1,13 @@
 import { vaultBackend } from "../vaultBackendApi";
 import type { VaultItem } from "../types";
+import {
+	isWindowMaximized,
+	maximizeWindow,
+	unmaximizeWindow,
+	toggleMaximize,
+	minimizeWindow,
+	closeWindow,
+} from "./windowManager";
 
 const PORT = 48920;
 
@@ -170,70 +178,44 @@ export function startExtensionServer() {
 					}
 				}
 
-let simulatedMaximized = false;
-let savedRestoreFrame: { x: number; y: number; width: number; height: number } | null = null;
-
 				// Window action endpoint (minimize, maximize, unmaximize, close) from TitleBar
 				if (url.pathname === "/api/window-action" && req.method === "POST") {
 					try {
-						const body = (await req.json()) as {
-							action?: string;
-							workArea?: { x: number; y: number; width: number; height: number };
-						};
+						const body = (await req.json()) as { action?: string };
 						const { mainWindow } = await import("../index");
 
+						let isMax = false;
 						if (body.action === "minimize") {
-							mainWindow?.minimize();
-						} else if (body.action === "maximize") {
-							if (simulatedMaximized) {
-								if (savedRestoreFrame) {
-									mainWindow?.setPosition(savedRestoreFrame.x, savedRestoreFrame.y);
-									mainWindow?.setSize(savedRestoreFrame.width, savedRestoreFrame.height);
-								} else {
-									mainWindow?.setPosition(100, 60);
-									mainWindow?.setSize(1160, 750);
-								}
-								simulatedMaximized = false;
-							} else {
-								const currentFrame = mainWindow?.getFrame();
-								if (currentFrame && currentFrame.width > 300 && currentFrame.height > 200) {
-									savedRestoreFrame = { ...currentFrame };
-								} else {
-									savedRestoreFrame = { x: 100, y: 60, width: 1160, height: 750 };
-								}
-
-								if (body.workArea && body.workArea.width > 0 && body.workArea.height > 0) {
-									mainWindow?.setPosition(body.workArea.x, body.workArea.y);
-									mainWindow?.setSize(body.workArea.width, body.workArea.height);
-									simulatedMaximized = true;
-								} else {
-									mainWindow?.maximize();
-									simulatedMaximized = true;
-								}
-							}
+							minimizeWindow(mainWindow);
+							isMax = isWindowMaximized(mainWindow);
+						} else if (body.action === "maximize" || body.action === "toggleMaximize") {
+							isMax = toggleMaximize(mainWindow);
 						} else if (body.action === "unmaximize") {
-							if (savedRestoreFrame) {
-								mainWindow?.setPosition(savedRestoreFrame.x, savedRestoreFrame.y);
-								mainWindow?.setSize(savedRestoreFrame.width, savedRestoreFrame.height);
-							} else {
-								mainWindow?.setPosition(100, 60);
-								mainWindow?.setSize(1160, 750);
-							}
-							simulatedMaximized = false;
+							isMax = unmaximizeWindow(mainWindow);
+						} else if (body.action === "forceMaximize") {
+							isMax = maximizeWindow(mainWindow);
 						} else if (body.action === "close") {
-							mainWindow?.close();
+							closeWindow(mainWindow);
+						} else {
+							isMax = isWindowMaximized(mainWindow);
 						}
 
-						return new Response(JSON.stringify({ success: true, isMaximized: simulatedMaximized }), { headers });
+						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
 					} catch (e) {
 						console.error("[WindowAction] Error:", e);
 						return new Response(JSON.stringify({ success: false, error: String(e) }), { headers, status: 400 });
 					}
 				}
 
-				// Query window state endpoint (returns current simulated isMaximized state)
+				// Query window state endpoint (returns real-time computed isMaximized state)
 				if (url.pathname === "/api/window-state") {
-					return new Response(JSON.stringify({ success: true, isMaximized: simulatedMaximized }), { headers });
+					try {
+						const { mainWindow } = await import("../index");
+						const isMax = isWindowMaximized(mainWindow);
+						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
+					} catch (e) {
+						return new Response(JSON.stringify({ success: true, isMaximized: false }), { headers });
+					}
 				}
 
 				// Status endpoint

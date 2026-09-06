@@ -9,6 +9,7 @@ function App() {
 	const [isMaximized, setIsMaximized] = useState(false);
 
 	useEffect(() => {
+		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 		const updateWindowState = async () => {
 			try {
 				const res = await fetch("http://localhost:48920/api/window-state");
@@ -21,9 +22,17 @@ function App() {
 			} catch {}
 		};
 
+		const handleResize = () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(updateWindowState, 60);
+		};
+
 		updateWindowState();
-		window.addEventListener("resize", updateWindowState);
-		return () => window.removeEventListener("resize", updateWindowState);
+		window.addEventListener("resize", handleResize);
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			window.removeEventListener("resize", handleResize);
+		};
 	}, []);
 
 	return (

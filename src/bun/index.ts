@@ -1,5 +1,6 @@
-import { BrowserWindow, Updater } from "electrobun/bun";
+import Electrobun, { BrowserWindow, Updater } from "electrobun/bun";
 import { startExtensionServer } from "./services/extensionServer";
+import { getInitialFrame, recordUserFrame } from "./services/windowManager";
 
 // Start the local extension IPC bridge
 startExtensionServer();
@@ -24,20 +25,9 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
-// Instantaneous calculation of centered window dimensions for ultra-fast startup
-function getCenteredFrame() {
-	// Standard high-DPI desktop proportions (1160x750) centered for desktop readability
-	const width = 1160;
-	const height = 750;
-	const x = 100;
-	const y = 60;
-
-	return { width, height, x, y };
-}
-
-// Create the main application window with native resizable frame matching Windows desktop standard
+// Calculate dynamic initial window dimensions matching user's display work area
 const url = await getMainViewUrl();
-const initialFrame = getCenteredFrame();
+const initialFrame = getInitialFrame();
 
 export const mainWindow = new BrowserWindow({
 	title: "SafeVaultPro",
@@ -54,4 +44,13 @@ export const mainWindow = new BrowserWindow({
 	frame: initialFrame,
 });
 
-console.log("SafeVaultPro desktop application started!");
+// Track window resizing to preserve custom dimensions for restoration
+try {
+	Electrobun.events.on("resize", () => {
+		recordUserFrame(mainWindow);
+	});
+} catch (e) {
+	console.warn("[Main] Could not register window resize listener:", e);
+}
+
+console.log("SafeVaultPro desktop application started with frame:", initialFrame);

@@ -1,0 +1,246 @@
+import { dlopen, FFIType, ptr } from "bun:ffi";
+
+export interface Rect {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+// User32 FFI for native Windows display and work area querying
+let user32: any = null;
+const isWindows = process.platform === "win32";
+
+if (isWindows) {
+	try {
+		user32 = dlopen("user32.dll", {
+			SystemParametersInfoW: {
+				args: [FFIType.u32, FFIType.u32, FFIType.ptr, FFIType.u32],
+				returns: FFIType.bool,
+			},
+			MonitorFromPoint: {
+				args: [FFIType.u64, FFIType.u32],
+				returns: FFIType.ptr,
+			},
+			GetMonitorInfoW: {
+				args: [FFIType.ptr, FFIType.ptr],
+				returns: FFIType.bool,
+			},
+		});
+	} catch (e) {
+		console.warn("[WindowManager] Failed to load user32.dll FFI:", e);
+	}
+}
+
+/**
+ * Retrieves the desktop work area (which completely excludes the taskbar)
+ * for the monitor containing the specified coordinates (or the primary monitor).
+ */
+export function getWorkArea(pointX?: number, pointY?: number): Rect {
+	if (isWindows && user32) {
+		try {
+			if (typeof pointX === "number" && typeof pointY === "number") {
+				// Win32 POINT { LONG x; LONG y; } passed as a 64-bit integer
+				const x = BigInt(Math.round(pointX));
+				const y = BigInt(Math.round(pointY));
+				const pt = (x & 0xffffffffn) | ((y & 0xffffffffn) << 32n);
+
+				// MONITOR_DEFAULTTONEAREST = 2
+				const hMon = user32.symbols.MonitorFromPoint(pt, 2);
+				if (hMon) {
+					// MONITORINFO struct:
+					// cbSize (4 bytes), rcMonitor (16 bytes: l, t, r, b), rcWork (16 bytes: l, t, r, b), dwFlags (4 bytes)
+					const mi = new Int32Array(10);
+					mi[0] = 40; // sizeof(MONITORINFO)
+					if (user32.symbols.GetMonitorInfoW(hMon, ptr(mi))) {
+						const left = mi[5]!;
+						const top = mi[6]!;
+						const right = mi[7]!;
+						const bottom = mi[8]!;
+						return {
+							x: left,
+							y: top,
+							width: Math.max(right - left, 600),
+							height: Math.max(bottom - top, 400),
+						};
+					}
+				}
+			}
+
+			// Fallback: Primary monitor work area (SPI_GETWORKAREA = 48)
+			const rect = new Int32Array(4);
+			if (user32.symbols.SystemParametersInfoW(48, 0, ptr(rect), 0)) {
+				const left = rect[0]!;
+				const top = rect[1]!;
+				const right = rect[2]!;
+				const bottom = rect[3]!;
+				return {
+					x: left,
+					y: top,
+					width: Math.max(right - left, 600),
+					height: Math.max(bottom - top, 400),
+				};
+			}
+		} catch (err) {
+			console.error("[WindowManager] Error querying Win32 work area:", err);
+		}
+	}
+
+	// Graceful fallback for non-Windows or if API unavailable
+	return { x: 0, y: 0, width: 1280, height: 720 };
+}
+
+/**
+ * Calculates a comfortable, centered initial frame that fits safely within the user's display
+ * and never overlaps the taskbar regardless of resolution (720p, 1080p, 1440p, 4K).
+ */
+export function getInitialFrame(): Rect {
+	const workArea = getWorkArea();
+
+	// Target comfortable default dimensions (1160x750), but clamp so window never exceeds screen
+	const marginX = Math.min(40, Math.floor(workArea.width * 0.05));
+	const marginY = Math.min(40, Math.floor(workArea.height * 0.05));
+
+	const width = Math.min(1160, Math.max(workArea.width - marginX * 2, 700));
+	const height = Math.min(750, Math.max(workArea.height - marginY * 2, 500));
+
+	const x = workArea.x + Math.round((workArea.width - width) / 2);
+	const y = workArea.y + Math.round((workArea.height - height) / 2);
+
+	return { x, y, width, height };
+}
+
+// Stores the last unmaximized window position/size so restore returns exactly there
+let savedRestoreFrame: Rect | null = null;
+
+/**
+ * Evaluates whether the window is currently maximized by comparing its actual native frame
+ * against the monitor's work area (with a small 4px margin of tolerance).
+ */
+export function isWindowMaximized(win: any): boolean {
+	if (!win) return false;
+	try {
+		const frame = win.getFrame();
+		if (!frame || frame.width < 100 || frame.height < 100) return false;
+
+		// Query the work area of the monitor where this window is centered
+		const centerX = frame.x + frame.width / 2;
+		const centerY = frame.y + frame.height / 2;
+		const workArea = getWorkArea(centerX, centerY);
+
+		const isMatch =
+			Math.abs(frame.x - workArea.x) <= 4 &&
+			Math.abs(frame.y - workArea.y) <= 4 &&
+			Math.abs(frame.width - workArea.width) <= 8 &&
+			Math.abs(frame.height - workArea.height) <= 8;
+
+		return isMatch;
+	} catch (e) {
+		console.warn("[WindowManager] Error checking isWindowMaximized:", e);
+		return false;
+	}
+}
+
+/**
+ * Maximizes the window within the exact taskbar-aware work area of its current monitor.
+ */
+export function maximizeWindow(win: any): boolean {
+	if (!win) return false;
+	try {
+		const frame = win.getFrame();
+		if (frame && frame.width > 400 && frame.height > 300) {
+			// Only save restore frame if not already matching work area
+			const workArea = getWorkArea(frame.x + frame.width / 2, frame.y + frame.height / 2);
+			const isAlreadyMax =
+				Math.abs(frame.x - workArea.x) <= 4 &&
+				Math.abs(frame.y - workArea.y) <= 4 &&
+				Math.abs(frame.width - workArea.width) <= 8 &&
+				Math.abs(frame.height - workArea.height) <= 8;
+
+			if (!isAlreadyMax) {
+				savedRestoreFrame = { ...frame };
+			}
+		}
+
+		const centerX = (frame?.x ?? 0) + (frame?.width ?? 1000) / 2;
+		const centerY = (frame?.y ?? 0) + (frame?.height ?? 600) / 2;
+		const targetWorkArea = getWorkArea(centerX, centerY);
+
+		win.setFrame(
+			targetWorkArea.x,
+			targetWorkArea.y,
+			targetWorkArea.width,
+			targetWorkArea.height,
+		);
+
+		return true;
+	} catch (e) {
+		console.error("[WindowManager] Failed to maximize window:", e);
+		return false;
+	}
+}
+
+/**
+ * Restores the window to its previous unmaximized dimensions.
+ */
+export function unmaximizeWindow(win: any): boolean {
+	if (!win) return false;
+	try {
+		const restore = savedRestoreFrame || getInitialFrame();
+		win.setFrame(restore.x, restore.y, restore.width, restore.height);
+		return false;
+	} catch (e) {
+		console.error("[WindowManager] Failed to unmaximize window:", e);
+		return false;
+	}
+}
+
+/**
+ * Toggles maximize / restore based on real-time window geometry.
+ */
+export function toggleMaximize(win: any): boolean {
+	if (!win) return false;
+	if (isWindowMaximized(win)) {
+		return unmaximizeWindow(win);
+	} else {
+		return maximizeWindow(win);
+	}
+}
+
+/**
+ * Minimizes the window to the taskbar.
+ */
+export function minimizeWindow(win: any): void {
+	try {
+		win?.minimize();
+	} catch (e) {
+		console.error("[WindowManager] Failed to minimize window:", e);
+	}
+}
+
+/**
+ * Closes the window / application.
+ */
+export function closeWindow(win: any): void {
+	try {
+		win?.close();
+	} catch (e) {
+		console.error("[WindowManager] Failed to close window:", e);
+	}
+}
+
+/**
+ * Records the window frame when resized by the user manually,
+ * preserving it for subsequent unmaximize / restore operations.
+ */
+export function recordUserFrame(win: any): void {
+	if (!win) return;
+	try {
+		if (!isWindowMaximized(win)) {
+			const frame = win.getFrame();
+			if (frame && frame.width > 400 && frame.height > 300) {
+				savedRestoreFrame = { ...frame };
+			}
+		}
+	} catch {}
+}
