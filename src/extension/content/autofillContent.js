@@ -901,20 +901,32 @@
 						const generatedPass = res.password;
 						setNativeFieldValue(input, generatedPass);
 
-						const form = input.form || input.closest('form');
+						let form = input.form || input.closest('form');
+						if (!form) {
+							let parent = input.parentElement;
+							while (parent && parent !== document.body) {
+								if (parent.querySelectorAll('input[type="password"]').length > 0) {
+									form = parent;
+									break;
+								}
+								parent = parent.parentElement;
+							}
+						}
 						if (form) {
 							const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
 							passFields.forEach(pField => setNativeFieldValue(pField, generatedPass));
 						}
 
-						const userField = form ? form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]') : null;
+						const userField = form
+							? form.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]')
+							: null;
 						const usernameVal = userField ? userField.value : '';
 						const title = `${currentDomain} Account`;
 
 						chrome.runtime.sendMessage(
 							{
 								action: "SAVE_PASSWORD",
-								id: form?.dataset.safevaultItemId,
+								id: form?.dataset?.safevaultItemId,
 								title,
 								username: usernameVal,
 								password: generatedPass,
@@ -922,10 +934,14 @@
 								notes: `Generated & saved on ${currentDomain}.`,
 							},
 							(saveRes) => {
-								if (saveRes && saveRes.success && saveRes.item && form) {
+								if (saveRes && saveRes.success && saveRes.item && form && form.dataset) {
 									form.dataset.safevaultItemId = saveRes.item.id;
 								}
-								showToastBanner(`🔒 Password saved to SafeVaultPro!`);
+								if (saveRes && saveRes.queued) {
+									showToastBanner(`🔒 Password queued! Unlock SafeVaultPro to save.`);
+								} else {
+									showToastBanner(`🔒 Password saved to SafeVaultPro!`);
+								}
 							}
 						);
 					}
@@ -1652,7 +1668,9 @@
 		const triggerSaveFromForm = (form) => {
 			if (!form) return;
 			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
-			const userInput = form.querySelector('input[type="email"], input[type="text"], input[name*="user"], input[name*="email"]');
+			const userInput = form.querySelector(
+				'input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]'
+			);
 			const passVal = passInputs.length > 0 ? passInputs[0].value : '';
 			const userVal = userInput ? userInput.value : '';
 
@@ -1661,7 +1679,7 @@
 				chrome.runtime.sendMessage(
 					{
 						action: "SAVE_PASSWORD",
-						id: form.dataset.safevaultItemId,
+						id: form.dataset ? form.dataset.safevaultItemId : undefined,
 						title,
 						username: userVal,
 						password: passVal,
@@ -1670,8 +1688,12 @@
 					},
 					(res) => {
 						if (res && res.success) {
-							if (res.item) form.dataset.safevaultItemId = res.item.id;
-							showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
+							if (res.item && form.dataset) form.dataset.safevaultItemId = res.item.id;
+							if (res.queued) {
+								showToastBanner(`🔒 Credentials queued! Unlock SafeVaultPro to save.`);
+							} else {
+								showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
+							}
 						}
 					}
 				);
@@ -1690,8 +1712,20 @@
 			const btnText = (target.textContent || target.value || '').toLowerCase();
 			const isRegisterBtn = target.type === 'submit' || ['register', 'signup', 'sign-up', 'join', 'create', 'submit', "s'inscrire", 'إنشاء'].some(kw => btnText.includes(kw));
 			if (isRegisterBtn) {
-				const form = target.form || target.closest('form') || target.closest('div');
-				if (form) setTimeout(() => triggerSaveFromForm(form), 120);
+				let form = target.form || target.closest('form');
+				if (!form) {
+					// Search upwards for container with password input (supports SPAs / React divs)
+					let parent = target.parentElement;
+					while (parent && parent !== document.body) {
+						if (parent.querySelector('input[type="password"]')) {
+							form = parent;
+							break;
+						}
+						parent = parent.parentElement;
+					}
+				}
+				if (!form) form = document;
+				setTimeout(() => triggerSaveFromForm(form), 120);
 			}
 		}, true);
 	}
