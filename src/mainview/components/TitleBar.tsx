@@ -47,7 +47,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 				style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
 			>
 				{/* Left Drag Region */}
-				<div className="flex items-center gap-2.5 pointer-events-none" />
+				<div className="flex items-center gap-2 pointer-events-none opacity-90 select-none">
+					<SafeVaultLogo className="w-4 h-4" />
+					<span className="text-[11px] font-semibold tracking-wide text-slate-300">SafeVaultPro</span>
+				</div>
 
 				{/* Center Drag Region Spacer */}
 				<div className="flex-1 h-full" />

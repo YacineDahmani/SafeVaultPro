@@ -155,14 +155,25 @@ export function getMaximizedFrame(pointX?: number, pointY?: number): Rect {
 	};
 }
 
+let mainWinRef: any = null;
+
+export function setMainWindow(win: any): void {
+	mainWinRef = win;
+}
+
+export function getMainWindow(): any {
+	return mainWinRef;
+}
+
 /**
  * Evaluates whether the window is currently maximized by comparing its actual native frame
  * against the monitor's maximized frame (with a small margin of tolerance).
  */
-export function isWindowMaximized(win: any): boolean {
-	if (!win) return false;
+export function isWindowMaximized(win?: any): boolean {
+	const target = win || mainWinRef;
+	if (!target) return false;
 	try {
-		const frame = win.getFrame();
+		const frame = target.getFrame();
 		if (!frame || frame.width < 100 || frame.height < 100) return false;
 
 		const centerX = frame.x + frame.width / 2;
@@ -186,10 +197,11 @@ export function isWindowMaximized(win: any): boolean {
  * Maximizes the window within the exact taskbar-aware work area of its current monitor,
  * eliminating any gap around the window edges.
  */
-export function maximizeWindow(win: any): boolean {
-	if (!win) return false;
+export function maximizeWindow(win?: any): boolean {
+	const target = win || mainWinRef;
+	if (!target) return false;
 	try {
-		const frame = win.getFrame();
+		const frame = target.getFrame();
 		if (frame && frame.width > 400 && frame.height > 300) {
 			const centerX = frame.x + frame.width / 2;
 			const centerY = frame.y + frame.height / 2;
@@ -210,7 +222,7 @@ export function maximizeWindow(win: any): boolean {
 		const centerY = (frame?.y ?? 0) + (frame?.height ?? 600) / 2;
 		const targetFrame = getMaximizedFrame(centerX, centerY);
 
-		win.setFrame(
+		target.setFrame(
 			targetFrame.x,
 			targetFrame.y,
 			targetFrame.width,
@@ -227,11 +239,12 @@ export function maximizeWindow(win: any): boolean {
 /**
  * Restores the window to its previous unmaximized dimensions.
  */
-export function unmaximizeWindow(win: any): boolean {
-	if (!win) return false;
+export function unmaximizeWindow(win?: any): boolean {
+	const target = win || mainWinRef;
+	if (!target) return false;
 	try {
 		const restore = savedRestoreFrame || getInitialFrame();
-		win.setFrame(restore.x, restore.y, restore.width, restore.height);
+		target.setFrame(restore.x, restore.y, restore.width, restore.height);
 		return false;
 	} catch (e) {
 		console.error("[WindowManager] Failed to unmaximize window:", e);
@@ -242,21 +255,23 @@ export function unmaximizeWindow(win: any): boolean {
 /**
  * Toggles maximize / restore based on real-time window geometry.
  */
-export function toggleMaximize(win: any): boolean {
-	if (!win) return false;
-	if (isWindowMaximized(win)) {
-		return unmaximizeWindow(win);
+export function toggleMaximize(win?: any): boolean {
+	const target = win || mainWinRef;
+	if (!target) return false;
+	if (isWindowMaximized(target)) {
+		return unmaximizeWindow(target);
 	} else {
-		return maximizeWindow(win);
+		return maximizeWindow(target);
 	}
 }
 
 /**
  * Minimizes the window to the taskbar.
  */
-export function minimizeWindow(win: any): void {
+export function minimizeWindow(win?: any): void {
+	const target = win || mainWinRef;
 	try {
-		win?.minimize();
+		target?.minimize();
 	} catch (e) {
 		console.error("[WindowManager] Failed to minimize window:", e);
 	}
@@ -265,9 +280,10 @@ export function minimizeWindow(win: any): void {
 /**
  * Closes the window / application.
  */
-export function closeWindow(win: any): void {
+export function closeWindow(win?: any): void {
+	const target = win || mainWinRef;
 	try {
-		win?.close();
+		target?.close();
 	} catch (e) {
 		console.error("[WindowManager] Failed to close window:", e);
 	}
@@ -277,11 +293,12 @@ export function closeWindow(win: any): void {
  * Records the window frame when resized by the user manually,
  * preserving it for subsequent unmaximize / restore operations.
  */
-export function recordUserFrame(win: any): void {
-	if (!win) return;
+export function recordUserFrame(win?: any): void {
+	const target = win || mainWinRef;
+	if (!target) return;
 	try {
-		if (!isWindowMaximized(win)) {
-			const frame = win.getFrame();
+		if (!isWindowMaximized(target)) {
+			const frame = target.getFrame();
 			if (frame && frame.width > 400 && frame.height > 300) {
 				savedRestoreFrame = { ...frame };
 			}

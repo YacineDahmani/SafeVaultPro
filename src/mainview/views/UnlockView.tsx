@@ -114,24 +114,40 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 			<div className="absolute inset-0 bg-gradient-to-b from-[#131315]/40 via-transparent to-[#09090b] pointer-events-none" />
 
 			<div className="w-full max-w-md relative z-10">
-				{/* Top Identity Shield Badge */}
-				<div className="text-center mb-8 flex flex-col items-center">
-					<div
-						className={`w-16 h-16 rounded-2xl flex items-center justify-center border mb-4 transition-all duration-500 shadow-xl overflow-hidden ${
-							isSubmitting
-								? "bg-[#131722] border-blue-500/60 glow-blue text-blue-400"
-								: errorMsg
-								? "bg-[#221315] border-red-500/60 glow-red text-red-400"
-								: "bg-[#131e1a] border-emerald-500/60 glow-emerald text-emerald-400"
-						}`}
-					>
-						<SafeVaultLogo className="w-12 h-12" />
+				{/* Top Identity Hero Logo */}
+				<div className="text-center mb-7 flex flex-col items-center">
+					<div className="relative mb-5 flex items-center justify-center">
+						{/* Ambient Glow Aura */}
+						<div
+							className={`absolute -inset-4 rounded-full blur-2xl opacity-60 transition-all duration-700 pointer-events-none ${
+								isSubmitting
+									? "bg-blue-500/40 animate-pulse"
+									: errorMsg
+									? "bg-red-500/40 animate-pulse"
+									: "bg-emerald-500/35 hover:bg-emerald-500/50"
+							}`}
+						/>
+
+						{/* Hero Logo with Elegant Drop Shadow */}
+						<div className="relative transition-transform duration-500 hover:scale-105 select-none">
+							<SafeVaultLogo
+								className={`w-28 h-28 drop-shadow-2xl transition-all duration-500 ${
+									isSubmitting
+										? "filter drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+										: errorMsg
+										? "filter drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]"
+										: "filter drop-shadow-[0_10px_30px_rgba(16,185,129,0.45)]"
+								}`}
+								alt="SafeVaultPro Master Key"
+							/>
+						</div>
 					</div>
 
-					<h1 className="text-2.5xl font-bold tracking-tight text-white mb-1.5">
-						{isConfigured ? "SafeVaultPro" : "Initialize Master Vault"}
+					<h1 className="text-3xl font-extrabold tracking-tight text-white mb-2 flex items-center gap-1 justify-center">
+						<span>SafeVault</span>
+						<span className="text-emerald-400">Pro</span>
 					</h1>
-					<p className="text-xs sm:text-sm text-slate-300 font-medium">
+					<p className="text-xs sm:text-sm text-slate-300 font-medium max-w-sm">
 						{isConfigured
 							? "Enter your master password to unlock your encrypted local vault"
 							: "Create a strong master key to secure your encrypted vault store"}

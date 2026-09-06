@@ -577,12 +577,47 @@
 		}
 		if (classification === 'generic') {
 			return;
+		// Calculate smart right offset to avoid covering password eye / reveal toggle buttons
+		function calculateBadgeRightOffset(inp) {
+			const isPassword = (inp.type || '').toLowerCase() === 'password';
+			let offset = 8;
+			if (isPassword) {
+				offset = 36; // Safe default clearance for view password eye icons
+			}
+
+			try {
+				const compStyle = window.getComputedStyle(inp);
+				const pr = parseFloat(compStyle.paddingRight) || 0;
+				if (pr >= 28) {
+					offset = Math.max(offset, pr + 4);
+				}
+
+				const parentEl = inp.parentElement;
+				if (parentEl) {
+					const toggles = parentEl.querySelectorAll('button, [role="button"], [class*="eye" i], [class*="toggle" i], [class*="reveal" i], [aria-label*="password" i], [title*="password" i], svg');
+					const inputRect = inp.getBoundingClientRect();
+					for (const btn of toggles) {
+						if (btn.contains(inp)) continue;
+						const btnRect = btn.getBoundingClientRect();
+						if (btnRect.width > 8 && btnRect.right >= inputRect.right - 44) {
+							offset = Math.max(offset, Math.round(inputRect.right - btnRect.left) + 6);
+							break;
+						}
+					}
+				}
+			} catch (e) {}
+
+			return Math.min(offset, 84);
 		}
 
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
 		badge.title = 'SafeVaultPro (Click to autofill, Drag to move)';
-		badge.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
+		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
+		badge.innerHTML = `<img src="${badgeLogoUrl}" width="15" height="15" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;border-radius:2px;" />`;
+
+		const rightOffset = calculateBadgeRightOffset(input);
+		badge.style.right = `${rightOffset}px`;
 
 		// Check if parent container clips overflow (e.g. Google Material inputs)
 		let container = input.parentElement;

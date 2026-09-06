@@ -1,6 +1,6 @@
 import Electrobun, { BrowserWindow, Updater } from "electrobun/bun";
 import { startExtensionServer } from "./services/extensionServer";
-import { getInitialFrame, recordUserFrame } from "./services/windowManager";
+import { getInitialFrame, recordUserFrame, setMainWindow } from "./services/windowManager";
 
 // Start the local extension IPC bridge
 startExtensionServer();
@@ -43,6 +43,8 @@ export const mainWindow = new BrowserWindow({
 	},
 	frame: initialFrame,
 });
+
+setMainWindow(mainWindow);
 
 // Track window resizing to preserve custom dimensions for restoration
 try {

@@ -13,7 +13,6 @@ export default {
 			"dist/assets": "views/mainview/assets",
 			"src/mainview/assets/SafeVault.ico": "views/mainview/SafeVault.ico",
 			"src/mainview/assets/SafeVault.png": "views/mainview/SafeVault.png",
-			"src/mainview/assets/SafeVault.svg": "views/mainview/SafeVault.svg",
 		},
 		// Ignore Vite output in watch mode — HMR handles view rebuilds separately
 		watchIgnore: ["dist/**"],

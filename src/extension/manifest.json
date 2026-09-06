@@ -40,7 +40,7 @@
 	},
 	"web_accessible_resources": [
 		{
-			"resources": ["content/autofillContent.css", "icon.svg", "icon.png", "icon-16.png", "icon-32.png", "icon-48.png", "icon-128.png", "SafeVault.svg", "SafeVault.png"],
+			"resources": ["content/autofillContent.css", "icon.png", "icon-16.png", "icon-32.png", "icon-48.png", "icon-128.png", "SafeVault.png"],
 			"matches": ["<all_urls>"]
 		}
 	]

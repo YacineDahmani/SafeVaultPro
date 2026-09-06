@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			{/* Top Branding & App Header */}
 			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-2.5">
-					<SafeVaultLogo className="w-7 h-7 glow-emerald" />
+					<SafeVaultLogo className="w-8 h-8" />
 					<div>
 						<h1 className="text-sm font-bold text-white tracking-wide leading-none">
 							SafeVault<span className="text-emerald-400">Pro</span>
