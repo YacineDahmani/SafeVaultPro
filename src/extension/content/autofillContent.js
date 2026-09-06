@@ -583,7 +583,7 @@
 		badge.className = 'safevault-input-badge';
 		badge.title = 'SafeVaultPro (Click to autofill, Drag to move)';
 		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
-		badge.innerHTML = `<img src="${badgeLogoUrl}" width="15" height="15" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;border-radius:2px;" />`;
+		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
 
 		const rightOffset = calculateBadgeRightOffset(input);
 		badge.style.right = `${rightOffset}px`;
@@ -660,7 +660,7 @@
 		const isPassword = (inp.type || '').toLowerCase() === 'password';
 		let offset = 8;
 		if (isPassword) {
-			offset = 36; // Safe default clearance for view password eye icons
+			offset = 38; // Safe default clearance for view password eye icons
 		}
 
 		try {
@@ -698,8 +698,8 @@
 		const rightOffset = calculateBadgeRightOffset(input);
 		badge.style.display = 'flex';
 		badge.style.position = 'fixed';
-		badge.style.left = `${rect.right - rightOffset - 22}px`;
-		badge.style.top = `${rect.top + (rect.height / 2) - 11}px`;
+		badge.style.left = `${rect.right - rightOffset - 26}px`;
+		badge.style.top = `${rect.top + (rect.height / 2) - 13}px`;
 		badge.style.zIndex = '99999';
 	}
 

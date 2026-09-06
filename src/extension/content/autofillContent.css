@@ -3,33 +3,35 @@
 	right: 8px;
 	top: 50%;
 	transform: translateY(-50%);
-	width: 20px;
-	height: 20px;
-	border-radius: 5px;
-	background: rgba(24, 24, 27, 0.9);
-	border: 1px solid rgba(255, 255, 255, 0.15);
+	width: 26px;
+	height: 26px;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	cursor: grab;
 	z-index: 99999;
-	transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+	transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, opacity 0.2s ease;
+	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 6px rgba(16, 185, 129, 0.45));
 	user-select: none;
 	touch-action: none;
+	opacity: 0.92;
+}
+
+.safevault-input-badge:hover,
+.safevault-input-badge:focus-within {
+	opacity: 1;
+	transform: translateY(-50%) scale(1.15);
+	filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 10px rgba(16, 185, 129, 0.9));
 }
 
 .safevault-input-badge:active,
 .safevault-input-badge.safevault-dragging {
 	cursor: grabbing !important;
-	box-shadow: 0 0 12px rgba(16, 185, 129, 0.6) !important;
-	border-color: rgba(16, 185, 129, 0.8) !important;
-}
-
-.safevault-input-badge:hover {
-	background: rgba(16, 185, 129, 0.2);
-	border-color: rgba(16, 185, 129, 0.6);
-	box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+	transform: translateY(-50%) scale(1.2);
+	filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 14px rgba(16, 185, 129, 1));
 }
 
 .safevault-dropdown-menu {
