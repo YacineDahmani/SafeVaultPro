@@ -26,6 +26,10 @@ if (isWindows) {
 				args: [FFIType.ptr, FFIType.ptr],
 				returns: FFIType.bool,
 			},
+			GetSystemMetrics: {
+				args: [FFIType.u32],
+				returns: FFIType.i32,
+			},
 		});
 	} catch (e) {
 		console.warn("[WindowManager] Failed to load user32.dll FFI:", e);
@@ -114,8 +118,46 @@ export function getInitialFrame(): Rect {
 let savedRestoreFrame: Rect | null = null;
 
 /**
+ * On Windows 10/11, resizable windows (WS_THICKFRAME) have an invisible 7-8px resize border padding
+ * (SM_CXSIZEFRAME + SM_CXPADDEDBORDER). Maximizing must expand the outer frame by this padding
+ * so the visible content area fills the monitor's work area edge-to-edge without margins or gaps.
+ */
+export function getWindowBorderPadding(): { x: number; y: number } {
+	if (isWindows && user32) {
+		try {
+			const cxSizeFrame = user32.symbols.GetSystemMetrics(32); // SM_CXSIZEFRAME
+			const cySizeFrame = user32.symbols.GetSystemMetrics(33); // SM_CYSIZEFRAME
+			const cxPaddedBorder = user32.symbols.GetSystemMetrics(92); // SM_CXPADDEDBORDER
+
+			const borderX = (cxSizeFrame || 4) + (cxPaddedBorder || 4);
+			const borderY = (cySizeFrame || 4) + (cxPaddedBorder || 4);
+			return { x: borderX, y: borderY };
+		} catch (e) {
+			return { x: 8, y: 8 };
+		}
+	}
+	return { x: 0, y: 0 };
+}
+
+/**
+ * Returns the exact outer frame coordinates needed to fill the monitor's work area
+ * completely edge-to-edge, taking the OS invisible border into account.
+ */
+export function getMaximizedFrame(pointX?: number, pointY?: number): Rect {
+	const workArea = getWorkArea(pointX, pointY);
+	const border = getWindowBorderPadding();
+
+	return {
+		x: workArea.x - border.x,
+		y: workArea.y - border.y,
+		width: workArea.width + border.x * 2,
+		height: workArea.height + border.y * 2,
+	};
+}
+
+/**
  * Evaluates whether the window is currently maximized by comparing its actual native frame
- * against the monitor's work area (with a small 4px margin of tolerance).
+ * against the monitor's maximized frame (with a small margin of tolerance).
  */
 export function isWindowMaximized(win: any): boolean {
 	if (!win) return false;
@@ -123,16 +165,15 @@ export function isWindowMaximized(win: any): boolean {
 		const frame = win.getFrame();
 		if (!frame || frame.width < 100 || frame.height < 100) return false;
 
-		// Query the work area of the monitor where this window is centered
 		const centerX = frame.x + frame.width / 2;
 		const centerY = frame.y + frame.height / 2;
-		const workArea = getWorkArea(centerX, centerY);
+		const maxFrame = getMaximizedFrame(centerX, centerY);
 
 		const isMatch =
-			Math.abs(frame.x - workArea.x) <= 4 &&
-			Math.abs(frame.y - workArea.y) <= 4 &&
-			Math.abs(frame.width - workArea.width) <= 8 &&
-			Math.abs(frame.height - workArea.height) <= 8;
+			Math.abs(frame.x - maxFrame.x) <= 6 &&
+			Math.abs(frame.y - maxFrame.y) <= 6 &&
+			Math.abs(frame.width - maxFrame.width) <= 12 &&
+			Math.abs(frame.height - maxFrame.height) <= 12;
 
 		return isMatch;
 	} catch (e) {
@@ -142,20 +183,23 @@ export function isWindowMaximized(win: any): boolean {
 }
 
 /**
- * Maximizes the window within the exact taskbar-aware work area of its current monitor.
+ * Maximizes the window within the exact taskbar-aware work area of its current monitor,
+ * eliminating any gap around the window edges.
  */
 export function maximizeWindow(win: any): boolean {
 	if (!win) return false;
 	try {
 		const frame = win.getFrame();
 		if (frame && frame.width > 400 && frame.height > 300) {
-			// Only save restore frame if not already matching work area
-			const workArea = getWorkArea(frame.x + frame.width / 2, frame.y + frame.height / 2);
+			const centerX = frame.x + frame.width / 2;
+			const centerY = frame.y + frame.height / 2;
+			const maxFrame = getMaximizedFrame(centerX, centerY);
+
 			const isAlreadyMax =
-				Math.abs(frame.x - workArea.x) <= 4 &&
-				Math.abs(frame.y - workArea.y) <= 4 &&
-				Math.abs(frame.width - workArea.width) <= 8 &&
-				Math.abs(frame.height - workArea.height) <= 8;
+				Math.abs(frame.x - maxFrame.x) <= 6 &&
+				Math.abs(frame.y - maxFrame.y) <= 6 &&
+				Math.abs(frame.width - maxFrame.width) <= 12 &&
+				Math.abs(frame.height - maxFrame.height) <= 12;
 
 			if (!isAlreadyMax) {
 				savedRestoreFrame = { ...frame };
@@ -164,13 +208,13 @@ export function maximizeWindow(win: any): boolean {
 
 		const centerX = (frame?.x ?? 0) + (frame?.width ?? 1000) / 2;
 		const centerY = (frame?.y ?? 0) + (frame?.height ?? 600) / 2;
-		const targetWorkArea = getWorkArea(centerX, centerY);
+		const targetFrame = getMaximizedFrame(centerX, centerY);
 
 		win.setFrame(
-			targetWorkArea.x,
-			targetWorkArea.y,
-			targetWorkArea.width,
-			targetWorkArea.height,
+			targetFrame.x,
+			targetFrame.y,
+			targetFrame.width,
+			targetFrame.height,
 		);
 
 		return true;
