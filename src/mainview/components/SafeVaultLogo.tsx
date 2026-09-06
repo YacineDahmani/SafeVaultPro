@@ -17,10 +17,7 @@ export const SafeVaultLogo: React.FC<SafeVaultLogoProps> = ({
 			src={safeVaultLogo}
 			alt={alt}
 			className={`shrink-0 select-none object-contain ${className || ""}`}
-			style={{
-				mixBlendMode: "screen",
-				...style,
-			}}
+			style={style}
 			draggable={false}
 		/>
 	);

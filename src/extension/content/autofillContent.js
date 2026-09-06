@@ -577,37 +577,6 @@
 		}
 		if (classification === 'generic') {
 			return;
-		// Calculate smart right offset to avoid covering password eye / reveal toggle buttons
-		function calculateBadgeRightOffset(inp) {
-			const isPassword = (inp.type || '').toLowerCase() === 'password';
-			let offset = 8;
-			if (isPassword) {
-				offset = 36; // Safe default clearance for view password eye icons
-			}
-
-			try {
-				const compStyle = window.getComputedStyle(inp);
-				const pr = parseFloat(compStyle.paddingRight) || 0;
-				if (pr >= 28) {
-					offset = Math.max(offset, pr + 4);
-				}
-
-				const parentEl = inp.parentElement;
-				if (parentEl) {
-					const toggles = parentEl.querySelectorAll('button, [role="button"], [class*="eye" i], [class*="toggle" i], [class*="reveal" i], [aria-label*="password" i], [title*="password" i], svg');
-					const inputRect = inp.getBoundingClientRect();
-					for (const btn of toggles) {
-						if (btn.contains(inp)) continue;
-						const btnRect = btn.getBoundingClientRect();
-						if (btnRect.width > 8 && btnRect.right >= inputRect.right - 44) {
-							offset = Math.max(offset, Math.round(inputRect.right - btnRect.left) + 6);
-							break;
-						}
-					}
-				}
-			} catch (e) {}
-
-			return Math.min(offset, 84);
 		}
 
 		const badge = document.createElement('div');
@@ -686,6 +655,39 @@
 		badge.addEventListener('pointerdown', onPointerDown);
 	}
 
+	// Calculate smart right offset to avoid covering password eye / reveal toggle buttons
+	function calculateBadgeRightOffset(inp) {
+		const isPassword = (inp.type || '').toLowerCase() === 'password';
+		let offset = 8;
+		if (isPassword) {
+			offset = 36; // Safe default clearance for view password eye icons
+		}
+
+		try {
+			const compStyle = window.getComputedStyle(inp);
+			const pr = parseFloat(compStyle.paddingRight) || 0;
+			if (pr >= 28) {
+				offset = Math.max(offset, pr + 4);
+			}
+
+			const parentEl = inp.parentElement;
+			if (parentEl) {
+				const toggles = parentEl.querySelectorAll('button, [role="button"], [class*="eye" i], [class*="toggle" i], [class*="reveal" i], [aria-label*="password" i], [title*="password" i], svg');
+				const inputRect = inp.getBoundingClientRect();
+				for (const btn of toggles) {
+					if (btn.contains(inp)) continue;
+					const btnRect = btn.getBoundingClientRect();
+					if (btnRect.width > 8 && btnRect.right >= inputRect.right - 44) {
+						offset = Math.max(offset, Math.round(inputRect.right - btnRect.left) + 6);
+						break;
+					}
+				}
+			}
+		} catch (e) {}
+
+		return Math.min(offset, 84);
+	}
+
 	function updateBadgeFixedPosition(input, badge) {
 		if (!input || !badge || badge.classList.contains('safevault-dragging')) return;
 		const rect = input.getBoundingClientRect();
@@ -693,10 +695,11 @@
 			badge.style.display = 'none';
 			return;
 		}
+		const rightOffset = calculateBadgeRightOffset(input);
 		badge.style.display = 'flex';
 		badge.style.position = 'fixed';
-		badge.style.left = `${rect.right - 28}px`;
-		badge.style.top = `${rect.top + (rect.height / 2) - 10}px`;
+		badge.style.left = `${rect.right - rightOffset - 22}px`;
+		badge.style.top = `${rect.top + (rect.height / 2) - 11}px`;
 		badge.style.zIndex = '99999';
 	}
 
