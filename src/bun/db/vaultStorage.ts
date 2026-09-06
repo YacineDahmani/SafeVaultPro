@@ -26,12 +26,21 @@ export function getVaultMetadata(): VaultMetadata | null {
 	}
 }
 
+const VAULT_BACKUP_KEY = "safevault_encrypted_store_backup";
+
 export async function saveEncryptedVault(
 	items: VaultItem[],
 	key: CryptoKey,
 ): Promise<void> {
 	const encryptedPayload = await encryptVaultData(items, key);
 	if (typeof localStorage !== "undefined") {
+		// Atomic safety: preserve previous state as backup snapshot before overwriting
+		const previousState = localStorage.getItem(VAULT_STORAGE_KEY);
+		if (previousState) {
+			try {
+				localStorage.setItem(VAULT_BACKUP_KEY, previousState);
+			} catch {}
+		}
 		localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(encryptedPayload));
 	}
 }
@@ -40,15 +49,41 @@ export async function loadEncryptedVault(
 	key: CryptoKey,
 ): Promise<VaultItem[]> {
 	if (typeof localStorage === "undefined") return [];
-	const raw = localStorage.getItem(VAULT_STORAGE_KEY);
+	let raw = localStorage.getItem(VAULT_STORAGE_KEY);
+
+	if (!raw && typeof localStorage !== "undefined") {
+		// Fallback to backup snapshot if primary key was wiped or missing
+		raw = localStorage.getItem(VAULT_BACKUP_KEY);
+	}
+
 	if (!raw) return [];
 
 	try {
 		const payload = JSON.parse(raw) as EncryptedVaultPayload;
 		const items = await decryptVaultData<VaultItem[]>(payload, key);
 		return items || [];
-	} catch (e) {
-		console.error("Failed to decrypt vault with master key:", e);
+	} catch (primaryErr) {
+		// If primary state is corrupted, attempt emergency recovery from backup snapshot
+		if (typeof localStorage !== "undefined") {
+			const backupRaw = localStorage.getItem(VAULT_BACKUP_KEY);
+			if (backupRaw && backupRaw !== raw) {
+				try {
+					console.warn("[VaultStorage] Primary vault corrupted, attempting recovery from backup snapshot...");
+					const backupPayload = JSON.parse(backupRaw) as EncryptedVaultPayload;
+					const recoveredItems = await decryptVaultData<VaultItem[]>(backupPayload, key);
+					if (recoveredItems) {
+						console.log("[VaultStorage] Successfully recovered vault from backup snapshot.");
+						// Restore recovered state to primary store
+						localStorage.setItem(VAULT_STORAGE_KEY, backupRaw);
+						return recoveredItems;
+					}
+				} catch (backupErr) {
+					console.error("Backup recovery also failed:", backupErr);
+				}
+			}
+		}
+
+		console.error("Failed to decrypt vault with master key:", primaryErr);
 		throw new Error("Invalid master password or corrupted vault data.");
 	}
 }

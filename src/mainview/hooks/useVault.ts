@@ -52,6 +52,8 @@ export function useVault() {
 		setIsUnlocked(vaultBackend.getUnlockStatus());
 	}, []);
 
+const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01";
+
 	// Ingest items captured/saved by the browser extension into the local encrypted vault
 	const ingestPendingItems = useCallback(async (pendingItems: VaultItem[]) => {
 		if (!vaultBackend.getUnlockStatus() || !Array.isArray(pendingItems) || pendingItems.length === 0) {
@@ -68,7 +70,10 @@ export function useVault() {
 			if (ackIds.length > 0) {
 				await fetch("http://localhost:48920/api/ack-pending", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+					},
 					body: JSON.stringify({ ids: ackIds }),
 				}).catch(() => {});
 
@@ -104,7 +109,10 @@ export function useVault() {
 		try {
 			fetch("http://localhost:48920/api/sync", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+				},
 				body: JSON.stringify({ unlocked, items: vaultItems }),
 			})
 				.then((res) => res.json())
@@ -175,46 +183,55 @@ export function useVault() {
 		}
 	}, [isUnlocked, activeCategory, searchQuery, refreshItems]);
 
-	// Live SSE connection & polling to ingest items saved by browser extension in real time
+	// Live SSE connection to ingest items saved by browser extension in real time
 	useEffect(() => {
 		if (!isUnlocked) return;
 
 		let eventSource: EventSource | null = null;
-		try {
-			eventSource = new EventSource("http://localhost:48920/api/events");
-			eventSource.onmessage = (event) => {
-				try {
-					const data = JSON.parse(event.data);
-					if (data && data.type === "ITEM_SAVED" && data.item) {
-						ingestPendingItems([data.item]);
+		let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+		function connectSSE() {
+			try {
+				eventSource = new EventSource("http://localhost:48920/api/events");
+				eventSource.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+						if (data && data.type === "ITEM_SAVED" && data.item) {
+							ingestPendingItems([data.item]);
+						}
+					} catch (err) {
+						console.error("Failed to parse SSE event:", err);
 					}
-				} catch (err) {
-					console.error("Failed to parse SSE event:", err);
-				}
-			};
-		} catch (e) {
-			console.error("SSE connection failed:", e);
+				};
+				eventSource.onerror = () => {
+					if (eventSource) {
+						eventSource.close();
+						eventSource = null;
+					}
+					// Reconnect with backoff rather than aggressive polling
+					if (!reconnectTimer) {
+						reconnectTimer = setTimeout(() => {
+							reconnectTimer = null;
+							if (vaultBackend.getUnlockStatus()) {
+								connectSSE();
+							}
+						}, 5000);
+					}
+				};
+			} catch (e) {
+				console.error("SSE connection failed:", e);
+			}
 		}
 
-		// Background safety poll every 3 seconds
-		const pollTimer = setInterval(() => {
-			if (vaultBackend.getUnlockStatus()) {
-				fetch("http://localhost:48920/api/pending-items")
-					.then((r) => r.json())
-					.then((data) => {
-						if (data && data.success && Array.isArray(data.items) && data.items.length > 0) {
-							ingestPendingItems(data.items);
-						}
-					})
-					.catch(() => {});
-			}
-		}, 3000);
+		connectSSE();
 
 		return () => {
 			if (eventSource) {
 				eventSource.close();
 			}
-			clearInterval(pollTimer);
+			if (reconnectTimer) {
+				clearTimeout(reconnectTimer);
+			}
 		};
 	}, [isUnlocked, ingestPendingItems]);
 
