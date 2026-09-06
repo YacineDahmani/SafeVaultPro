@@ -4,6 +4,8 @@ import { UnlockView } from "./views/UnlockView";
 import { MainWorkspace } from "./views/MainWorkspace";
 import { useVault } from "./hooks/useVault";
 
+const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01";
+
 function App() {
 	const vault = useVault();
 	const [isMaximized, setIsMaximized] = useState(false);
@@ -12,7 +14,11 @@ function App() {
 		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 		const updateWindowState = async () => {
 			try {
-				const res = await fetch("http://localhost:48920/api/window-state");
+				const res = await fetch("http://localhost:48920/api/window-state", {
+					headers: {
+						"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+					},
+				});
 				if (res.ok) {
 					const data = await res.json();
 					if (typeof data.isMaximized === "boolean") {

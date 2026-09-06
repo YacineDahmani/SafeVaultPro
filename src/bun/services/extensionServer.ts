@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { vaultBackend } from "../vaultBackendApi";
 import type { VaultItem } from "../types";
 import {
@@ -10,6 +12,18 @@ import {
 } from "./windowManager";
 
 const PORT = 48920;
+
+let bridgeAuthToken = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01";
+
+try {
+	const tokenPath = path.resolve(process.cwd(), "src", "extension", "bridge-token.json");
+	if (fs.existsSync(tokenPath)) {
+		const raw = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
+		if (raw?.token) bridgeAuthToken = raw.token;
+	}
+} catch (e) {
+	console.warn("[Bridge] Using default token fallback:", e);
+}
 
 let syncedUnlocked = false;
 let syncedItems: VaultItem[] = [];
@@ -79,20 +93,59 @@ function matchDomain(itemUrl: string | undefined, domain: string): boolean {
 	return false;
 }
 
-function handleCors(_req?: Request): Headers {
+function isAllowedOrigin(origin: string | null): boolean {
+	if (!origin) return true; // Direct non-browser callers (e.g. extension background service worker or local process)
+	if (
+		origin.startsWith("chrome-extension://") ||
+		origin.startsWith("moz-extension://") ||
+		origin.startsWith("views://") ||
+		origin === "http://localhost:5173" ||
+		origin === "http://127.0.0.1:5173"
+	) {
+		return true;
+	}
+	return false;
+}
+
+function handleCors(req?: Request): Headers {
 	const headers = new Headers();
-	headers.set("Access-Control-Allow-Origin", "*");
-	headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-	headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+	const origin = req?.headers.get("Origin");
+	if (origin && isAllowedOrigin(origin)) {
+		headers.set("Access-Control-Allow-Origin", origin);
+		headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+		headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-SafeVault-Token");
+	}
 	return headers;
+}
+
+function isAuthorized(req: Request): boolean {
+	const origin = req.headers.get("Origin");
+	// Internal desktop webview origins
+	if (origin && (origin.startsWith("views://") || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173")) {
+		return true;
+	}
+	const authHeader = req.headers.get("Authorization") || req.headers.get("X-SafeVault-Token") || "";
+	const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+	return Boolean(token && token === bridgeAuthToken);
 }
 
 export function startExtensionServer() {
 	try {
 		const server = Bun.serve({
 			port: PORT,
+			hostname: "127.0.0.1",
 			async fetch(req) {
 				const url = new URL(req.url);
+				const origin = req.headers.get("Origin");
+
+				// Block cross-origin requests from arbitrary web pages
+				if (origin && !isAllowedOrigin(origin)) {
+					return new Response(
+						JSON.stringify({ success: false, error: "Cross-origin access forbidden" }),
+						{ status: 403, headers: { "Content-Type": "application/json" } }
+					);
+				}
+
 				const headers = handleCors(req);
 				headers.set("Content-Type", "application/json");
 
@@ -102,6 +155,9 @@ export function startExtensionServer() {
 
 				// Sync endpoint called by UI when locking/unlocking/updating secrets
 				if (url.pathname === "/api/sync" && req.method === "POST") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
 					try {
 						const body = (await req.json()) as { unlocked?: boolean; items?: VaultItem[] };
 						if (typeof body.unlocked === "boolean") {
@@ -132,6 +188,9 @@ export function startExtensionServer() {
 
 				// SSE event stream for live real-time sync with SafeVaultPro desktop app
 				if (url.pathname === "/api/events" && req.method === "GET") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
 					let clientController: ReadableStreamDefaultController<Uint8Array>;
 					const stream = new ReadableStream<Uint8Array>({
 						start(controller) {
@@ -155,6 +214,16 @@ export function startExtensionServer() {
 
 				// Pending items endpoint for desktop app to query queued credentials
 				if (url.pathname === "/api/pending-items" && req.method === "GET") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
+					const isUnlockedNow = vaultBackend.getUnlockStatus() || syncedUnlocked;
+					if (!isUnlockedNow) {
+						return new Response(
+							JSON.stringify({ success: false, error: "Vault is locked. Cannot access pending items.", items: [] }),
+							{ headers, status: 401 }
+						);
+					}
 					return new Response(
 						JSON.stringify({ success: true, items: pendingAppItems }),
 						{ headers }
@@ -163,6 +232,9 @@ export function startExtensionServer() {
 
 				// Acknowledge that desktop app has encrypted and saved pending items
 				if (url.pathname === "/api/ack-pending" && req.method === "POST") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
 					try {
 						const body = (await req.json()) as { ids?: string[] };
 						if (Array.isArray(body.ids)) {
@@ -182,22 +254,21 @@ export function startExtensionServer() {
 				if (url.pathname === "/api/window-action" && req.method === "POST") {
 					try {
 						const body = (await req.json()) as { action?: string };
-						const { mainWindow } = await import("../index");
-
 						let isMax = false;
+
 						if (body.action === "minimize") {
-							minimizeWindow(mainWindow);
-							isMax = isWindowMaximized(mainWindow);
+							minimizeWindow();
+							isMax = isWindowMaximized();
 						} else if (body.action === "maximize" || body.action === "toggleMaximize") {
-							isMax = toggleMaximize(mainWindow);
+							isMax = toggleMaximize();
 						} else if (body.action === "unmaximize") {
-							isMax = unmaximizeWindow(mainWindow);
+							isMax = unmaximizeWindow();
 						} else if (body.action === "forceMaximize") {
-							isMax = maximizeWindow(mainWindow);
+							isMax = maximizeWindow();
 						} else if (body.action === "close") {
-							closeWindow(mainWindow);
+							closeWindow();
 						} else {
-							isMax = isWindowMaximized(mainWindow);
+							isMax = isWindowMaximized();
 						}
 
 						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
@@ -210,8 +281,7 @@ export function startExtensionServer() {
 				// Query window state endpoint (returns real-time computed isMaximized state)
 				if (url.pathname === "/api/window-state") {
 					try {
-						const { mainWindow } = await import("../index");
-						const isMax = isWindowMaximized(mainWindow);
+						const isMax = isWindowMaximized();
 						return new Response(JSON.stringify({ success: true, isMaximized: isMax }), { headers });
 					} catch (e) {
 						return new Response(JSON.stringify({ success: true, isMaximized: false }), { headers });
@@ -234,6 +304,9 @@ export function startExtensionServer() {
 
 				// Open extension directory in OS file manager endpoint
 				if (url.pathname === "/api/open-folder") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
 					const opened = vaultBackend.openExtensionDirectory();
 					return new Response(
 						JSON.stringify({ success: opened }),
@@ -243,6 +316,9 @@ export function startExtensionServer() {
 
 				// Auto-save password endpoint called by browser extension on registration/submit
 				if (url.pathname === "/api/save-password" && req.method === "POST") {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
 					try {
 						const body = (await req.json()) as {
 							id?: string;
@@ -338,6 +414,13 @@ export function startExtensionServer() {
 							{ headers, status: 500 }
 						);
 					}
+				}
+
+				if (!isAuthorized(req)) {
+					return new Response(
+						JSON.stringify({ success: false, error: "Unauthorized" }),
+						{ headers, status: 401 }
+					);
 				}
 
 				const isUnlocked = vaultBackend.getUnlockStatus() || syncedUnlocked;

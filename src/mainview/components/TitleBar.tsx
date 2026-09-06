@@ -7,6 +7,8 @@ interface TitleBarProps {
 	onMaximizedChange?: (isMax: boolean) => void;
 }
 
+const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01";
+
 export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaximizedChange }) => {
 	const handleWindowAction = async (action: "minimize" | "maximize" | "close", e?: React.MouseEvent) => {
 		if (e) {
@@ -15,7 +17,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 		try {
 			const res = await fetch("http://localhost:48920/api/window-action", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+				},
 				body: JSON.stringify({ action }),
 			});
 			if (res.ok) {
@@ -57,9 +62,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 						type="button"
 						onClick={(e) => handleWindowAction("minimize", e)}
 						title="Minimize Window"
-						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 active:scale-95 transition-all electrobun-webkit-app-region-no-drag"
+						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
-						<Minus className="w-3.5 h-3.5 pointer-events-none" />
+						<Minus className="w-3.5 h-3.5" />
 					</button>
 
 					{/* Maximize / Restore Down Button */}
@@ -67,12 +72,12 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 						type="button"
 						onClick={(e) => handleWindowAction("maximize", e)}
 						title={isMaximized ? "Restore Down" : "Maximize Window"}
-						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-emerald-400 hover:bg-emerald-950/50 hover:border hover:border-emerald-800/50 active:scale-95 transition-all electrobun-webkit-app-region-no-drag"
+						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-emerald-400 hover:bg-emerald-950/50 hover:border hover:border-emerald-800/50 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
 						{isMaximized ? (
-							<Copy className="w-3 h-3 rotate-180 pointer-events-none" />
+							<Copy className="w-3 h-3 rotate-180" />
 						) : (
-							<Square className="w-3 h-3 pointer-events-none" />
+							<Square className="w-3 h-3" />
 						)}
 					</button>
 
@@ -81,9 +86,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 						type="button"
 						onClick={(e) => handleWindowAction("close", e)}
 						title="Close Application"
-						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-red-600/90 active:scale-95 transition-all electrobun-webkit-app-region-no-drag"
+						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-red-600/90 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
-						<X className="w-3.5 h-3.5 pointer-events-none" />
+						<X className="w-3.5 h-3.5" />
 					</button>
 				</div>
 			</div>
