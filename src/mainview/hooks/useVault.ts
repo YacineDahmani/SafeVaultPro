@@ -52,6 +52,53 @@ export function useVault() {
 		setIsUnlocked(vaultBackend.getUnlockStatus());
 	}, []);
 
+	// Ingest items captured/saved by the browser extension into the local encrypted vault
+	const ingestPendingItems = useCallback(async (pendingItems: VaultItem[]) => {
+		if (!vaultBackend.getUnlockStatus() || !Array.isArray(pendingItems) || pendingItems.length === 0) {
+			return;
+		}
+
+		try {
+			const ackIds: string[] = [];
+			for (const item of pendingItems) {
+				await vaultBackend.saveItem(item);
+				ackIds.push(item.id);
+			}
+
+			if (ackIds.length > 0) {
+				await fetch("http://localhost:48920/api/ack-pending", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ ids: ackIds }),
+				}).catch(() => {});
+
+				// Refresh view with newly saved secrets
+				const fetchedAll = vaultBackend.getItems("", "all");
+				setAllItems(fetchedAll);
+
+				let fetched = vaultBackend.getItems(searchQuery, "all");
+				if (activeCategory === "favorites") fetched = fetched.filter((i) => i.favorite);
+				else if (activeCategory === "passwords") fetched = fetched.filter((i) => i.type === "password");
+				else if (activeCategory === "notes") fetched = fetched.filter((i) => i.type === "note");
+				else if (activeCategory === "personal_info") fetched = fetched.filter((i) => i.type === "personal_info");
+				else if (activeCategory === "credit_cards") fetched = fetched.filter((i) => i.type === "card" && i.subtype === "credit_card");
+				else if (activeCategory === "ids") fetched = fetched.filter((i) => i.type === "card" && i.subtype !== "credit_card");
+				else if (activeCategory === "totp") fetched = fetched.filter((i) => i.type === "totp");
+				else if (activeCategory === "env_files") fetched = fetched.filter((i) => i.type === "env");
+				setItems(fetched);
+
+				if (ackIds.length === 1) {
+					const first = pendingItems[0];
+					showToast(`Saved "${first.title || (first as any).username || "Login"}" from browser`, "success");
+				} else {
+					showToast(`Imported ${ackIds.length} logins captured from browser`, "success");
+				}
+			}
+		} catch (err) {
+			console.error("Failed to ingest pending items:", err);
+		}
+	}, [activeCategory, searchQuery, showToast]);
+
 	// Extension syncing helper
 	const syncExtension = useCallback((unlocked: boolean, vaultItems: VaultItem[] = []) => {
 		try {
@@ -59,9 +106,16 @@ export function useVault() {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ unlocked, items: vaultItems }),
-			}).catch(() => {});
+			})
+				.then((res) => res.json())
+				.then((data) => {
+					if (data && Array.isArray(data.pendingItems) && data.pendingItems.length > 0 && vaultBackend.getUnlockStatus()) {
+						ingestPendingItems(data.pendingItems);
+					}
+				})
+				.catch(() => {});
 		} catch {}
-	}, []);
+	}, [ingestPendingItems]);
 
 	// Refresh items list from backend
 	const refreshItems = useCallback(() => {
@@ -121,6 +175,49 @@ export function useVault() {
 		}
 	}, [isUnlocked, activeCategory, searchQuery, refreshItems]);
 
+	// Live SSE connection & polling to ingest items saved by browser extension in real time
+	useEffect(() => {
+		if (!isUnlocked) return;
+
+		let eventSource: EventSource | null = null;
+		try {
+			eventSource = new EventSource("http://localhost:48920/api/events");
+			eventSource.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					if (data && data.type === "ITEM_SAVED" && data.item) {
+						ingestPendingItems([data.item]);
+					}
+				} catch (err) {
+					console.error("Failed to parse SSE event:", err);
+				}
+			};
+		} catch (e) {
+			console.error("SSE connection failed:", e);
+		}
+
+		// Background safety poll every 3 seconds
+		const pollTimer = setInterval(() => {
+			if (vaultBackend.getUnlockStatus()) {
+				fetch("http://localhost:48920/api/pending-items")
+					.then((r) => r.json())
+					.then((data) => {
+						if (data && data.success && Array.isArray(data.items) && data.items.length > 0) {
+							ingestPendingItems(data.items);
+						}
+					})
+					.catch(() => {});
+			}
+		}, 3000);
+
+		return () => {
+			if (eventSource) {
+				eventSource.close();
+			}
+			clearInterval(pollTimer);
+		};
+	}, [isUnlocked, ingestPendingItems]);
+
 	// Auto-refresh when restoring window from minimized/hidden state
 	useEffect(() => {
 		const handleVisibilityChange = () => {
@@ -144,6 +241,17 @@ export function useVault() {
 				setItems(fetchedAll);
 				syncExtension(true, fetchedAll);
 				showToast("Vault unlocked successfully", "success");
+
+				// Ingest any credentials queued while vault was locked
+				fetch("http://localhost:48920/api/pending-items")
+					.then((r) => r.json())
+					.then((data) => {
+						if (data && data.success && Array.isArray(data.items) && data.items.length > 0) {
+							ingestPendingItems(data.items);
+						}
+					})
+					.catch(() => {});
+
 				return true;
 			}
 			return false;
