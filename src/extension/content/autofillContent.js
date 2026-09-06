@@ -747,6 +747,31 @@
 		});
 	}
 
+	let shadowHost = null;
+	let shadowRoot = null;
+
+	function getSafeVaultShadowRoot() {
+		if (shadowRoot && shadowHost && shadowHost.isConnected) {
+			return shadowRoot;
+		}
+		if (!shadowHost) {
+			shadowHost = document.createElement('div');
+			shadowHost.id = 'safevault-overlay-host';
+			shadowHost.style.cssText = 'all: initial !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 0 !important; height: 0 !important; z-index: 2147483647 !important; pointer-events: none !important;';
+		}
+		if (!shadowHost.isConnected) {
+			(document.body || document.documentElement).appendChild(shadowHost);
+		}
+		if (!shadowRoot) {
+			shadowRoot = shadowHost.attachShadow({ mode: 'closed' });
+			const link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = chrome.runtime.getURL('content/autofillContent.css');
+			shadowRoot.appendChild(link);
+		}
+		return shadowRoot;
+	}
+
 	function closeDropdown() {
 		if (activeDropdown) {
 			activeDropdown.remove();
@@ -758,6 +783,7 @@
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
+		dropdown.style.pointerEvents = 'auto';
 		dropdown.innerHTML = `
 			<div class="safevault-dropdown-header">
 				<span class="safevault-brand">SafeVaultPro</span>
@@ -775,7 +801,7 @@
 		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
 		dropdown.querySelector('.safevault-dismiss-btn').addEventListener('click', closeDropdown);
 		positionDropdown(badge, dropdown);
-		document.body.appendChild(dropdown);
+		getSafeVaultShadowRoot().appendChild(dropdown);
 		activeDropdown = dropdown;
 	}
 
@@ -783,6 +809,7 @@
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
+		dropdown.style.pointerEvents = 'auto';
 
 		let itemsHtml = '';
 		items.forEach((item) => {
@@ -811,7 +838,8 @@
 			} else if (item.type === 'card') {
 				const cardNum = item.number ? `•••• ${item.number.slice(-4)}` : 'Card';
 				const cardHolder = item.cardholderName ? escapeHtml(item.cardholderName) : '';
-				const cvvCode = (item.cvv || item.pin) ? ` | CVV: ${escapeHtml(item.cvv || item.pin)}` : '';
+				// Security: Never render plaintext CVV/PIN into the DOM tree
+				const cvvCode = (item.cvv || item.pin) ? ` | CVV: •••` : '';
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
 						<div class="safevault-item-icon">💳</div>
@@ -864,7 +892,7 @@
 		});
 
 		positionDropdown(badge, dropdown);
-		document.body.appendChild(dropdown);
+		getSafeVaultShadowRoot().appendChild(dropdown);
 		activeDropdown = dropdown;
 	}
 
@@ -950,7 +978,7 @@
 		});
 
 		positionDropdown(badge, dropdown);
-		document.body.appendChild(dropdown);
+		getSafeVaultShadowRoot().appendChild(dropdown);
 		activeDropdown = dropdown;
 	}
 
@@ -1645,16 +1673,18 @@
 	}
 
 	function showToastBanner(message) {
-		const existing = document.querySelector('.safevault-toast-banner');
+		const root = getSafeVaultShadowRoot();
+		const existing = root.querySelector('.safevault-toast-banner');
 		if (existing) existing.remove();
 
 		const toast = document.createElement('div');
 		toast.className = 'safevault-toast-banner';
+		toast.style.pointerEvents = 'auto';
 		toast.innerHTML = `
 			<div class="safevault-toast-icon">✓</div>
 			<div>${escapeHtml(message)}</div>
 		`;
-		document.body.appendChild(toast);
+		root.appendChild(toast);
 		setTimeout(() => {
 			toast.style.opacity = '0';
 			toast.style.transform = 'translateY(6px)';
@@ -1668,10 +1698,15 @@
 		const triggerSaveFromForm = (form) => {
 			if (!form) return;
 			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
+			if (passInputs.length === 0) return;
+			// Security: Ignore hidden / zero-dimension honeypots
+			const primaryPass = passInputs[0];
+			if (primaryPass.offsetWidth === 0 || primaryPass.offsetHeight === 0) return;
+
 			const userInput = form.querySelector(
 				'input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]'
 			);
-			const passVal = passInputs.length > 0 ? passInputs[0].value : '';
+			const passVal = primaryPass.value;
 			const userVal = userInput ? userInput.value : '';
 
 			if (passVal && passVal.length >= 4) {
@@ -1701,12 +1736,16 @@
 		};
 
 		document.addEventListener('submit', (e) => {
+			// Security: Ignore untrusted synthetic JavaScript events
+			if (!e.isTrusted) return;
 			if (e.target && e.target instanceof HTMLFormElement) {
 				triggerSaveFromForm(e.target);
 			}
 		}, true);
 
 		document.addEventListener('click', (e) => {
+			// Security: Ignore untrusted synthetic JavaScript events
+			if (!e.isTrusted) return;
 			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
 			if (!target) return;
 			const btnText = (target.textContent || target.value || '').toLowerCase();
@@ -1740,11 +1779,33 @@
 		});
 	}
 
-	// MutationObserver to capture dynamically created fields and multi-step logins (Google, Microsoft, SPAs)
+	// Optimized MutationObserver targeting only relevant inputs/forms
 	let scanDebounceTimer = null;
-	const observer = new MutationObserver(() => {
-		if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
-		scanDebounceTimer = setTimeout(scanAndAttach, 60);
+	const observer = new MutationObserver((mutations) => {
+		let relevant = false;
+		for (const m of mutations) {
+			if (m.type === 'childList') {
+				for (const node of m.addedNodes) {
+					if (node.nodeType === Node.ELEMENT_NODE) {
+						if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'FORM' || (node.querySelector && node.querySelector('input, select'))) {
+							relevant = true;
+							break;
+						}
+					}
+				}
+			} else if (m.type === 'attributes') {
+				const tag = m.target?.tagName;
+				if (tag === 'INPUT' || tag === 'SELECT' || tag === 'FORM') {
+					relevant = true;
+				}
+			}
+			if (relevant) break;
+		}
+
+		if (relevant) {
+			if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
+			scanDebounceTimer = setTimeout(scanAndAttach, 100);
+		}
 	});
 
 	observer.observe(document.documentElement || document.body, {
@@ -1785,10 +1846,15 @@
 	});
 
 	document.addEventListener('click', (e) => {
-		if (activeDropdown && !e.target.closest('.safevault-dropdown-menu') && !e.target.closest('.safevault-input-badge')) {
-			closeDropdown();
+		if (activeDropdown) {
+			const path = e.composedPath ? e.composedPath() : [];
+			const inDropdown = path.some((el) => el.classList && el.classList.contains('safevault-dropdown-menu'));
+			const inBadge = path.some((el) => el.classList && el.classList.contains('safevault-input-badge'));
+			if (!inDropdown && !inBadge) {
+				closeDropdown();
+			}
 		}
-	});
+	}, true);
 
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape' && activeDropdown) {
