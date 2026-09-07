@@ -74,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 	const securityItems = [
 		{ id: "dashboard" as NavCategory, label: "Password Health", icon: Activity },
+		{ id: "settings" as NavCategory, label: "Vault Settings", icon: Settings },
 	];
 
 	return (
@@ -99,9 +100,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full" />
 					</button>
 					<button
-						onClick={onOpenSettings}
+						onClick={() => setActiveCategory("settings")}
 						title="Settings"
-						className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1c1b1d] transition-colors"
+						className={`p-1.5 rounded-lg transition-all ${
+							activeCategory === "settings"
+								? "bg-[#1c1b1d] text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+								: "text-slate-400 hover:text-white hover:bg-[#1c1b1d]"
+						}`}
 					>
 						<Settings className="w-4 h-4" />
 					</button>

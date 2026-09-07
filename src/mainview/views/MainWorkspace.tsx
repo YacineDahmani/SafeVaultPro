@@ -3,10 +3,10 @@ import { Sidebar } from "../components/Sidebar";
 import { ItemList } from "../components/ItemList";
 import { ItemDetailPane } from "../components/ItemDetailPane";
 import { DashboardOverview } from "./DashboardOverview";
+import { SettingsView } from "./SettingsView";
 import { GeneratorPane } from "../components/GeneratorPane";
 import { ItemEditModal } from "../components/ItemEditModal";
 import { OcrModal } from "../components/OcrModal";
-import { SettingsModal } from "../components/SettingsModal";
 import { ExtensionModal } from "../components/ExtensionModal";
 import { Toast } from "../components/Toast";
 import { useVault } from "../hooks/useVault";
@@ -44,7 +44,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 					onLock={vault.lock}
 					onOpenGenerator={() => vault.setIsGeneratorOpen(true)}
 					onOpenOcr={() => vault.setIsOcrModalOpen(true)}
-					onOpenSettings={() => vault.setIsSettingsModalOpen(true)}
+					onOpenSettings={() => vault.setActiveCategory("settings")}
 					onOpenExtensionModal={() => setIsExtensionModalOpen(true)}
 					itemCounts={itemCounts}
 				/>
@@ -58,6 +58,11 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 							vault.setActiveCategory("all");
 						}}
 						onOpenGenerator={() => vault.setIsGeneratorOpen(true)}
+					/>
+				) : vault.activeCategory === "settings" ? (
+					<SettingsView
+						vault={vault}
+						onBack={() => vault.setActiveCategory("all")}
 					/>
 				) : (
 					<div className="flex-1 flex min-w-0 h-full min-h-0 overflow-hidden">
@@ -115,14 +120,6 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 				onSaveItem={async (item) => {
 					return await vault.saveItem(item);
 				}}
-			/>
-
-			{/* Advanced Settings & Cryptographic Configuration Modal */}
-			<SettingsModal
-				isOpen={vault.isSettingsModalOpen}
-				onClose={() => vault.setIsSettingsModalOpen(false)}
-				onShowToast={vault.showToast}
-				onRefreshItems={vault.refreshItems}
 			/>
 
 			{/* Browser Extension Management & Setup Modal */}
