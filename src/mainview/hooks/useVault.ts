@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { vaultBackend } from "../../bun/vaultBackendApi";
+import { getVaultSettings, saveVaultSettings, type VaultSettings } from "../../bun/db/settingsStorage";
 import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
 import type { ToastType } from "../components/Toast";
 
@@ -26,6 +27,14 @@ export function useVault() {
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
 
+	// Settings state & persistence
+	const [settings, setSettings] = useState<VaultSettings>(() => getVaultSettings());
+
+	const updateSettings = useCallback((partial: Partial<VaultSettings>) => {
+		const updated = saveVaultSettings(partial);
+		setSettings(updated);
+	}, []);
+
 	// Modals & Panels
 	const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -35,7 +44,6 @@ export function useVault() {
 	const [isCategoryLocked, setIsCategoryLocked] = useState(false);
 
 	const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
-	const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
 	// Toast helper
 	const showToast = useCallback((message: string, type: ToastType = "success") => {
@@ -235,18 +243,80 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		};
 	}, [isUnlocked, ingestPendingItems]);
 
-	// Auto-refresh when restoring window from minimized/hidden state
+	// Actions
+	const lock = useCallback(() => {
+		vaultBackend.lockVault();
+		setIsUnlocked(false);
+		setItems([]);
+		setAllItems([]);
+		setSelectedItemId(null);
+		syncExtension(false, []);
+
+		if (settings.wipeClipboardOnLock && typeof navigator !== "undefined" && navigator.clipboard) {
+			try {
+				navigator.clipboard.writeText("").catch(() => {});
+			} catch {}
+		}
+
+		showToast("Vault locked & memory purged", "lock");
+	}, [settings.wipeClipboardOnLock, showToast, syncExtension]);
+
+	// Inactivity-based auto-lock tracking
 	useEffect(() => {
+		if (!isUnlocked || settings.autoLockTimeout === "never") return;
+
+		const timeoutMinutes = parseInt(settings.autoLockTimeout, 10);
+		if (isNaN(timeoutMinutes) || timeoutMinutes <= 0) return;
+
+		const timeoutMs = timeoutMinutes * 60 * 1000;
+		let lastActivityTime = Date.now();
+
+		const recordActivity = () => {
+			lastActivityTime = Date.now();
+		};
+
+		const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart"];
+		events.forEach((evt) => window.addEventListener(evt, recordActivity, { passive: true }));
+
+		const intervalId = setInterval(() => {
+			if (Date.now() - lastActivityTime >= timeoutMs) {
+				lock();
+			}
+		}, 10000);
+
+		return () => {
+			clearInterval(intervalId);
+			events.forEach((evt) => window.removeEventListener(evt, recordActivity));
+		};
+	}, [isUnlocked, settings.autoLockTimeout, lock]);
+
+	// Lock on Window Blur and System Sleep
+	useEffect(() => {
+		if (!isUnlocked) return;
+
+		const handleBlur = () => {
+			if (settings.lockOnWindowBlur) {
+				lock();
+			}
+		};
+
 		const handleVisibilityChange = () => {
-			if (document.visibilityState === "visible" && isUnlocked) {
+			if (document.hidden && settings.lockOnSleep) {
+				lock();
+			} else if (document.visibilityState === "visible") {
 				refreshItems();
 			}
 		};
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-		return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-	}, [isUnlocked, refreshItems]);
 
-	// Actions
+		window.addEventListener("blur", handleBlur);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		return () => {
+			window.removeEventListener("blur", handleBlur);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [isUnlocked, settings.lockOnWindowBlur, settings.lockOnSleep, lock, refreshItems]);
+
 	const unlock = async (masterPassword: string): Promise<boolean> => {
 		try {
 			const success = await vaultBackend.unlockVault(masterPassword);
@@ -257,6 +327,12 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 				setAllItems(fetchedAll);
 				setItems(fetchedAll);
 				syncExtension(true, fetchedAll);
+
+				// Navigate to user's configured landing view if starting up
+				if (settings.defaultLandingView && settings.defaultLandingView !== "all") {
+					setActiveCategory(settings.defaultLandingView as NavCategory);
+				}
+
 				showToast("Vault unlocked successfully", "success");
 
 				// Ingest any credentials queued while vault was locked
@@ -275,16 +351,6 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		} catch (err: any) {
 			throw new Error(err.message || "Failed to unlock vault");
 		}
-	};
-
-	const lock = () => {
-		vaultBackend.lockVault();
-		setIsUnlocked(false);
-		setItems([]);
-		setAllItems([]);
-		setSelectedItemId(null);
-		syncExtension(false, []);
-		showToast("Vault locked & memory purged", "lock");
 	};
 
 	const saveItem = async (
@@ -346,8 +412,9 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 
 	const copySecret = async (text: string, label = "Secret") => {
 		if (!text) return;
-		await vaultBackend.copySecret(text, 30);
-		showToast(`Copied ${label}! Auto-clears in 30 seconds`, "copy");
+		const timeout = settings.clipboardTimeout || 30;
+		await vaultBackend.copySecret(text, timeout);
+		showToast(`Copied ${label}! Auto-clears in ${timeout}s`, "copy");
 	};
 
 	// Open create modal contextualized to active category if specific
@@ -425,8 +492,12 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		isCategoryLocked,
 		isOcrModalOpen,
 		setIsOcrModalOpen,
-		isSettingsModalOpen,
-		setIsSettingsModalOpen,
+		isSettingsModalOpen: activeCategory === "settings",
+		setIsSettingsModalOpen: (open: boolean) => setActiveCategory(open ? "settings" : "all"),
+		// Settings state & actions
+		settings,
+		updateSettings,
+		openSettings: () => setActiveCategory("settings"),
 		// Operations
 		unlock,
 		lock,
