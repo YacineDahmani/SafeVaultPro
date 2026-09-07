@@ -9,6 +9,7 @@ interface ItemEditModalProps {
 	defaultType?: VaultItemType;
 	defaultSubtype?: CardSubtype;
 	isCategoryLocked?: boolean;
+	initialValues?: Partial<VaultItem>;
 	onClose: () => void;
 	onSave: (item: VaultItem) => Promise<void>;
 }
@@ -19,6 +20,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	defaultType = "password",
 	defaultSubtype,
 	isCategoryLocked = false,
+	initialValues,
 	onClose,
 	onSave,
 }) => {
@@ -147,54 +149,56 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setCountry(item.country || "");
 			}
 		} else {
-			setType(defaultType);
-			setTitle("");
-			setTagsStr("");
-			setFavorite(false);
-			setNotes("");
+			const initType = (initialValues?.type as VaultItemType) || defaultType;
+			setType(initType);
+			setTitle(initialValues?.title || "");
+			setTagsStr(initialValues?.tags?.join(", ") || "");
+			setFavorite(initialValues?.favorite || false);
+			setNotes(initialValues?.notes || "");
 
-			setUsername("");
-			setPassword(generatePassword({ length: 20 }));
-			setUrl("");
+			const pInit = initialValues as any;
+			setUsername(pInit?.username || "");
+			setPassword(pInit?.password || generatePassword({ length: 20 }));
+			setUrl(pInit?.url || "");
 
-			setSubtype(defaultSubtype || (defaultType === "card" ? "credit_card" : "passport"));
-			setCardholderName("");
-			setCardNumber("");
-			setExpirationDate("");
-			setIssueDate("");
-			setCountry("");
-			setPin("");
-			setCvv("");
-			setNin("");
+			setSubtype(pInit?.subtype || defaultSubtype || (initType === "card" ? "credit_card" : "passport"));
+			setCardholderName(pInit?.cardholderName || "");
+			setCardNumber(pInit?.number || "");
+			setExpirationDate(pInit?.expirationDate || "");
+			setIssueDate(pInit?.issueDate || "");
+			setCountry(pInit?.country || "");
+			setPin(pInit?.pin || "");
+			setCvv(pInit?.cvv || "");
+			setNin(pInit?.nin || "");
 
-			setIssuer("");
-			setAccountName("");
-			setSecret("");
+			setIssuer(pInit?.issuer || "");
+			setAccountName(pInit?.accountName || "");
+			setSecret(pInit?.secret || "");
 
-			setContent("");
+			setContent(pInit?.content || "");
 
-			setProject("");
-			setEnvironment("Development");
-			setEnvContent("PORT=8080\nNODE_ENV=development\nAPI_URL=http://localhost:8080/api");
+			setProject(pInit?.project || "");
+			setEnvironment(pInit?.environment || "Development");
+			setEnvContent(pInit?.content || "PORT=8080\nNODE_ENV=development\nAPI_URL=http://localhost:8080/api");
 
-			setFirstName("");
-			setLastName("");
-			setFullName("");
-			setBirthDate("");
-			setGender("");
-			setAge("");
-			setNationalId("");
-			setPhone("");
-			setEmail("");
-			setExtraPhones([]);
-			setExtraEmails([]);
-			setAddressLine1("");
-			setAddressLine2("");
-			setCity("");
-			setStateProvince("");
-			setPostalCode("");
+			setFirstName(pInit?.firstName || "");
+			setLastName(pInit?.lastName || "");
+			setFullName(pInit?.fullName || "");
+			setBirthDate(pInit?.birthDate || "");
+			setGender(pInit?.gender || "");
+			setAge(pInit?.age ? String(pInit.age) : "");
+			setNationalId(pInit?.nationalId || "");
+			setPhone(pInit?.phone || "");
+			setEmail(pInit?.email || "");
+			setExtraPhones(pInit?.extraPhones ? [...pInit.extraPhones] : []);
+			setExtraEmails(pInit?.extraEmails ? [...pInit.extraEmails] : []);
+			setAddressLine1(pInit?.addressLine1 || "");
+			setAddressLine2(pInit?.addressLine2 || "");
+			setCity(pInit?.city || "");
+			setStateProvince(pInit?.stateProvince || "");
+			setPostalCode(pInit?.postalCode || "");
 		}
-	}, [item, defaultType, defaultSubtype, isOpen]);
+	}, [item, defaultType, defaultSubtype, initialValues, isOpen]);
 
 	if (!isOpen) return null;
 

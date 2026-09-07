@@ -58,6 +58,21 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 							vault.setActiveCategory("all");
 						}}
 						onOpenGenerator={() => vault.setIsGeneratorOpen(true)}
+						onAdd2fa={(issuer, accountName) => {
+							vault.openCreateWithDefaults("totp", {
+								type: "totp",
+								title: `${issuer} (${accountName || "Account"})`,
+								issuer,
+								accountName,
+								tags: ["2FA"],
+							});
+						}}
+						onFixPassword={(item, newPassword) => {
+							vault.openEditModal({
+								...item,
+								password: newPassword,
+							});
+						}}
 					/>
 				) : vault.activeCategory === "settings" ? (
 					<SettingsView
@@ -107,6 +122,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 				defaultType={vault.defaultEditType}
 				defaultSubtype={vault.defaultEditSubtype}
 				isCategoryLocked={vault.isCategoryLocked}
+				initialValues={vault.initialEditValues}
 				onClose={() => vault.setIsEditModalOpen(false)}
 				onSave={async (item) => {
 					await vault.saveItem(item);

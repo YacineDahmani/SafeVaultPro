@@ -42,6 +42,7 @@ export function useVault() {
 	const [defaultEditType, setDefaultEditType] = useState<VaultItemType>("password");
 	const [defaultEditSubtype, setDefaultEditSubtype] = useState<CardSubtype | undefined>(undefined);
 	const [isCategoryLocked, setIsCategoryLocked] = useState(false);
+	const [initialEditValues, setInitialEditValues] = useState<Partial<VaultItem> | undefined>(undefined);
 
 	const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
 
@@ -420,6 +421,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 	// Open create modal contextualized to active category if specific
 	const openCreateModal = () => {
 		setEditingItem(null);
+		setInitialEditValues(undefined);
 
 		if (activeCategory === "passwords") {
 			setDefaultEditType("password");
@@ -459,8 +461,18 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		setIsEditModalOpen(true);
 	};
 
+	const openCreateWithDefaults = (type: VaultItemType, initialValues?: Partial<VaultItem>) => {
+		setEditingItem(null);
+		setDefaultEditType(type);
+		setDefaultEditSubtype(initialValues && (initialValues as any).subtype ? (initialValues as any).subtype : undefined);
+		setIsCategoryLocked(true);
+		setInitialEditValues(initialValues);
+		setIsEditModalOpen(true);
+	};
+
 	const openEditModal = (item: VaultItem) => {
 		setEditingItem(item);
+		setInitialEditValues(undefined);
 		setIsCategoryLocked(false);
 		setIsEditModalOpen(true);
 	};
@@ -488,8 +500,10 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		setIsEditModalOpen,
 		editingItem,
 		defaultEditType,
+		defaultSubtype: defaultEditSubtype,
 		defaultEditSubtype,
 		isCategoryLocked,
+		initialEditValues,
 		isOcrModalOpen,
 		setIsOcrModalOpen,
 		isSettingsModalOpen: activeCategory === "settings",
@@ -506,6 +520,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		toggleFavorite,
 		copySecret,
 		openCreateModal,
+		openCreateWithDefaults,
 		openEditModal,
 		refreshItems,
 	};
