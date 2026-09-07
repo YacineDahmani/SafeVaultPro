@@ -172,7 +172,44 @@
 }
 
 .safevault-item-icon {
-	font-size: 14px;
+	width: 26px;
+	height: 26px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.05);
+	color: #a1a1aa;
+	flex-shrink: 0;
+}
+
+.safevault-item-icon svg {
+	display: block;
+}
+
+.safevault-item-icon.type-password {
+	color: #34d399;
+	background: rgba(16, 185, 129, 0.12);
+}
+
+.safevault-item-icon.type-totp {
+	color: #c084fc;
+	background: rgba(168, 85, 247, 0.12);
+}
+
+.safevault-item-icon.type-card {
+	color: #60a5fa;
+	background: rgba(59, 130, 246, 0.12);
+}
+
+.safevault-item-icon.type-personal {
+	color: #22d3ee;
+	background: rgba(6, 182, 212, 0.12);
+}
+
+.safevault-item-icon.type-generate {
+	color: #34d399;
+	background: rgba(16, 185, 129, 0.15);
 }
 
 .safevault-item-details {
@@ -216,35 +253,35 @@
 /* Micro Toast Notification */
 .safevault-toast-banner {
 	position: fixed;
-	bottom: 12px;
-	right: 12px;
-	background: rgba(15, 15, 18, 0.92);
-	border: 1px solid rgba(16, 185, 129, 0.4);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-	border-radius: 6px;
-	padding: 4px 10px;
+	bottom: 16px;
+	right: 16px;
+	background: rgba(15, 15, 18, 0.94);
+	border: 1px solid rgba(16, 185, 129, 0.3);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+	border-radius: 9999px;
+	padding: 5px 12px;
 	color: #f4f4f5;
-	font-family: system-ui, -apple-system, sans-serif;
-	font-size: 10px;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 11px;
 	font-weight: 500;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	z-index: 999999;
-	animation: safevault-toast-slide 0.2s ease-out;
-	backdrop-filter: blur(6px);
+	z-index: 2147483647;
+	animation: safevault-toast-slide 0.18s ease-out;
+	backdrop-filter: blur(8px);
 	pointer-events: none;
-	max-width: 260px;
+	user-select: none;
 }
 
 @keyframes safevault-toast-slide {
 	from {
 		opacity: 0;
-		transform: translateY(8px) scale(0.96);
+		transform: translateY(6px);
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0) scale(1);
+		transform: translateY(0);
 	}
 }
 
@@ -253,14 +290,19 @@
 	height: 14px;
 	border-radius: 50%;
 	background: rgba(16, 185, 129, 0.2);
-	border: 1px solid #10b981;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	color: #10b981;
-	font-weight: bold;
-	font-size: 9px;
 	flex-shrink: 0;
+}
+
+.safevault-toast-icon svg {
+	display: block;
+}
+
+.safevault-toast-text {
+	white-space: nowrap;
 }
 
 

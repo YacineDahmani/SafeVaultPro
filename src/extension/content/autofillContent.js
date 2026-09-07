@@ -11,6 +11,15 @@
 	let currentDomain = window.location.hostname;
 	const attachedBadges = new WeakMap();
 
+	const SVG_ICONS = {
+		password: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
+		totp: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>',
+		card: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+		personal_info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+		generate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>',
+		check: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+	};
+
 	// Helper to send native event triggers so React/Vue/Angular/Svelte state updates cleanly
 	function setNativeFieldValue(field, val) {
 		if (!field || val === undefined || val === null) return;
@@ -854,7 +863,7 @@
 			if (item.type === 'password') {
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="password">
-						<div class="safevault-item-icon">🔑</div>
+						<div class="safevault-item-icon type-password">${SVG_ICONS.password}</div>
 						<div class="safevault-item-details">
 							<div class="safevault-item-title">${escapeHtml(item.title)}</div>
 							<div class="safevault-item-sub">${escapeHtml(item.username || 'No username')}</div>
@@ -865,7 +874,7 @@
 			} else if (item.type === 'totp') {
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="totp">
-						<div class="safevault-item-icon">⚡</div>
+						<div class="safevault-item-icon type-totp">${SVG_ICONS.totp}</div>
 						<div class="safevault-item-details">
 							<div class="safevault-item-title">${escapeHtml(item.title || item.issuer)}</div>
 							<div class="safevault-item-sub">2FA Code (${escapeHtml(item.accountName || '')})</div>
@@ -880,7 +889,7 @@
 				const cvvCode = (item.cvv || item.pin) ? ` | CVV: •••` : '';
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
-						<div class="safevault-item-icon">💳</div>
+						<div class="safevault-item-icon type-card">${SVG_ICONS.card}</div>
 						<div class="safevault-item-details">
 							<div class="safevault-item-title">${escapeHtml(item.title)} ${cardHolder ? `(${cardHolder})` : ''}</div>
 							<div class="safevault-item-sub">${escapeHtml(item.subtype ? item.subtype.toUpperCase().replace('_', ' ') : 'CARD')} ${cardNum}${cvvCode}</div>
@@ -892,7 +901,7 @@
 				const sub = item.email || item.phone || item.city || 'Identity Profile';
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="personal">
-						<div class="safevault-item-icon">👤</div>
+						<div class="safevault-item-icon type-personal">${SVG_ICONS.personal_info}</div>
 						<div class="safevault-item-details">
 							<div class="safevault-item-title">${escapeHtml(item.fullName || item.title)}</div>
 							<div class="safevault-item-sub">${escapeHtml(sub)}</div>
@@ -921,10 +930,10 @@
 			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
 			if (targetItem) {
 				autofillItem(input, targetItem);
-				if (targetItem.type === 'card') showToastBanner(`💳 Payment card filled!`);
-				else if (targetItem.type === 'personal_info') showToastBanner(`👤 Identity profile filled!`);
-				else if (targetItem.type === 'totp') showToastBanner(`⚡ 2FA code inserted!`);
-				else showToastBanner(`🔑 Credentials filled!`);
+				if (targetItem.type === 'card') showToastBanner('Card filled');
+				else if (targetItem.type === 'personal_info') showToastBanner('Profile filled');
+				else if (targetItem.type === 'totp') showToastBanner('2FA code inserted');
+				else showToastBanner('Credentials filled');
 			}
 			closeDropdown();
 		});
@@ -947,7 +956,7 @@
 			</div>
 			<div class="safevault-dropdown-list">
 				<div class="safevault-dropdown-item" data-action="generate">
-					<div class="safevault-item-icon">⚡</div>
+					<div class="safevault-item-icon type-generate">${SVG_ICONS.generate}</div>
 					<div class="safevault-item-details">
 						<div class="safevault-item-title" style="color:#34d399;">Generate Strong Password</div>
 						<div class="safevault-item-sub">Create & fill secure 20-char password</div>
@@ -1004,9 +1013,9 @@
 									form.dataset.safevaultItemId = saveRes.item.id;
 								}
 								if (saveRes && saveRes.queued) {
-									showToastBanner(`🔒 Password queued! Unlock SafeVaultPro to save.`);
+									showToastBanner('Password queued (vault locked)');
 								} else {
-									showToastBanner(`🔒 Password saved to SafeVaultPro!`);
+									showToastBanner('Password saved');
 								}
 							}
 						);
@@ -1717,18 +1726,18 @@
 
 		const toast = document.createElement('div');
 		toast.className = 'safevault-toast-banner';
-		toast.style.pointerEvents = 'auto';
+		toast.style.pointerEvents = 'none';
 		toast.innerHTML = `
-			<div class="safevault-toast-icon">✓</div>
-			<div>${escapeHtml(message)}</div>
+			<span class="safevault-toast-icon">${SVG_ICONS.check}</span>
+			<span class="safevault-toast-text">${escapeHtml(message)}</span>
 		`;
 		root.appendChild(toast);
 		setTimeout(() => {
 			toast.style.opacity = '0';
 			toast.style.transform = 'translateY(6px)';
-			toast.style.transition = 'all 0.2s ease';
-			setTimeout(() => toast.remove(), 200);
-		}, 1800);
+			toast.style.transition = 'all 0.18s ease';
+			setTimeout(() => toast.remove(), 180);
+		}, 1600);
 	}
 
 	// Auto-Save Form Submit Handler
@@ -1763,9 +1772,9 @@
 						if (res && res.success) {
 							if (res.item && form.dataset) form.dataset.safevaultItemId = res.item.id;
 							if (res.queued) {
-								showToastBanner(`🔒 Credentials queued! Unlock SafeVaultPro to save.`);
+								showToastBanner('Credentials queued (vault locked)');
 							} else {
-								showToastBanner(`🔒 Credentials for ${currentDomain} saved!`);
+								showToastBanner('Credentials saved');
 							}
 						}
 					}
