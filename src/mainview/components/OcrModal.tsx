@@ -79,8 +79,8 @@ export const OcrModal: React.FC<OcrModalProps> = ({ isOpen, onClose, onSaveItem 
 				{/* Upload box */}
 				<label className="border-2 border-dashed border-slate-800 hover:border-blue-500/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-[#09090b] transition-all">
 					<Upload className="w-8 h-8 text-blue-400 mb-2 animate-bounce" />
-					<span className="text-xs font-semibold text-slate-300">Click to upload QR code image</span>
-					<span className="text-[10px] text-slate-500 font-mono mt-1">Supports PNG, JPG, WEBP</span>
+					<span className="text-xs font-semibold text-slate-300">Select QR code image</span>
+					<span className="text-[10px] text-slate-500 font-mono mt-1">PNG, JPG, WEBP</span>
 					<input
 						type="file"
 						accept="image/*"
@@ -102,7 +102,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({ isOpen, onClose, onSaveItem 
 					<div className="p-4 bg-[#09090b] border border-slate-800 rounded-xl space-y-2 font-mono text-xs">
 						<div className="text-emerald-400 font-bold flex items-center gap-1.5">
 							<Check className="w-4 h-4" />
-							<span>2FA Secret Extracted</span>
+							<span>Secret Found</span>
 						</div>
 						<div><span className="text-slate-500">Issuer:</span> {parsedResult.issuer}</div>
 						<div><span className="text-slate-500">Account:</span> {parsedResult.accountName}</div>
@@ -112,7 +112,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({ isOpen, onClose, onSaveItem 
 							onClick={handleSaveImported}
 							className="w-full mt-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-lg transition-all"
 						>
-							Import into Keymaster 2FA
+							Save 2FA Code
 						</button>
 					</div>
 				)}

@@ -294,16 +294,16 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	};
 
 	const getModalBadgeTitle = () => {
-		if (type === "password") return "Adding Password Secret";
-		if (type === "note") return "Adding Secure Note";
-		if (type === "personal_info") return "Adding Personal Identity Profile";
-		if (type === "totp") return "Adding 2FA Code";
-		if (type === "env") return "Adding Environment Variables (.env)";
+		if (type === "password") return "New Password";
+		if (type === "note") return "New Note";
+		if (type === "personal_info") return "New Profile";
+		if (type === "totp") return "New 2FA Code";
+		if (type === "env") return "New .env File";
 		if (type === "card") {
-			if (subtype === "credit_card") return "Adding Payment Credit Card";
-			return "Adding Identity Document / Passport";
+			if (subtype === "credit_card") return "New Payment Card";
+			return "New ID / Passport";
 		}
-		return "New Vault Entry";
+		return "New Item";
 	};
 
 	return (
@@ -313,13 +313,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				<div className="p-5 border-b border-slate-800 flex items-center justify-between">
 					<div>
 						<h2 className="text-base font-bold text-white tracking-wide">
-							{item ? "Edit Secret" : getModalBadgeTitle()}
+							{item ? "Edit Item" : getModalBadgeTitle()}
 						</h2>
-						{isCategoryLocked && (
-							<span className="text-[10px] text-emerald-400 font-mono">
-								Category locked to current view
-							</span>
-						)}
 					</div>
 					<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
 						<X className="w-5 h-5" />
@@ -331,15 +326,15 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{/* Type Selector (only shown if not locked to a specific category) */}
 					{!item && !isCategoryLocked && (
 						<div>
-							<label className="block text-slate-400 font-mono mb-1">Item Category</label>
+							<label className="block text-slate-400 font-mono mb-1">Category</label>
 							<div className="grid grid-cols-6 gap-1 p-1 bg-[#09090b] rounded-lg border border-slate-800">
 								{[
 									{ id: "password", label: "Password", icon: KeyRound },
-									{ id: "card", label: "Card/ID", icon: CreditCard },
-									{ id: "totp", label: "2FA Code", icon: Smartphone },
+									{ id: "card", label: "Card", icon: CreditCard },
+									{ id: "totp", label: "2FA", icon: Smartphone },
 									{ id: "note", label: "Note", icon: FileText },
-									{ id: "personal_info", label: "Profile", icon: User },
-									{ id: "env", label: ".env File", icon: Code2 },
+									{ id: "personal_info", label: "Identity", icon: User },
+									{ id: "env", label: ".env", icon: Code2 },
 								].map((cat) => {
 									const Icon = cat.icon;
 									const active = type === cat.id;
@@ -365,7 +360,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
 					{/* Title */}
 					<div>
-						<label className="block text-slate-400 font-mono mb-1">Item Title *</label>
+						<label className="block text-slate-400 font-mono mb-1">Title *</label>
 						<input
 							type="text"
 							required
@@ -373,16 +368,16 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							onChange={(e) => setTitle(e.target.value)}
 							placeholder={
 								type === "password"
-									? "e.g. GitHub Developer Account"
+									? "e.g. GitHub"
 									: type === "card"
 									? subtype === "credit_card"
-										? "e.g. Corporate Platinum Visa"
-										: "e.g. Primary International Passport"
+										? "e.g. Visa"
+										: "e.g. Passport"
 									: type === "note"
-									? "e.g. Emergency Recovery Seed Codes"
+									? "e.g. Recovery keys"
 									: type === "env"
-									? "e.g. Production Backend .env"
-									: "e.g. Personal Profile"
+									? "e.g. Backend .env"
+									: "e.g. Personal profile"
 							}
 							className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
 						/>

@@ -590,7 +590,7 @@
 
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
-		badge.title = 'SafeVaultPro (Click to autofill, Drag to move)';
+		badge.title = 'Autofill';
 		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
 		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
 

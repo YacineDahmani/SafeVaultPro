@@ -37,21 +37,21 @@ export const ItemList: React.FC<ItemListProps> = ({
 			case "passwords":
 				return "Passwords";
 			case "notes":
-				return "Secure Notes";
+				return "Notes";
 			case "personal_info":
-				return "Personal Info";
+				return "Identity";
 			case "credit_cards":
-				return "Payment Cards";
+				return "Cards";
 			case "ids":
-				return "IDs & Passports";
+				return "IDs";
 			case "totp":
-				return "2FA Authenticator";
+				return "2FA";
 			case "env_files":
-				return ".env Environment Files";
+				return ".env Files";
 			case "favorites":
-				return "Favorite Secrets";
+				return "Favorites";
 			default:
-				return "All Vault Items";
+				return "All Items";
 		}
 	};
 
@@ -108,7 +108,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 			<div className="p-4 border-b border-slate-800/60 flex items-center justify-between shrink-0">
 				<div>
 					<h2 className="text-sm font-bold text-white tracking-wide">{getCategoryTitle()}</h2>
-					<span className="text-[11px] font-mono text-slate-500">{items.length} entries stored</span>
+					<span className="text-[11px] font-mono text-slate-500">{items.length} {items.length === 1 ? "item" : "items"}</span>
 				</div>
 
 				<button
@@ -125,12 +125,12 @@ export const ItemList: React.FC<ItemListProps> = ({
 				{items.length === 0 ? (
 					<div className="text-center py-12 px-4 text-slate-500 space-y-2">
 						<Lock className="w-8 h-8 mx-auto text-slate-600" />
-						<p className="text-xs">No items found in this section.</p>
+						<p className="text-xs">No items here.</p>
 						<button
 							onClick={() => onNewItem()}
 							className="text-xs text-emerald-400 hover:underline font-medium"
 						>
-							+ Add your first secret
+							Add item
 						</button>
 					</div>
 				) : (

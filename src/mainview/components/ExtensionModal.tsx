@@ -92,12 +92,12 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 							/>
 							<div>
 								<div className="text-xs font-semibold text-white">
-									Local IPC Bridge: {status?.connected ? "Active (port 48920)" : "Connecting..."}
+									{status?.connected ? "Connected (port 48920)" : "Connecting..."}
 								</div>
 								<div className="text-[11px] text-slate-400">
 									{status?.unlocked
-										? "Vault unlocked and ready for extension requests"
-										: "Unlock vault to allow extension autofill"}
+										? "Vault unlocked"
+										: "Unlock vault to enable autofill"}
 								</div>
 							</div>
 						</div>
@@ -116,7 +116,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 							className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg transition-all shadow-lg shadow-emerald-500/10 text-xs"
 						>
 							<FolderOpen className="w-4 h-4" />
-							<span>{isOpeningFolder ? "Opening..." : "Open Extension Folder"}</span>
+							<span>{isOpeningFolder ? "Opening..." : "Open Folder"}</span>
 						</button>
 
 						<button
@@ -124,14 +124,14 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 							className="flex items-center justify-center gap-2 py-2.5 px-4 bg-[#18181b] hover:bg-[#222126] text-white font-medium border border-slate-700/80 rounded-lg transition-all text-xs"
 						>
 							{copiedPath ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-							<span>{copiedPath ? "Path Copied!" : "Copy Folder Path"}</span>
+							<span>{copiedPath ? "Copied" : "Copy Path"}</span>
 						</button>
 					</div>
 
 					{/* Quick Installation Instructions */}
 					<div className="space-y-3 pt-1 border-t border-slate-800/60">
 						<h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono">
-							How to Load Unpacked Extension (30 Seconds)
+							Setup Steps
 						</h3>
 
 						<ol className="space-y-2.5 text-xs text-slate-300">
@@ -140,7 +140,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 									1
 								</span>
 								<div>
-									Click <strong className="text-emerald-400">Open Extension Folder</strong> above to reveal the unpacked files in File Explorer.
+									Click <strong className="text-white">Open Folder</strong> above.
 								</div>
 							</li>
 
@@ -149,7 +149,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 									2
 								</span>
 								<div>
-									Open your browser extensions page (<code className="px-1.5 py-0.5 bg-[#09090b] text-emerald-400 rounded font-mono">chrome://extensions</code> or <code className="px-1.5 py-0.5 bg-[#09090b] text-emerald-400 rounded font-mono">edge://extensions</code>).
+									Open <code className="px-1.5 py-0.5 bg-[#09090b] text-emerald-400 rounded font-mono">chrome://extensions</code> or <code className="px-1.5 py-0.5 bg-[#09090b] text-emerald-400 rounded font-mono">edge://extensions</code> and turn on <strong className="text-white">Developer Mode</strong>.
 								</div>
 							</li>
 
@@ -158,37 +158,21 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 									3
 								</span>
 								<div>
-									Enable <strong className="text-white">Developer Mode</strong> toggle in the top-right corner of the extensions page.
-								</div>
-							</li>
-
-							<li className="flex items-start gap-2.5 bg-[#18181b]/50 p-2.5 rounded-lg border border-slate-800/40">
-								<span className="w-5 h-5 rounded-full bg-slate-800 text-emerald-400 font-bold font-mono text-[11px] flex items-center justify-center shrink-0">
-									4
-								</span>
-								<div>
-									Click <strong className="text-white">Load unpacked</strong> and select the opened extension directory!
+									Click <strong className="text-white">Load unpacked</strong> and select the opened extension folder.
 								</div>
 							</li>
 						</ol>
-					</div>
-
-					<div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-lg text-xs text-emerald-300 flex items-start gap-2">
-						<ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-						<div>
-							Once loaded, the extension icon will display live <strong>ON</strong> status and automatically inject smart autofill buttons into web login & payment forms!
-						</div>
 					</div>
 				</div>
 
 				{/* Footer */}
 				<div className="px-6 py-3 border-t border-slate-800 bg-[#18181b] flex items-center justify-between text-xs text-slate-400">
-					<span>SafeVaultPro Extension</span>
+					<span>Extension bridge</span>
 					<button
 						onClick={onClose}
 						className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md transition-colors"
 					>
-						Done
+						Close
 					</button>
 				</div>
 			</div>

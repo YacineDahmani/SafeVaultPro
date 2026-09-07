@@ -76,9 +76,9 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 				<div className="w-16 h-16 rounded-2xl bg-[#131315] border border-slate-800 flex items-center justify-center text-slate-600 mb-4">
 					<Lock className="w-8 h-8" />
 				</div>
-				<h3 className="text-sm font-semibold text-slate-400 mb-1">No Secret Selected</h3>
+				<h3 className="text-sm font-semibold text-slate-400 mb-1">No item selected</h3>
 				<p className="text-xs max-w-xs text-slate-600">
-					Select an item from the center list to view details, reveal credentials, or modify parameters.
+					Select an item from the list to view or edit details.
 				</p>
 			</div>
 		);
@@ -112,13 +112,13 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 		} else if (bits >= 35) {
 			level = 2;
 			color = "bg-amber-500";
-			label = "Moderate";
+			label = "Fair";
 		}
 
 		return (
 			<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-2">
 				<div className="flex justify-between items-center text-xs">
-					<span className="text-slate-400 font-medium">Password Security Score</span>
+					<span className="text-slate-400 font-medium">Strength</span>
 					<span className={`font-semibold ${level >= 3 ? "text-emerald-400" : level === 2 ? "text-amber-400" : "text-red-400"}`}>
 						{bits} bits • {label}
 					</span>
@@ -868,7 +868,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 				)}
 			</div>
 
-			{/* Custom Dark Confirmation Modal */}
+			{/* Delete Confirmation Modal */}
 			{showDeleteConfirmModal && (
 				<div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none animate-fade-in">
 					<div className="bg-[#131315] border border-red-900/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-slate-200">
@@ -876,7 +876,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 						<div className="p-4 border-b border-slate-800 flex items-center justify-between bg-red-950/20">
 							<div className="flex items-center gap-2 text-red-400">
 								<AlertTriangle className="w-5 h-5 shrink-0" />
-								<h3 className="text-sm font-bold text-white">Delete Secret Confirmation</h3>
+								<h3 className="text-sm font-bold text-white">Delete Item</h3>
 							</div>
 							<button
 								onClick={() => setShowDeleteConfirmModal(false)}
@@ -889,12 +889,11 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 						{/* Content */}
 						<div className="p-6 space-y-3 text-xs">
 							<p className="text-slate-200 font-medium text-sm">
-								Are you sure you want to delete <strong className="text-white font-mono">{item.title}</strong>?
+								Delete <strong className="text-white font-mono">{item.title}</strong>?
 							</p>
-							<div className="p-3 bg-red-950/40 border border-red-900/50 rounded-xl text-red-300 space-y-1">
-								<span className="font-semibold block text-red-200 font-mono text-[11px]">WARNING: PERMANENT DELETION</span>
-								<span>This item will be permanently purged from your encrypted local storage and cannot be recovered.</span>
-							</div>
+							<p className="text-slate-400">
+								This item will be permanently removed.
+							</p>
 						</div>
 
 						{/* Footer Actions */}
@@ -915,7 +914,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 								className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg"
 							>
 								<Trash2 className="w-3.5 h-3.5" />
-								<span>Delete Item</span>
+								<span>Delete</span>
 							</button>
 						</div>
 					</div>

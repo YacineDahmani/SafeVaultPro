@@ -43,7 +43,7 @@ export const GeneratorPane: React.FC<GeneratorPaneProps> = ({
 	const entropy = calculatePasswordEntropy(generatedPassword);
 	const getEntropyDetails = (bits: number) => {
 		if (bits < 40) return { text: "Weak", color: "text-red-400", bg: "bg-red-500", level: 1 };
-		if (bits < 60) return { text: "Moderate", color: "text-amber-400", bg: "bg-amber-500", level: 2 };
+		if (bits < 60) return { text: "Fair", color: "text-amber-400", bg: "bg-amber-500", level: 2 };
 		if (bits < 80) return { text: "Strong", color: "text-emerald-400", bg: "bg-emerald-400", level: 3 };
 		return { text: "Very Strong", color: "text-emerald-300", bg: "bg-emerald-500", level: 4 };
 	};
@@ -51,7 +51,7 @@ export const GeneratorPane: React.FC<GeneratorPaneProps> = ({
 	const strength = getEntropyDetails(entropy);
 
 	const handleCopy = () => {
-		onCopySecret(generatedPassword, "Generated Password");
+		onCopySecret(generatedPassword, "Password");
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);
 	};
@@ -193,7 +193,7 @@ export const GeneratorPane: React.FC<GeneratorPaneProps> = ({
 						className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-lg text-sm transition-all shadow-lg flex items-center justify-center gap-2"
 					>
 						<Copy className="w-4 h-4" />
-						<span>Copy Generated Password</span>
+						<span>Copy Password</span>
 					</button>
 				</div>
 			</div>

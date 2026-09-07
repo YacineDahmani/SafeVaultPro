@@ -99,7 +99,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 		<div className="flex-1 min-h-0 min-w-0 bg-[#09090b] flex flex-col xl:flex-row h-full overflow-y-auto select-text text-slate-200 p-4 md:p-6 gap-6">
 			{/* Main Pane */}
 			<div className="flex-1 space-y-6">
-				<h1 className="text-xl font-bold text-white tracking-wide">Password Health Center</h1>
+				<h1 className="text-lg font-bold text-white">Password Health</h1>
 
 				{/* Top Card: Score & Breakdown */}
 				<div className="bg-[#131315] border border-slate-800/80 rounded-2xl p-6 shadow-xl grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
@@ -119,13 +119,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 						</div>
 
 						<div>
-							<h3 className="text-sm font-bold text-white">Security Rating</h3>
+							<h3 className="text-sm font-bold text-white">Vault Score</h3>
 							<p className="text-xs text-slate-400 mt-1">
 								{score >= 90
-									? "Excellent! Your passwords demonstrate strong entropy and zero unsafe reuses."
+									? "Strong passwords. No reused credentials found."
 									: score >= 70
-									? "Good protection. Strengthen weak passwords to achieve a perfect 100% score."
-									: "Security risks detected. Please replace weak or reused credentials immediately."}
+									? "Good. Update weak or reused passwords to improve your score."
+									: "At risk. Update weak and reused passwords."}
 							</p>
 						</div>
 					</div>
@@ -133,27 +133,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 					{/* Real Breakdown Stats */}
 					<div className="space-y-4">
 						<h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">
-							Vault Password Audit
+							Password Breakdown
 						</h4>
 						<div className="grid grid-cols-2 gap-3">
 							<div className="p-3 bg-[#09090b] rounded-xl border border-slate-800/60">
 								<span className="text-2xl font-bold text-emerald-400 font-mono tnum">{safeCount}</span>
-								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">SAFE PASSWORDS</span>
+								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">SAFE</span>
 							</div>
 
 							<div className="p-3 bg-[#09090b] rounded-xl border border-slate-800/60">
 								<span className="text-2xl font-bold text-orange-400 font-mono tnum">{weakCount}</span>
-								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">WEAK PASSWORDS</span>
+								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">WEAK</span>
 							</div>
 
 							<div className="p-3 bg-[#09090b] rounded-xl border border-slate-800/60">
 								<span className="text-2xl font-bold text-amber-400 font-mono tnum">{reusedCount}</span>
-								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">REUSED PASSWORDS</span>
+								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">REUSED</span>
 							</div>
 
 							<div className="p-3 bg-[#09090b] rounded-xl border border-slate-800/60">
 								<span className="text-2xl font-bold text-blue-400 font-mono tnum">{missing2faCount}</span>
-								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">NO 2FA SECRET</span>
+								<span className="block text-[10px] text-slate-400 uppercase font-mono mt-0.5">NO 2FA</span>
 							</div>
 						</div>
 
@@ -161,52 +161,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 							onClick={onOpenGenerator}
 							className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition-all shadow-md flex items-center justify-center gap-2"
 						>
-							<span>Generate Strong Password</span>
+							<span>Generate Password</span>
 							<ArrowRight className="w-4 h-4" />
 						</button>
-					</div>
-				</div>
-
-				{/* Vault Hygiene Overview Cards */}
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-2">
-						<div className="flex items-center gap-2 text-emerald-400">
-							<ShieldCheck className="w-5 h-5" />
-							<span className="text-xs font-bold text-white">Local Zero-Knowledge</span>
-						</div>
-						<p className="text-xs text-slate-400">
-							All credentials remain encrypted strictly on device. No unencrypted data ever leaves your computer.
-						</p>
-					</div>
-
-					<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-2">
-						<div className="flex items-center gap-2 text-blue-400">
-							<KeyRound className="w-5 h-5" />
-							<span className="text-xs font-bold text-white">Entropy Analysis</span>
-						</div>
-						<p className="text-xs text-slate-400">
-							Calculates character set diversity and bit entropy to ensure resilience against brute-force attacks.
-						</p>
-					</div>
-
-					<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-2">
-						<div className="flex items-center gap-2 text-purple-400">
-							<Smartphone className="w-5 h-5" />
-							<span className="text-xs font-bold text-white">Integrated 2FA Engine</span>
-						</div>
-						<p className="text-xs text-slate-400">
-							Clock-synced local TOTP generator eliminates SMS vulnerability and streamlines login verification.
-						</p>
 					</div>
 				</div>
 			</div>
 
 			{/* Right Pane: Live Actionable Vulnerable Credentials Audit Feed */}
 			<div className="w-full xl:w-96 shrink-0 space-y-4">
-				<h2 className="text-base font-bold text-white flex items-center justify-between">
-					<span>Actionable Vault Audit</span>
+				<h2 className="text-sm font-bold text-white flex items-center justify-between">
+					<span>Issues</span>
 					<span className={`px-2 py-0.5 rounded text-xs font-mono border ${vulnerableAccounts.length > 0 ? 'bg-amber-950/50 text-amber-400 border-amber-800/50' : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50'}`}>
-						{vulnerableAccounts.length} {vulnerableAccounts.length === 1 ? 'Notice' : 'Notices'}
+						{vulnerableAccounts.length}
 					</span>
 				</h2>
 
@@ -217,9 +184,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 								<CheckCircle2 className="w-6 h-6" />
 							</div>
 							<div>
-								<h4 className="text-sm font-bold text-white">All Passwords Secure</h4>
+								<h4 className="text-sm font-bold text-white">No Issues Found</h4>
 								<p className="text-xs text-slate-400 mt-1">
-									No weak, reused, or un-backed 2FA passwords were found in your vault.
+									All passwords meet strength requirements with no reuse.
 								</p>
 							</div>
 						</div>
@@ -245,7 +212,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 									<button
 										onClick={() => onSelectItem(item.id)}
 										className="p-1 text-slate-400 hover:text-emerald-400 transition-colors"
-										title="Open Item in Workspace"
+										title="Open Item"
 									>
 										<ExternalLink className="w-4 h-4" />
 									</button>
@@ -276,7 +243,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 									onClick={() => onSelectItem(item.id)}
 									className="w-full py-1.5 bg-[#18181b] hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
 								>
-									<span>Edit & Fix Account</span>
+									<span>Edit</span>
 									<ArrowRight className="w-3.5 h-3.5" />
 								</button>
 							</div>

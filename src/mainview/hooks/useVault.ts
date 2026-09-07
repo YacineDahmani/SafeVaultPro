@@ -258,7 +258,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 			} catch {}
 		}
 
-		showToast("Vault locked & memory purged", "lock");
+		showToast("Vault locked", "lock");
 	}, [settings.wipeClipboardOnLock, showToast, syncExtension]);
 
 	// Inactivity-based auto-lock tracking
@@ -333,7 +333,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 					setActiveCategory(settings.defaultLandingView as NavCategory);
 				}
 
-				showToast("Vault unlocked successfully", "success");
+				showToast("Vault unlocked", "success");
 
 				// Ingest any credentials queued while vault was locked
 				fetch("http://localhost:48920/api/pending-items")
@@ -367,16 +367,16 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 			if (customToastMsg) {
 				showToast(customToastMsg, customToastType || "success");
 			} else if (isExisting) {
-				showToast(`Updated "${saved.title}"`, "success");
+				showToast(`Saved "${saved.title}"`, "success");
 			} else {
-				showToast(`Created new secret "${saved.title}"`, "success");
+				showToast(`Added "${saved.title}"`, "success");
 			}
 
 			setIsEditModalOpen(false);
 			setEditingItem(null);
 			return saved;
 		} catch (err: any) {
-			showToast(`Error saving item: ${err.message}`, "warning");
+			showToast(`Error: ${err.message}`, "warning");
 			throw err;
 		}
 	};
@@ -391,7 +391,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 			refreshItems();
 			showToast(`Deleted "${itemToDelete?.title || "Item"}"`, "delete");
 		} catch (err: any) {
-			showToast(`Error deleting item: ${err.message}`, "warning");
+			showToast(`Error: ${err.message}`, "warning");
 		}
 	};
 
@@ -403,8 +403,8 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		const updated = { ...target, favorite: nextFav };
 
 		const msg = nextFav
-			? `Added "${target.title}" to Favorites`
-			: `Removed "${target.title}" from Favorites`;
+			? `Added to favorites`
+			: `Removed from favorites`;
 		const tType: ToastType = nextFav ? "favorite" : "unfavorite";
 
 		await saveItem(updated, msg, tType);
@@ -414,7 +414,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		if (!text) return;
 		const timeout = settings.clipboardTimeout || 30;
 		await vaultBackend.copySecret(text, timeout);
-		showToast(`Copied ${label}! Auto-clears in ${timeout}s`, "copy");
+		showToast(`Copied ${label}`, "copy");
 	};
 
 	// Open create modal contextualized to active category if specific

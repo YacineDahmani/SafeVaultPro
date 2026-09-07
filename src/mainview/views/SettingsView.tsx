@@ -456,26 +456,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 	const payloadSizeKB = (payloadSizeBytes / 1024).toFixed(2);
 
 	const sections = [
-		{ id: "security" as const, label: "Security & Lock Policy", icon: Shield, desc: "Inactivity, sleep, & clipboard" },
-		{ id: "password" as const, label: "Master Cryptographic Key", icon: KeyRound, desc: "Key rotation & entropy" },
-		{ id: "kdf" as const, label: "Argon2id & Hardware KDF", icon: Cpu, desc: "Memory cost & benchmark" },
-		{ id: "backup" as const, label: "Data Portability & Backup", icon: Download, desc: "Encrypted & CSV exports" },
-		{ id: "extension" as const, label: "Browser Extension Bridge", icon: Puzzle, desc: "IPC daemon & local auth" },
-		{ id: "diagnostics" as const, label: "Audit & Danger Zone", icon: Terminal, desc: "Zero-knowledge & factory wipe" },
+		{ id: "security" as const, label: "Security", icon: Shield, desc: "Auto-lock & clipboard" },
+		{ id: "password" as const, label: "Master Password", icon: KeyRound, desc: "Change password" },
+		{ id: "kdf" as const, label: "Key Derivation", icon: Cpu, desc: "Argon2id settings" },
+		{ id: "backup" as const, label: "Backup & Export", icon: Download, desc: "JSON & CSV exports" },
+		{ id: "extension" as const, label: "Browser Extension", icon: Puzzle, desc: "Bridge connection" },
+		{ id: "diagnostics" as const, label: "Data & Reset", icon: Terminal, desc: "Storage info & reset" },
 	];
 
 	return (
 		<div className="flex-1 flex flex-col h-full min-h-0 bg-[#09090b] text-slate-200 select-none overflow-hidden font-sans">
-			{/* Clinical Header Bar */}
+			{/* Header Bar */}
 			<div className="h-14 px-6 border-b border-slate-800/80 bg-[#131315] flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-4">
 					<button
 						onClick={onBack}
-						title="Return to Vault (Esc)"
+						title="Back (Esc)"
 						className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1c1b1d] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 text-xs font-medium transition-all group"
 					>
 						<ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-400" />
-						<span>Back to Vault</span>
+						<span>Back</span>
 						<kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-[#09090b] text-slate-400 rounded border border-slate-800">
 							ESC
 						</kbd>
@@ -483,25 +483,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 					<div className="h-4 w-px bg-slate-800" />
 
-					<div className="flex items-center gap-2">
-						<span className="text-xs font-mono uppercase tracking-wider text-slate-500">SYSTEM</span>
-						<span className="text-slate-600">/</span>
-						<h1 className="text-xs font-bold text-white font-mono tracking-wide uppercase">
-							Configuration & Cryptographic Parameters
-						</h1>
-					</div>
-				</div>
-
-				{/* Real-time Security State Indicator Badges */}
-				<div className="hidden lg:flex items-center gap-2.5">
-					<div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#18181b] border border-emerald-500/30 text-[11px] font-mono text-emerald-400">
-						<span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-						<span>AIR-GAPPED ZERO-KNOWLEDGE</span>
-					</div>
-
-					<div className="px-2.5 py-1 rounded-full bg-[#18181b] border border-slate-800 text-[11px] font-mono text-slate-400">
-						<span>ARGON2ID • AES-256-GCM</span>
-					</div>
+					<h1 className="text-xs font-bold text-white font-mono tracking-wide uppercase">
+						Settings
+					</h1>
 				</div>
 			</div>
 
@@ -569,10 +553,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<Shield className="w-4 h-4 text-emerald-400" />
-									<span>Security & Inactivity Policy</span>
+									<span>Security & Lock Settings</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Configure defensive barriers, session longevity, and automatic cryptographic key eviction.
+									Manage auto-lock timers and clipboard clearing.
 								</p>
 							</div>
 
@@ -581,10 +565,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-start justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-											Inactivity Lock Timer
+											Auto-Lock
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Purge derived cryptographic keys from memory when no user activity is detected.
+											Lock vault automatically after inactivity.
 										</p>
 									</div>
 									<div className="px-2.5 py-1 bg-[#09090b] border border-slate-800 rounded-lg text-emerald-400 font-mono text-xs font-bold">
@@ -616,9 +600,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<label className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl flex items-start justify-between cursor-pointer hover:border-slate-700 transition-colors">
 									<div className="space-y-1 pr-4">
-										<span className="text-xs font-bold text-white block">Lock on System Sleep</span>
+										<span className="text-xs font-bold text-white block">Lock on system sleep</span>
 										<p className="text-xs text-slate-400">
-											Instantly lock vault and drop memory buffers when OS enters sleep or standby.
+											Lock when the computer goes to sleep.
 										</p>
 									</div>
 									<input
@@ -631,9 +615,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 								<label className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl flex items-start justify-between cursor-pointer hover:border-slate-700 transition-colors">
 									<div className="space-y-1 pr-4">
-										<span className="text-xs font-bold text-white block">Lock on Window Blur</span>
+										<span className="text-xs font-bold text-white block">Lock when switching apps</span>
 										<p className="text-xs text-slate-400">
-											Lock vault immediately when switching focus away from the SafeVaultPro desktop window.
+											Lock when window loses focus.
 										</p>
 									</div>
 									<input
@@ -650,10 +634,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-											Clipboard Memory Auto-Clear
+											Clear Clipboard
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Time before copied credentials and 2FA tokens are automatically wiped from OS clipboard.
+											Time before copied items are cleared from clipboard.
 										</p>
 									</div>
 									<span className="font-mono text-emerald-400 font-bold text-sm tnum px-3 py-1 bg-[#09090b] border border-slate-800 rounded-lg">
@@ -672,17 +656,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="w-full h-2 bg-[#09090b] border border-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
 									/>
 									<div className="flex justify-between text-[10px] font-mono text-slate-500">
-										<span>5s (Aggressive)</span>
-										<span>30s (Recommended)</span>
-										<span>120s (Extended)</span>
+										<span>5s</span>
+										<span>30s (Default)</span>
+										<span>120s</span>
 									</div>
 								</div>
 
 								<label className="flex items-center justify-between pt-3 border-t border-slate-800/80 cursor-pointer">
 									<div className="pr-4">
-										<span className="text-xs font-medium text-slate-300 block">Wipe Clipboard on Lock</span>
+										<span className="text-xs font-medium text-slate-300 block">Clear clipboard on lock</span>
 										<span className="text-[11px] text-slate-500">
-											Purge clipboard cache immediately whenever the vault locks.
+											Wipe clipboard when vault locks.
 										</span>
 									</div>
 									<input
@@ -697,12 +681,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							{/* Landing View Preference */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-3">
 								<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-									Default Landing Screen on Unlock
+									Default Screen
 								</h3>
 								<div className="grid grid-cols-3 gap-3">
 									{[
-										{ id: "all", label: "All Items List" },
-										{ id: "dashboard", label: "Security Dashboard" },
+										{ id: "all", label: "All Items" },
+										{ id: "dashboard", label: "Health" },
 										{ id: "favorites", label: "Favorites" },
 									].map((view) => {
 										const active = settings.defaultLandingView === view.id;
@@ -728,15 +712,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-center gap-3">
 									<Lock className="w-4 h-4 text-amber-400" />
 									<div>
-										<span className="text-xs font-bold text-slate-200 block">Force Lock & Purge Memory</span>
-										<span className="text-[11px] text-slate-500">Immediately drop all WebCrypto keys and lock session.</span>
+										<span className="text-xs font-bold text-slate-200 block">Lock vault now</span>
+										<span className="text-[11px] text-slate-500">Lock current session.</span>
 									</div>
 								</div>
 								<button
 									onClick={vault.lock}
 									className="px-4 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 rounded-lg text-xs font-mono font-bold transition-all"
 								>
-									Lock Now
+									Lock
 								</button>
 							</div>
 						</div>
@@ -748,10 +732,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<KeyRound className="w-4 h-4 text-emerald-400" />
-									<span>Master Key Rotation & Re-encryption</span>
+									<span>Master Password</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Derives a fresh cryptographic master key via Argon2id and re-encrypts every entry in your vault with AES-256-GCM.
+									Change your master password. All items will be re-encrypted.
 								</p>
 							</div>
 
@@ -765,28 +749,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 								<div>
 									<label className="block text-xs font-mono text-slate-400 mb-1.5 uppercase">
-										Current Master Password
+										Current Password
 									</label>
 									<input
 										type={showPass ? "text" : "password"}
 										required
 										value={currentPassword}
 										onChange={(e) => setCurrentPassword(e.target.value)}
-										placeholder="Enter current master password"
+										placeholder="Enter current password"
 										className="w-full px-4 py-2.5 bg-[#09090b] border border-slate-800 focus:border-emerald-500/60 rounded-xl text-white font-mono text-xs focus:outline-none transition-colors"
 									/>
 								</div>
 
 								<div>
 									<label className="block text-xs font-mono text-slate-400 mb-1.5 uppercase">
-										New Master Password (Min 10 characters)
+										New Password (Min 10 characters)
 									</label>
 									<input
 										type={showPass ? "text" : "password"}
 										required
 										value={newPassword}
 										onChange={(e) => setNewPassword(e.target.value)}
-										placeholder="Enter strong new master password"
+										placeholder="Enter new password"
 										className="w-full px-4 py-2.5 bg-[#09090b] border border-slate-800 focus:border-emerald-500/60 rounded-xl text-white font-mono text-xs focus:outline-none transition-colors"
 									/>
 
@@ -795,7 +779,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 											<div className="flex justify-between text-[11px] font-mono">
 												<span className="text-slate-400">Entropy: {passEntropy} bits</span>
 												<span className={passEntropy >= 60 ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-													{passEntropy >= 80 ? "Ultra-Strong Master Key" : passEntropy >= 60 ? "Strong Key" : "Moderate / Weak Key"}
+													{passEntropy >= 80 ? "Very Strong" : passEntropy >= 60 ? "Strong" : "Weak"}
 												</span>
 											</div>
 											<div className="w-full h-1.5 bg-[#09090b] rounded-full overflow-hidden flex gap-1">
@@ -807,14 +791,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 								<div>
 									<label className="block text-xs font-mono text-slate-400 mb-1.5 uppercase">
-										Confirm New Master Password
+										Confirm New Password
 									</label>
 									<input
 										type={showPass ? "text" : "password"}
 										required
 										value={confirmNewPassword}
 										onChange={(e) => setConfirmNewPassword(e.target.value)}
-										placeholder="Re-enter new master password"
+										placeholder="Re-enter new password"
 										className="w-full px-4 py-2.5 bg-[#09090b] border border-slate-800 focus:border-emerald-500/60 rounded-xl text-white font-mono text-xs focus:outline-none transition-colors"
 									/>
 								</div>
@@ -826,7 +810,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors font-mono"
 									>
 										{showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-										<span>{showPass ? "Hide Passwords" : "Show Passwords"}</span>
+										<span>{showPass ? "Hide" : "Show"}</span>
 									</button>
 
 									<button
@@ -835,7 +819,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
 									>
 										<Save className="w-4 h-4" />
-										<span>{isChangingPass ? "Deriving Key & Re-encrypting..." : "Rotate Master Key"}</span>
+										<span>{isChangingPass ? "Updating..." : "Update Password"}</span>
 									</button>
 								</div>
 							</form>
@@ -848,10 +832,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<Cpu className="w-4 h-4 text-emerald-400" />
-									<span>Argon2id Key Derivation Tuning & Live Hardware Benchmark</span>
+									<span>Key Derivation</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Adjust memory footprint and time cost to maximize brute-force defense against specialized GPU/ASIC hardware.
+									Configure memory and iteration settings for Argon2id.
 								</p>
 							</div>
 
@@ -860,21 +844,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div>
 									<div className="flex justify-between items-center mb-2">
 										<label className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-											Memory Cost (RAM Allocation)
+											Memory
 										</label>
 										<span className="font-mono text-xs font-bold text-emerald-400">
 											{settings.argon2Memory / 1024} MB
 										</span>
 									</div>
-									<p className="text-xs text-slate-400 mb-3">
-										Larger memory allocation makes brute-force parallel cracking attacks cost millions of dollars on hardware clusters.
-									</p>
 									<div className="grid grid-cols-4 gap-2">
 										{[
 											{ val: 32768, label: "32 MB", desc: "Lightweight" },
-											{ val: 65536, label: "64 MB", desc: "Recommended" },
-											{ val: 131072, label: "128 MB", desc: "Hardened" },
-											{ val: 262144, label: "256 MB", desc: "Extreme" },
+											{ val: 65536, label: "64 MB", desc: "Default" },
+											{ val: 131072, label: "128 MB", desc: "Higher" },
+											{ val: 262144, label: "256 MB", desc: "Maximum" },
 										].map((opt) => {
 											const active = settings.argon2Memory === opt.val;
 											return (
@@ -898,10 +879,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="pt-4 border-t border-slate-800">
 									<div className="flex justify-between items-center mb-2">
 										<label className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-											Time Cost (Iteration Passes)
+											Iterations
 										</label>
 										<span className="font-mono text-xs font-bold text-emerald-400">
-											{settings.argon2Iterations} Passes
+											{settings.argon2Iterations}
 										</span>
 									</div>
 									<input
@@ -913,23 +894,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="w-full h-2 bg-[#09090b] border border-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
 									/>
 									<div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
-										<span>2 Passes (Fast)</span>
-										<span>3 Passes (Standard)</span>
-										<span>8 Passes (Paranoid)</span>
+										<span>2 (Fast)</span>
+										<span>3 (Default)</span>
+										<span>8 (High)</span>
 									</div>
 								</div>
 							</div>
 
-							{/* Interactive Hardware Benchmark Box */}
+							{/* Interactive Benchmark Box */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4">
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
 											<Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-											<span>Live CPU Cryptographic Benchmark</span>
+											<span>Benchmark</span>
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Tests WebAssembly Argon2id execution speed and RAM bandwidth on your local device.
+											Test key derivation speed on this device.
 										</p>
 									</div>
 									<button
@@ -940,12 +921,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										{isBenchmarking ? (
 											<>
 												<RefreshCw className="w-3.5 h-3.5 animate-spin" />
-												<span>Benchmarking CPU...</span>
+												<span>Testing...</span>
 											</>
 										) : (
 											<>
 												<Zap className="w-3.5 h-3.5" />
-												<span>Run KDF Benchmark</span>
+												<span>Run Benchmark</span>
 											</>
 										)}
 									</button>
@@ -955,11 +936,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 									<div className="p-4 bg-[#09090b] border border-indigo-900/50 rounded-xl space-y-3 font-mono text-xs animate-fade-in">
 										<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
 											<div className="p-2.5 bg-[#131315] rounded-lg border border-slate-800">
-												<div className="text-[10px] text-slate-500 uppercase">Derivation Latency</div>
+												<div className="text-[10px] text-slate-500 uppercase">Duration</div>
 												<div className="text-base font-bold text-emerald-400 mt-0.5 tnum">{benchmarkResult.latencyMs} ms</div>
 											</div>
 											<div className="p-2.5 bg-[#131315] rounded-lg border border-slate-800">
-												<div className="text-[10px] text-slate-500 uppercase">Memory Footprint</div>
+												<div className="text-[10px] text-slate-500 uppercase">Memory</div>
 												<div className="text-base font-bold text-white mt-0.5">{benchmarkResult.memoryMB} MB</div>
 											</div>
 											<div className="p-2.5 bg-[#131315] rounded-lg border border-slate-800">
@@ -967,13 +948,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 												<div className="text-base font-bold text-indigo-400 mt-0.5 tnum">~{benchmarkResult.throughputMBs} MB/s</div>
 											</div>
 											<div className="p-2.5 bg-[#131315] rounded-lg border border-slate-800">
-												<div className="text-[10px] text-slate-500 uppercase">Security Rating</div>
+												<div className="text-[10px] text-slate-500 uppercase">Rating</div>
 												<div className="text-xs font-bold text-emerald-400 mt-1">{benchmarkResult.securityGrade}</div>
 											</div>
 										</div>
-										<p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-											At <span className="text-white font-mono">{benchmarkResult.latencyMs}ms</span> per unlock attempt, an attacker attempting 1 billion guesses would require approximately <span className="text-emerald-400 font-mono">{(benchmarkResult.latencyMs * 1_000_000_000 / (1000 * 3600 * 24 * 365)).toFixed(0)} CPU years</span>.
-										</p>
 									</div>
 								)}
 							</div>
@@ -986,10 +964,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<Download className="w-4 h-4 text-emerald-400" />
-									<span>Data Portability & Encrypted Backups</span>
+									<span>Backup & Export</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Safeguard your secrets with on-device encrypted backups or export records to standard formats.
+									Save encrypted backups or export your data.
 								</p>
 							</div>
 
@@ -998,15 +976,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-											Encrypted Snapshot (.json)
+											Encrypted Backup
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Complete zero-knowledge encrypted package protected by your master key.
+											Encrypted file protected by your master password.
 										</p>
 									</div>
 									{settings.lastBackupTimestamp && (
 										<span className="text-[11px] font-mono text-slate-500">
-											Last backup: {new Date(settings.lastBackupTimestamp).toLocaleDateString()}
+											Last: {new Date(settings.lastBackupTimestamp).toLocaleDateString()}
 										</span>
 									)}
 								</div>
@@ -1017,7 +995,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg"
 									>
 										<Download className="w-4 h-4 shrink-0" />
-										<span>Save Encrypted File (.json)</span>
+										<span>Save Backup (.json)</span>
 									</button>
 
 									<button
@@ -1025,7 +1003,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="py-3 px-4 bg-[#1c1b1d] hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2"
 									>
 										<Copy className="w-4 h-4 text-emerald-400" />
-										<span>Copy Backup JSON</span>
+										<span>Copy Backup</span>
 									</button>
 								</div>
 							</div>
@@ -1033,26 +1011,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							{/* Restore Backup */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-3">
 								<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-									Restore Vault from File
+									Restore Backup
 								</h3>
 								<label className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-[#09090b] transition-all group">
 									<Upload className="w-6 h-6 text-slate-500 group-hover:text-emerald-400 mb-2 transition-colors" />
-									<span className="text-xs font-semibold text-slate-300">Click or drag backup .json file to restore</span>
-									<span className="text-[10px] text-slate-500 font-mono mt-1">Replaces current vault with encrypted archive</span>
+									<span className="text-xs font-semibold text-slate-300">Select backup file (.json) to restore</span>
+									<span className="text-[10px] text-slate-500 font-mono mt-1">Replaces current vault</span>
 									<input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
 								</label>
 							</div>
 
-							{/* Plaintext Export (Guarded by High Friction) */}
+							{/* Plaintext Export */}
 							<div className="p-5 bg-[#131315] border border-amber-900/40 rounded-2xl space-y-3">
 								<div className="flex items-start gap-3">
 									<AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
 									<div>
 										<h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider font-mono">
-											Plaintext Unencrypted Export (High Caution)
+											Unencrypted Export
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Exports your credentials without encryption. Any process or file viewer will be able to read your passwords.
+											Exports data without password protection. Store securely.
 										</p>
 									</div>
 								</div>
@@ -1063,7 +1041,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="py-2.5 px-3 bg-[#18181b] hover:bg-amber-950/40 border border-amber-800/40 text-amber-300 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all"
 									>
 										<FileSpreadsheet className="w-4 h-4 text-amber-400" />
-										<span>Export Plaintext CSV</span>
+										<span>Export CSV</span>
 									</button>
 
 									<button
@@ -1071,7 +1049,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="py-2.5 px-3 bg-[#18181b] hover:bg-amber-950/40 border border-amber-800/40 text-amber-300 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all"
 									>
 										<FileText className="w-4 h-4 text-amber-400" />
-										<span>Export Plaintext JSON</span>
+										<span>Export JSON</span>
 									</button>
 								</div>
 							</div>
@@ -1084,10 +1062,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<Puzzle className="w-4 h-4 text-purple-400" />
-									<span>Browser Extension & IPC Bridge Daemon</span>
+									<span>Browser Extension</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									SafeVaultPro provides an isolated local loopback daemon (<code className="text-purple-300 font-mono">127.0.0.1:48920</code>) that connects native apps to Chrome, Edge, Brave, and Firefox.
+									Connect the desktop app to Chrome, Edge, Brave, and Firefox via local bridge (<code className="text-purple-300 font-mono">localhost:48920</code>).
 								</p>
 							</div>
 
@@ -1098,10 +1076,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										<div className={`w-3 h-3 rounded-full ${bridgeStatus === "online" ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"}`} />
 										<div>
 											<div className="text-xs font-bold text-white font-mono">
-												IPC Bridge Daemon: {bridgeStatus === "online" ? "ONLINE" : "OFFLINE"}
+												Status: {bridgeStatus === "online" ? "Online" : "Offline"}
 											</div>
 											<div className="text-[11px] text-slate-500 font-mono">
-												http://localhost:48920 • Loopback Only
+												http://localhost:48920
 											</div>
 										</div>
 									</div>
@@ -1112,15 +1090,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="px-3 py-1.5 bg-[#1c1b1d] hover:bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-300 transition-all flex items-center gap-1.5"
 									>
 										<RefreshCw className={`w-3.5 h-3.5 ${isPingingBridge ? "animate-spin text-purple-400" : ""}`} />
-										<span>{bridgeLatency !== null ? `${bridgeLatency}ms Ping` : "Test Bridge"}</span>
+										<span>{bridgeLatency !== null ? `${bridgeLatency}ms` : "Test"}</span>
 									</button>
 								</div>
 
 								{/* Authentication Token Box */}
 								<div className="p-3 bg-[#09090b] border border-slate-800 rounded-xl space-y-1.5">
 									<div className="flex justify-between text-[11px] font-mono text-slate-400">
-										<span>BRIDGE AUTHORIZATION TOKEN</span>
-										<span className="text-slate-500">SHA-256 Bearer Token</span>
+										<span>AUTH TOKEN</span>
 									</div>
 									<div className="flex items-center justify-between gap-2">
 										<code className="text-[11px] font-mono text-purple-300 truncate">
@@ -1138,14 +1115,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 								<div className="flex items-center justify-between pt-2">
 									<div className="text-xs text-slate-400">
-										Extension folder location: <span className="font-mono text-slate-300">src/extension</span>
+										Extension folder: <span className="font-mono text-slate-300">src/extension</span>
 									</div>
 									<button
 										onClick={() => vaultBackend.openExtensionDirectory()}
 										className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 font-bold rounded-xl text-xs transition-all flex items-center gap-2"
 									>
 										<FolderOpen className="w-3.5 h-3.5" />
-										<span>Open Extension Directory</span>
+										<span>Open Folder</span>
 									</button>
 								</div>
 							</div>
@@ -1158,49 +1135,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 							<div>
 								<h2 className="text-sm font-bold font-mono tracking-wide uppercase text-white flex items-center gap-2">
 									<Terminal className="w-4 h-4 text-emerald-400" />
-									<span>Cryptographic Audit, Diagnostics & Emergency Actions</span>
+									<span>Data & Reset</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Inspect zero-knowledge state, verify storage integrity, or execute factory data wipes.
+									Storage statistics and vault reset options.
 								</p>
-							</div>
-
-							{/* Audit Verification */}
-							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-3 font-mono text-xs">
-								<h3 className="text-xs font-bold text-white uppercase tracking-wider font-sans">
-									Zero-Knowledge Verification Checklist
-								</h3>
-
-								<div className="space-y-2">
-									{[
-										{ label: "Hardware Memory Sandboxing", status: "VERIFIED", desc: "Argon2id operates in WebAssembly memory without persistent page writes." },
-										{ label: "Cryptographic Authenticated Encryption", status: "AES-GCM-256", desc: "Every record contains a 128-bit authentication tag to prevent tampering." },
-										{ label: "Zero Outbound Network Transmissions", status: "ENFORCED", desc: "No credentials or telemetry ever leave the local machine." },
-										{ label: "Local SQLite / Encrypted Storage", status: "ENCRYPTED", desc: "Ciphertext at rest; keys wiped from RAM upon lock." },
-									].map((item, idx) => (
-										<div key={idx} className="p-3 bg-[#09090b] border border-slate-800 rounded-xl flex items-start justify-between gap-4">
-											<div>
-												<div className="font-bold text-slate-200">{item.label}</div>
-												<div className="text-[11px] text-slate-500 font-sans mt-0.5">{item.desc}</div>
-											</div>
-											<span className="text-[11px] font-bold text-emerald-400 shrink-0 px-2 py-0.5 bg-emerald-950/40 border border-emerald-800/40 rounded">
-												{item.status}
-											</span>
-										</div>
-									))}
-								</div>
 							</div>
 
 							{/* Storage Breakdown */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-3 font-mono text-xs">
 								<h3 className="text-xs font-bold text-white uppercase tracking-wider font-sans">
-									Storage Breakdown
+									Storage
 								</h3>
 								<div className="p-4 bg-[#09090b] border border-slate-800 rounded-xl space-y-2">
-									<div className="flex justify-between"><span className="text-slate-500">Vault Unique ID:</span> <span className="text-slate-300">{metadata?.vaultId || "N/A"}</span></div>
-									<div className="flex justify-between"><span className="text-slate-500">Total Vault Entries:</span> <span className="text-white font-bold">{allItems.length}</span></div>
-									<div className="flex justify-between"><span className="text-slate-500">Primary Ciphertext Store:</span> <span className="text-emerald-400 font-bold">{payloadSizeKB} KB</span></div>
-									<div className="flex justify-between"><span className="text-slate-500">KDF Derivation Salt:</span> <span className="text-slate-400 truncate max-w-xs">{metadata?.saltHex || "N/A"}</span></div>
+									<div className="flex justify-between"><span className="text-slate-500">Vault ID:</span> <span className="text-slate-300">{metadata?.vaultId || "N/A"}</span></div>
+									<div className="flex justify-between"><span className="text-slate-500">Total Items:</span> <span className="text-white font-bold">{allItems.length}</span></div>
+									<div className="flex justify-between"><span className="text-slate-500">Encrypted Size:</span> <span className="text-emerald-400 font-bold">{payloadSizeKB} KB</span></div>
 								</div>
 							</div>
 
@@ -1209,10 +1159,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider font-mono">
-											Reload Sample Dataset
+											Reload Sample Data
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Resets your vault records back to the default comprehensive dataset.
+											Replace current items with the sample dataset.
 										</p>
 									</div>
 									<button
@@ -1220,7 +1170,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg"
 									>
 										<RefreshCw className="w-3.5 h-3.5" />
-										<span>Reload Dataset</span>
+										<span>Reload</span>
 									</button>
 								</div>
 							</div>
@@ -1231,10 +1181,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 									<AlertOctagon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
 									<div>
 										<h3 className="text-xs font-bold text-red-400 uppercase tracking-wider font-mono">
-											Danger Zone: Complete Factory Reset
+											Reset All Data
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
-											Irreversibly purges all encrypted credentials, metadata, backup snapshots, and keys from this device.
+											Deletes all stored credentials and settings on this device.
 										</p>
 									</div>
 								</div>
@@ -1244,7 +1194,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										type="text"
 										value={wipePhrase}
 										onChange={(e) => setWipePhrase(e.target.value)}
-										placeholder='Type "WIPE VAULT" to confirm destruction'
+										placeholder='Type "WIPE VAULT" to confirm'
 										className="w-full px-4 py-2.5 bg-[#09090b] border border-red-900/60 focus:border-red-500 rounded-xl text-red-300 font-mono text-xs focus:outline-none"
 									/>
 
@@ -1254,7 +1204,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-mono font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-950/50"
 									>
 										<Trash2 className="w-4 h-4" />
-										<span>Completely Wipe & Destroy Local Vault</span>
+										<span>Wipe Vault</span>
 									</button>
 								</div>
 							</div>

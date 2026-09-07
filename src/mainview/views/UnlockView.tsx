@@ -23,9 +23,9 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 	// Calculate entropy for setup mode
 	const entropy = calculatePasswordEntropy(password);
 	const getEntropyLabel = (e: number) => {
-		if (e < 40) return { text: "Weak Master Password", color: "text-red-400", bg: "bg-red-500" };
-		if (e < 70) return { text: "Moderate Strength", color: "text-amber-400", bg: "bg-amber-500" };
-		return { text: "Strong Master Key", color: "text-emerald-400", bg: "bg-emerald-500" };
+		if (e < 40) return { text: "Weak", color: "text-red-400", bg: "bg-red-500" };
+		if (e < 70) return { text: "Fair", color: "text-amber-400", bg: "bg-amber-500" };
+		return { text: "Strong", color: "text-emerald-400", bg: "bg-emerald-500" };
 	};
 
 	const { isVisible } = useWindowVisibility();
@@ -53,12 +53,12 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 
 		if (!isConfigured) {
 			if (password.length < 10) {
-				setErrorMsg("Master password must be at least 10 characters.");
+				setErrorMsg("Password must be at least 10 characters.");
 				triggerShake();
 				return;
 			}
 			if (password !== confirmPassword) {
-				setErrorMsg("Master passwords do not match.");
+				setErrorMsg("Passwords do not match.");
 				triggerShake();
 				return;
 			}
@@ -71,13 +71,13 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 				handleFailedAttempt();
 			}
 		} catch (err: any) {
-			handleFailedAttempt(err.message || "Invalid Master Password");
+			handleFailedAttempt(err.message || "Incorrect password");
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
-	const handleFailedAttempt = (msg = "Invalid Master Password") => {
+	const handleFailedAttempt = (msg = "Incorrect password") => {
 		const newAttempts = failedAttempts + 1;
 		setFailedAttempts(newAttempts);
 		setErrorMsg(msg);
@@ -86,7 +86,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 		if (newAttempts >= 3) {
 			const penaltySeconds = Math.pow(2, newAttempts - 3) * 10;
 			setCooldown(penaltySeconds);
-			setErrorMsg(`Too many failed attempts. Vault locked for ${penaltySeconds} seconds.`);
+			setErrorMsg(`Too many failed attempts. Try again in ${penaltySeconds} seconds.`);
 		}
 	};
 
@@ -115,9 +115,8 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 
 			<div className="w-full max-w-md relative z-10">
 				{/* Top Identity Hero Logo */}
-				<div className="text-center mb-7 flex flex-col items-center">
-					<div className="relative mb-5 flex items-center justify-center">
-						{/* Ambient Glow Aura */}
+				<div className="text-center mb-6 flex flex-col items-center">
+					<div className="relative mb-4 flex items-center justify-center">
 						<div
 							className={`absolute -inset-4 rounded-full blur-2xl opacity-60 transition-all duration-700 pointer-events-none ${
 								isSubmitting
@@ -128,29 +127,28 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 							}`}
 						/>
 
-						{/* Hero Logo with Elegant Drop Shadow */}
 						<div className="relative transition-transform duration-500 hover:scale-105 select-none">
 							<SafeVaultLogo
-								className={`w-28 h-28 drop-shadow-2xl transition-all duration-500 ${
+								className={`w-24 h-24 drop-shadow-2xl transition-all duration-500 ${
 									isSubmitting
 										? "filter drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]"
 										: errorMsg
 										? "filter drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]"
 										: "filter drop-shadow-[0_10px_30px_rgba(16,185,129,0.45)]"
 								}`}
-								alt="SafeVaultPro Master Key"
+								alt="SafeVaultPro"
 							/>
 						</div>
 					</div>
 
-					<h1 className="text-3xl font-extrabold tracking-tight text-white mb-2 flex items-center gap-1 justify-center">
+					<h1 className="text-2xl font-bold tracking-tight text-white mb-1.5 flex items-center gap-1 justify-center">
 						<span>SafeVault</span>
 						<span className="text-emerald-400">Pro</span>
 					</h1>
-					<p className="text-xs sm:text-sm text-slate-300 font-medium max-w-sm">
+					<p className="text-xs text-slate-400 max-w-sm">
 						{isConfigured
-							? "Enter your master password to unlock your encrypted local vault"
-							: "Create a strong master key to secure your encrypted vault store"}
+							? "Enter master password to unlock"
+							: "Set a master password to protect your vault"}
 					</p>
 				</div>
 
@@ -172,7 +170,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						{/* Cooldown Display */}
 						{cooldown > 0 && (
 							<div className="text-center py-2 text-amber-400 font-mono text-sm">
-								Vault locked. Retry in <span className="font-bold text-lg tnum">{cooldown}s</span>
+								Locked. Try again in <span className="font-bold text-lg tnum">{cooldown}s</span>
 							</div>
 						)}
 
@@ -208,7 +206,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						{!isConfigured && password.length > 0 && (
 							<div className="space-y-1.5 pt-1">
 								<div className="flex justify-between text-xs font-mono">
-									<span className="text-slate-300">Key Entropy: {entropy} bits</span>
+									<span className="text-slate-400">{entropy} bits</span>
 									<span className={`font-semibold ${strength.color}`}>{strength.text}</span>
 								</div>
 								<div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden flex gap-1 p-0.5">
@@ -235,7 +233,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						{!isConfigured && (
 							<div>
 								<label className="block text-xs font-semibold text-slate-300 mb-1.5">
-									Confirm Master Password
+									Confirm Password
 								</label>
 								<input
 									type={showPassword ? "text" : "password"}
@@ -256,16 +254,16 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 							{isSubmitting ? (
 								<span className="flex items-center gap-2">
 									<div className="w-4 h-4 border-2 border-[#003824] border-t-transparent rounded-full animate-spin" />
-									Deriving Key (Argon2id)...
+									Unlocking...
 								</span>
 							) : isConfigured ? (
 								<>
-									<span>Unlock Vault</span>
+									<span>Unlock</span>
 									<ArrowRight className="w-4 h-4" />
 								</>
 							) : (
 								<>
-									<span>Create Encrypted Vault</span>
+									<span>Create Vault</span>
 									<ShieldCheck className="w-4 h-4" />
 								</>
 							)}
@@ -273,30 +271,14 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 					</form>
 				</div>
 
-				{/* Vault Security Specifications Grid */}
-				<div className="mt-5 grid grid-cols-3 gap-2.5 text-center">
-					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
-						<span className="block text-[11px] font-bold text-white">Local KDF</span>
-						<span className="text-[10px] text-slate-400 font-mono">Argon2id (64MB)</span>
-					</div>
-					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
-						<span className="block text-[11px] font-bold text-white">Storage</span>
-						<span className="text-[10px] text-emerald-400 font-mono">Encrypted SQL</span>
-					</div>
-					<div className="p-2.5 bg-[#131315]/80 border border-slate-800/80 rounded-xl">
-						<span className="block text-[11px] font-bold text-white">Architecture</span>
-						<span className="text-[10px] text-slate-400 font-mono">Zero-Knowledge</span>
-					</div>
-				</div>
-
 				{/* Footer Reset Action */}
 				<div className="mt-4 text-center">
 					<button
 						type="button"
 						onClick={() => setShowWipeConfirmModal(true)}
-						className="text-slate-400 hover:text-red-400 underline text-xs font-sans cursor-pointer transition-colors"
+						className="text-slate-500 hover:text-red-400 text-xs font-sans cursor-pointer transition-colors"
 					>
-						Wipe Old Storage & Load New Seed Dataset
+						Reset vault & load sample data
 					</button>
 				</div>
 			</div>
@@ -308,7 +290,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						<div className="p-5 border-b border-slate-800 flex items-center justify-between bg-red-950/20">
 							<div className="flex items-center gap-2.5 text-red-400">
 								<AlertTriangle className="w-5 h-5 shrink-0" />
-								<h3 className="text-sm font-bold text-white">Confirm Storage Wipe</h3>
+								<h3 className="text-sm font-bold text-white">Reset Vault</h3>
 							</div>
 							<button
 								type="button"
@@ -321,12 +303,8 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 
 						<div className="p-6 space-y-4 text-xs">
 							<p className="text-slate-300 leading-relaxed">
-								Are you sure you want to wipe local vault storage and reset the app?
+								Reset local vault storage? All saved credentials will be replaced with sample data.
 							</p>
-							<div className="p-3.5 bg-red-950/40 border border-red-900/50 rounded-xl text-red-300 space-y-1">
-								<span className="font-semibold block text-red-200 font-mono text-[11px]">WARNING: IRREVERSIBLE ACTION</span>
-								<span>All stored local credentials, master keys, and metadata will be permanently deleted and replaced with the fresh seed dataset.</span>
-							</div>
 						</div>
 
 						<div className="p-4 bg-[#09090b] border-t border-slate-800 flex items-center justify-end gap-3">
@@ -346,7 +324,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 								className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg"
 							>
 								<Trash2 className="w-3.5 h-3.5" />
-								<span>Wipe Storage & Reset</span>
+								<span>Reset Vault</span>
 							</button>
 						</div>
 					</div>

@@ -64,17 +64,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 	const vaultItems = [
 		{ id: "passwords" as NavCategory, label: "Passwords", icon: KeyRound, count: itemCounts.passwords },
-		{ id: "notes" as NavCategory, label: "Secure Notes", icon: FileText, count: itemCounts.notes },
-		{ id: "personal_info" as NavCategory, label: "Personal Info", icon: User, count: itemCounts.personal_info },
-		{ id: "credit_cards" as NavCategory, label: "Payment Cards", icon: CreditCard, count: itemCounts.credit_cards },
-		{ id: "ids" as NavCategory, label: "IDs & Passports", icon: BadgeCheck, count: itemCounts.ids },
-		{ id: "totp" as NavCategory, label: "2FA Authenticator", icon: Smartphone, count: itemCounts.totp },
-		{ id: "env_files" as NavCategory, label: ".env Files", icon: Code2, count: itemCounts.env_files },
+		{ id: "notes" as NavCategory, label: "Notes", icon: FileText, count: itemCounts.notes },
+		{ id: "personal_info" as NavCategory, label: "Identity", icon: User, count: itemCounts.personal_info },
+		{ id: "credit_cards" as NavCategory, label: "Cards", icon: CreditCard, count: itemCounts.credit_cards },
+		{ id: "ids" as NavCategory, label: "IDs", icon: BadgeCheck, count: itemCounts.ids },
+		{ id: "totp" as NavCategory, label: "2FA", icon: Smartphone, count: itemCounts.totp },
+		{ id: "env_files" as NavCategory, label: ".env", icon: Code2, count: itemCounts.env_files },
 	];
 
 	const securityItems = [
-		{ id: "dashboard" as NavCategory, label: "Password Health", icon: Activity },
-		{ id: "settings" as NavCategory, label: "Vault Settings", icon: Settings },
+		{ id: "dashboard" as NavCategory, label: "Health", icon: Activity },
+		{ id: "settings" as NavCategory, label: "Settings", icon: Settings },
 	];
 
 	return (
@@ -239,21 +239,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 							className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md font-medium text-slate-400 hover:text-white hover:bg-[#18181b] transition-all text-left"
 						>
 							<Zap className="w-4 h-4 text-emerald-400" />
-							<span>Password Generator</span>
+							<span>Generator</span>
 						</button>
 						<button
 							onClick={onOpenOcr}
 							className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md font-medium text-slate-400 hover:text-white hover:bg-[#18181b] transition-all text-left"
 						>
 							<QrCode className="w-4 h-4 text-blue-400" />
-							<span>Scan 2FA QR Code</span>
+							<span>Scan QR</span>
 						</button>
 						<button
 							onClick={onOpenExtensionModal}
 							className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md font-medium text-slate-400 hover:text-white hover:bg-[#18181b] transition-all text-left"
 						>
 							<Puzzle className="w-4 h-4 text-purple-400" />
-							<span>Browser Extension</span>
+							<span>Extension</span>
 						</button>
 					</div>
 				</div>

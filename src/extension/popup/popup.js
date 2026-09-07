@@ -49,11 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (!res || !res.connected) {
 				statusPill.className = 'status-indicator offline';
 				statusText.textContent = 'Disconnected';
-				matchedList.innerHTML = '<div class="empty-state">Start SafeVaultPro desktop app to connect.</div>';
+				matchedList.innerHTML = '<div class="empty-state">Open desktop app to connect.</div>';
 			} else if (!res.unlocked) {
 				statusPill.className = 'status-indicator locked';
-				statusText.textContent = 'Vault Locked';
-				matchedList.innerHTML = '<div class="empty-state">Unlock SafeVaultPro desktop app to access items.</div>';
+				statusText.textContent = 'Locked';
+				matchedList.innerHTML = '<div class="empty-state">Unlock desktop app to view items.</div>';
 			} else {
 				statusPill.className = 'status-indicator online';
 				statusText.textContent = 'Unlocked';
