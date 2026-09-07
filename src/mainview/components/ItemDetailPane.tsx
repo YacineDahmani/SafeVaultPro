@@ -24,6 +24,7 @@ import type { VaultItem } from "../../bun/types";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 import { vaultBackend } from "../../bun/vaultBackendApi";
 import { useWindowVisibility } from "../hooks/useWindowVisibility";
+import { openExternalUrl } from "../utils/browserOpener";
 
 interface ItemDetailPaneProps {
 	item: VaultItem | null;
@@ -276,9 +277,12 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 								<div className="flex items-center justify-between">
 									<a
 										href={item.url}
-										target="_blank"
-										rel="noreferrer"
-										className="text-xs text-blue-400 hover:underline font-mono flex items-center gap-1.5"
+										onClick={(e) => {
+											e.preventDefault();
+											if (item.url) openExternalUrl(item.url);
+										}}
+										className="text-xs text-blue-400 hover:text-blue-300 hover:underline font-mono flex items-center gap-1.5 cursor-pointer"
+										title="Open in default browser"
 									>
 										<span>{item.url}</span>
 										<ExternalLink className="w-3.5 h-3.5" />
@@ -286,6 +290,7 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 									<button
 										onClick={() => handleCopy(item.url || "", "URL")}
 										className="p-1.5 rounded hover:bg-[#1c1b1d] text-slate-400 hover:text-emerald-400 transition-colors"
+										title="Copy URL"
 									>
 										<Copy className="w-4 h-4" />
 									</button>

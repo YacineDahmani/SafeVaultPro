@@ -2,6 +2,7 @@ import React, { StrictMode, Component, type ErrorInfo, type ReactNode } from "re
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { openExternalUrl } from "./utils/browserOpener";
 
 interface Props {
 	children: ReactNode;
@@ -52,6 +53,25 @@ class ErrorBoundary extends Component<Props, State> {
 		}
 		return this.props.children;
 	}
+}
+
+// Global interceptor: Catch any external web links clicked in the UI and redirect to the default system browser
+if (typeof window !== "undefined") {
+	window.addEventListener(
+		"click",
+		(e: MouseEvent) => {
+			const target = (e.target as HTMLElement)?.closest("a");
+			if (target && target.href) {
+				const href = target.href;
+				if (href.startsWith("http://") || href.startsWith("https://")) {
+					e.preventDefault();
+					e.stopPropagation();
+					openExternalUrl(href);
+				}
+			}
+		},
+		{ capture: true },
+	);
 }
 
 createRoot(document.getElementById("root")!).render(

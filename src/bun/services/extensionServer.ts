@@ -314,6 +314,28 @@ export function startExtensionServer() {
 					);
 				}
 
+				// Open URL in system default browser endpoint
+				if (url.pathname === "/api/open-url" && (req.method === "POST" || req.method === "GET")) {
+					if (!isAuthorized(req)) {
+						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
+					}
+					let targetUrl = "";
+					if (req.method === "POST") {
+						try {
+							const body = (await req.json()) as { url?: string };
+							targetUrl = body.url || "";
+						} catch {}
+					}
+					if (!targetUrl) {
+						targetUrl = url.searchParams.get("url") || "";
+					}
+					const opened = vaultBackend.openExternalUrl(targetUrl);
+					return new Response(
+						JSON.stringify({ success: opened }),
+						{ headers }
+					);
+				}
+
 				// Auto-save password endpoint called by browser extension on registration/submit
 				if (url.pathname === "/api/save-password" && req.method === "POST") {
 					if (!isAuthorized(req)) {

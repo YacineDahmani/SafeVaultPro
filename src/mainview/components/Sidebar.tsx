@@ -21,6 +21,7 @@ import {
 	ExternalLink,
 } from "lucide-react";
 import type { NavCategory } from "../hooks/useVault";
+import { openExternalUrl } from "../utils/browserOpener";
 
 interface SidebarProps {
 	activeCategory: NavCategory;
@@ -263,10 +264,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			<div className="p-3 border-t border-slate-800/60 bg-[#09090b]/50 flex items-center justify-between">
 				<a
 					href="https://github.com/YacineDahmani"
-					target="_blank"
-					rel="noreferrer"
-					className="text-[11px] font-mono text-slate-400 hover:text-emerald-400 hover:underline flex items-center gap-1 transition-colors"
-					title="YacineDahmani GitHub Profile"
+					onClick={(e) => {
+						e.preventDefault();
+						openExternalUrl("https://github.com/YacineDahmani");
+					}}
+					className="text-[11px] font-mono text-slate-400 hover:text-emerald-400 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+					title="Open YacineDahmani GitHub Profile in browser"
 				>
 					<span>YacineDahmani © 2026</span>
 					<ExternalLink className="w-3 h-3 text-slate-500" />

@@ -180,6 +180,35 @@ export class VaultBackendAPI {
 		}
 	}
 
+	public openExternalUrl(url: string): boolean {
+		try {
+			if (!url || typeof url !== "string") return false;
+			let cleanUrl = url.trim();
+			if (!cleanUrl) return false;
+			if (!/^https?:\/\//i.test(cleanUrl)) {
+				cleanUrl = "https://" + cleanUrl;
+			}
+
+			// Validate URL format
+			new URL(cleanUrl);
+
+			if (process.platform === "win32") {
+				// Launch Windows default web browser
+				Bun.spawn(["cmd.exe", "/c", "start", "", cleanUrl]);
+				return true;
+			} else if (process.platform === "darwin") {
+				Bun.spawn(["open", cleanUrl]);
+				return true;
+			} else {
+				Bun.spawn(["xdg-open", cleanUrl]);
+				return true;
+			}
+		} catch (e) {
+			console.error("Failed to open external URL in default browser:", e);
+			return false;
+		}
+	}
+
 	public saveBackupToDisk(fileName: string, jsonStr: string): string | null {
 		try {
 			let downloadsDir = "";

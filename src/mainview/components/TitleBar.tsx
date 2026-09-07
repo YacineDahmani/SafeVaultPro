@@ -49,7 +49,6 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 				{/* Left Drag Region */}
 				<div className="flex items-center gap-2 pointer-events-none opacity-90 select-none">
 					<SafeVaultLogo className="w-4 h-4" />
-					<span className="text-[11px] font-semibold tracking-wide text-slate-300">SafeVaultPro</span>
 				</div>
 
 				{/* Center Drag Region Spacer */}
