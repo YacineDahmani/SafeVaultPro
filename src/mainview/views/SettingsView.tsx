@@ -629,6 +629,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								</label>
 							</div>
 
+							{/* Close Button & System Tray Behavior */}
+							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4">
+								<div className="flex items-start justify-between">
+									<div>
+										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+											<span>Close Button & Tray Behavior</span>
+											{settings.minimizeToTray ? (
+												<span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-[10px] rounded font-mono font-bold">
+													MINIMIZE TO TRAY
+												</span>
+											) : (
+												<span className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-400 text-[10px] rounded font-mono font-bold">
+													NORMAL CLOSE (DEFAULT)
+												</span>
+											)}
+										</h3>
+										<p className="text-xs text-slate-400 mt-1">
+											Choose whether closing the app exits completely or keeps running in the background.
+										</p>
+									</div>
+								</div>
+
+								<label className="p-4 bg-[#09090b] border border-slate-800/80 rounded-xl flex items-center justify-between cursor-pointer hover:border-slate-700/80 transition-colors">
+									<div className="space-y-1 pr-4">
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-bold text-white">Minimize to system tray on close</span>
+										</div>
+										<p className="text-[11px] text-slate-400 leading-relaxed">
+											When closing the window, keep SafeVaultPro running in the Windows system tray. The browser extension stays continuously connected for live autofill and credential capturing.
+										</p>
+									</div>
+									<input
+										type="checkbox"
+										checked={Boolean(settings.minimizeToTray)}
+										onChange={(e) => {
+											const val = e.target.checked;
+											updateSettings({ minimizeToTray: val });
+											showToast(
+												val
+													? "Window close will now minimize to system tray"
+													: "Window close will now exit the application",
+												"info"
+											);
+										}}
+										className="w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0"
+									/>
+								</label>
+							</div>
+
 							{/* Clipboard Defense */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4">
 								<div className="flex items-center justify-between">

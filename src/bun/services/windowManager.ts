@@ -289,6 +289,73 @@ export function closeWindow(win?: any): void {
 	}
 }
 
+let isHiddenInTray = false;
+
+/**
+ * Hides the window to the system tray (removes from taskbar, keeps background process running).
+ */
+export function hideToTray(win?: any): void {
+	const target = win || mainWinRef;
+	try {
+		target?.hide();
+		isHiddenInTray = true;
+		console.log("[WindowManager] Application window hidden to system tray");
+	} catch (e) {
+		console.error("[WindowManager] Failed to hide window to tray:", e);
+	}
+}
+
+/**
+ * Restores and activates the window from the system tray.
+ */
+export function restoreFromTray(win?: any): void {
+	const target = win || mainWinRef;
+	try {
+		target?.show();
+		target?.activate();
+		isHiddenInTray = false;
+		console.log("[WindowManager] Application window restored from system tray");
+	} catch (e) {
+		console.error("[WindowManager] Failed to restore window from tray:", e);
+	}
+}
+
+/**
+ * Returns whether the window is currently hidden in the tray.
+ */
+export function isWindowHidden(): boolean {
+	return isHiddenInTray;
+}
+
+/**
+ * Handles window close according to user's minimizeToTray preference.
+ */
+export function handleCloseOrMinimize(win?: any, minimizeToTray = false): { action: "hidden" | "closed" } {
+	const target = win || mainWinRef;
+	if (minimizeToTray) {
+		hideToTray(target);
+		return { action: "hidden" };
+	} else {
+		closeWindow(target);
+		return { action: "closed" };
+	}
+}
+
+/**
+ * Completely terminates the application and background runtime.
+ */
+export function forceQuitApp(win?: any): void {
+	const target = win || mainWinRef;
+	try {
+		target?.close();
+	} catch {}
+	setTimeout(() => {
+		try {
+			process.exit(0);
+		} catch {}
+	}, 150);
+}
+
 /**
  * Records the window frame when resized by the user manually,
  * preserving it for subsequent unmaximize / restore operations.

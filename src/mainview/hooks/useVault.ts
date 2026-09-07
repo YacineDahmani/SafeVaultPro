@@ -33,6 +33,33 @@ export function useVault() {
 	const updateSettings = useCallback((partial: Partial<VaultSettings>) => {
 		const updated = saveVaultSettings(partial);
 		setSettings(updated);
+
+		// Immediately sync to Bun backend bridge so tray and close handlers reflect changes
+		fetch("http://localhost:48920/api/settings", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+			},
+			body: JSON.stringify(updated),
+		}).catch(() => {});
+	}, []);
+
+	// Sync initial settings from backend if available
+	useEffect(() => {
+		fetch("http://localhost:48920/api/settings", {
+			headers: {
+				"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+			},
+		})
+			.then((res) => res.json())
+			.then((data) => {
+				if (data?.success && data?.settings) {
+					const merged = saveVaultSettings(data.settings);
+					setSettings(merged);
+				}
+			})
+			.catch(() => {});
 	}, []);
 
 	// Modals & Panels
@@ -192,7 +219,25 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		}
 	}, [isUnlocked, activeCategory, searchQuery, refreshItems]);
 
-	// Live SSE connection to ingest items saved by browser extension in real time
+	// Actions
+	const lock = useCallback(() => {
+		vaultBackend.lockVault();
+		setIsUnlocked(false);
+		setItems([]);
+		setAllItems([]);
+		setSelectedItemId(null);
+		syncExtension(false, []);
+
+		if (settings.wipeClipboardOnLock && typeof navigator !== "undefined" && navigator.clipboard) {
+			try {
+				navigator.clipboard.writeText("").catch(() => {});
+			} catch {}
+		}
+
+		showToast("Vault locked", "lock");
+	}, [settings.wipeClipboardOnLock, showToast, syncExtension]);
+
+	// Live SSE connection to ingest items saved by browser extension in real time & handle remote lock
 	useEffect(() => {
 		if (!isUnlocked) return;
 
@@ -207,6 +252,8 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 						const data = JSON.parse(event.data);
 						if (data && data.type === "ITEM_SAVED" && data.item) {
 							ingestPendingItems([data.item]);
+						} else if (data && data.type === "VAULT_LOCKED") {
+							lock();
 						}
 					} catch (err) {
 						console.error("Failed to parse SSE event:", err);
@@ -242,25 +289,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 				clearTimeout(reconnectTimer);
 			}
 		};
-	}, [isUnlocked, ingestPendingItems]);
-
-	// Actions
-	const lock = useCallback(() => {
-		vaultBackend.lockVault();
-		setIsUnlocked(false);
-		setItems([]);
-		setAllItems([]);
-		setSelectedItemId(null);
-		syncExtension(false, []);
-
-		if (settings.wipeClipboardOnLock && typeof navigator !== "undefined" && navigator.clipboard) {
-			try {
-				navigator.clipboard.writeText("").catch(() => {});
-			} catch {}
-		}
-
-		showToast("Vault locked", "lock");
-	}, [settings.wipeClipboardOnLock, showToast, syncExtension]);
+	}, [isUnlocked, ingestPendingItems, lock]);
 
 	// Inactivity-based auto-lock tracking
 	useEffect(() => {

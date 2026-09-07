@@ -43,7 +43,11 @@ function App() {
 
 	return (
 		<div className="h-full w-full bg-[#09090b] overflow-hidden select-none flex flex-col">
-			<TitleBar isMaximized={isMaximized} onMaximizedChange={setIsMaximized} />
+			<TitleBar
+				isMaximized={isMaximized}
+				onMaximizedChange={setIsMaximized}
+				minimizeToTray={vault.settings.minimizeToTray}
+			/>
 			<div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden">
 				{!vault.isUnlocked ? (
 					<UnlockView

@@ -10,6 +10,7 @@ export interface VaultSettings {
 	defaultLandingView: "all" | "dashboard" | "favorites";
 	autoBackupEnabled: boolean;
 	lastBackupTimestamp: number | null;
+	minimizeToTray: boolean;
 }
 
 const SETTINGS_STORAGE_KEY = "safevault_user_settings";
@@ -26,11 +27,14 @@ export const DEFAULT_SETTINGS: VaultSettings = {
 	defaultLandingView: "all",
 	autoBackupEnabled: true,
 	lastBackupTimestamp: null,
+	minimizeToTray: false,
 };
+
+let memorySettings: VaultSettings = { ...DEFAULT_SETTINGS };
 
 export function getVaultSettings(): VaultSettings {
 	if (typeof localStorage === "undefined") {
-		return { ...DEFAULT_SETTINGS };
+		return { ...memorySettings };
 	}
 	const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
 	if (!raw) return { ...DEFAULT_SETTINGS };
@@ -51,6 +55,7 @@ export function saveVaultSettings(settings: Partial<VaultSettings>): VaultSettin
 		...current,
 		...settings,
 	};
+	memorySettings = { ...updated };
 	if (typeof localStorage !== "undefined") {
 		localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
 	}
@@ -58,6 +63,7 @@ export function saveVaultSettings(settings: Partial<VaultSettings>): VaultSettin
 }
 
 export function resetVaultSettings(): VaultSettings {
+	memorySettings = { ...DEFAULT_SETTINGS };
 	if (typeof localStorage !== "undefined") {
 		localStorage.removeItem(SETTINGS_STORAGE_KEY);
 	}

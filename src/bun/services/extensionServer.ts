@@ -9,7 +9,12 @@ import {
 	toggleMaximize,
 	minimizeWindow,
 	closeWindow,
+	hideToTray,
+	restoreFromTray,
+	handleCloseOrMinimize,
 } from "./windowManager";
+import { DEFAULT_SETTINGS, type VaultSettings } from "../db/settingsStorage";
+import { updateTrayStatus } from "./trayService";
 
 const PORT = 48920;
 
@@ -25,12 +30,35 @@ try {
 	console.warn("[Bridge] Using default token fallback:", e);
 }
 
+const SETTINGS_FILE_PATH = path.resolve(process.cwd(), "src", "bun", "db", "user-settings.json");
+
+let currentSettings: VaultSettings = { ...DEFAULT_SETTINGS };
+
+try {
+	if (fs.existsSync(SETTINGS_FILE_PATH)) {
+		const raw = JSON.parse(fs.readFileSync(SETTINGS_FILE_PATH, "utf-8"));
+		currentSettings = { ...DEFAULT_SETTINGS, ...raw };
+	}
+} catch (e) {
+	console.warn("[Bridge] Using default settings:", e);
+}
+
+function saveSettingsToDisk(settings: Partial<VaultSettings>): VaultSettings {
+	currentSettings = { ...currentSettings, ...settings };
+	try {
+		fs.writeFileSync(SETTINGS_FILE_PATH, JSON.stringify(currentSettings, null, 2), "utf-8");
+	} catch (e) {
+		console.warn("[Bridge] Could not save settings to disk:", e);
+	}
+	return currentSettings;
+}
+
 let syncedUnlocked = false;
 let syncedItems: VaultItem[] = [];
 let pendingAppItems: VaultItem[] = [];
 const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
 
-function broadcastSSE(data: any) {
+export function broadcastSSE(data: any) {
 	const encoder = new TextEncoder();
 	const payload = encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
 	for (const client of sseClients) {
@@ -162,6 +190,7 @@ export function startExtensionServer() {
 						const body = (await req.json()) as { unlocked?: boolean; items?: VaultItem[] };
 						if (typeof body.unlocked === "boolean") {
 							syncedUnlocked = body.unlocked;
+							updateTrayStatus(body.unlocked);
 							if (body.unlocked && Array.isArray(body.items)) {
 								// Preserve any pending extension items that haven't been persisted to body.items yet
 								const pendingIds = new Set(pendingAppItems.map((p) => p.id));
@@ -250,10 +279,10 @@ export function startExtensionServer() {
 					}
 				}
 
-				// Window action endpoint (minimize, maximize, unmaximize, close) from TitleBar
+				// Window action endpoint (minimize, maximize, unmaximize, close, hideToTray, restoreFromTray) from TitleBar & Tray
 				if (url.pathname === "/api/window-action" && req.method === "POST") {
 					try {
-						const body = (await req.json()) as { action?: string };
+						const body = (await req.json()) as { action?: string; minimizeToTray?: boolean };
 						let isMax = false;
 
 						if (body.action === "minimize") {
@@ -265,8 +294,24 @@ export function startExtensionServer() {
 							isMax = unmaximizeWindow();
 						} else if (body.action === "forceMaximize") {
 							isMax = maximizeWindow();
+						} else if (body.action === "hideToTray") {
+							hideToTray();
+						} else if (body.action === "restoreFromTray") {
+							restoreFromTray();
 						} else if (body.action === "close") {
-							closeWindow();
+							const shouldMinimize = typeof body.minimizeToTray === "boolean"
+								? body.minimizeToTray
+								: Boolean(currentSettings.minimizeToTray);
+							const closeResult = handleCloseOrMinimize(undefined, shouldMinimize);
+							return new Response(
+								JSON.stringify({
+									success: true,
+									isMaximized: false,
+									action: closeResult.action,
+									minimizedToTray: closeResult.action === "hidden",
+								}),
+								{ headers }
+							);
 						} else {
 							isMax = isWindowMaximized();
 						}
@@ -275,6 +320,22 @@ export function startExtensionServer() {
 					} catch (e) {
 						console.error("[WindowAction] Error:", e);
 						return new Response(JSON.stringify({ success: false, error: String(e) }), { headers, status: 400 });
+					}
+				}
+
+				// Settings management endpoints (syncs user preferences including minimizeToTray)
+				if (url.pathname === "/api/settings") {
+					if (req.method === "GET") {
+						return new Response(JSON.stringify({ success: true, settings: currentSettings }), { headers });
+					}
+					if (req.method === "POST") {
+						try {
+							const body = (await req.json()) as Partial<VaultSettings>;
+							const updated = saveSettingsToDisk(body);
+							return new Response(JSON.stringify({ success: true, settings: updated }), { headers });
+						} catch (e) {
+							return new Response(JSON.stringify({ success: false, error: "Invalid settings payload" }), { headers, status: 400 });
+						}
 					}
 				}
 
