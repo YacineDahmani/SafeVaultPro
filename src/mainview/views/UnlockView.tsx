@@ -270,17 +270,6 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						</button>
 					</form>
 				</div>
-
-				{/* Footer Reset Action */}
-				<div className="mt-4 text-center">
-					<button
-						type="button"
-						onClick={() => setShowWipeConfirmModal(true)}
-						className="text-slate-500 hover:text-red-400 text-xs font-sans cursor-pointer transition-colors"
-					>
-						Reset vault & load sample data
-					</button>
-				</div>
 			</div>
 
 			{/* Wipe Confirmation Modal */}
