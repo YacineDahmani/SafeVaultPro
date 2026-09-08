@@ -343,11 +343,33 @@
 			return 'generic';
 		}
 
+		// 10a. Personal Info: Arabic Names (First, Last, Full)
+		if (
+			matchToken(norm, /\b(first\s*name\s*ar(abic)?|prenom\s*ar(abe)?|nom\s*arabe|arabic\s*first\s*name|fname\s*ar|prenom\s*en\s*arabe|ar\s*first\s*name|ar\s*fname)\b/i) ||
+			matchToken(raw, /(الاسم[-_]?(الشخصي|الأول|الاول)?[-_]?(بالعربية|باللغة[-_]?العربية|عربي)|الاسم[-_]?(الشخصي|الأول|الاول))/i)
+		) {
+			return 'personal_firstNameArabic';
+		}
+
+		if (
+			matchToken(norm, /\b(last\s*name\s*ar(abic)?|family\s*name\s*ar|nom\s*ar(abe)?|arabic\s*last\s*name|lname\s*ar|nom\s*de\s*famille\s*ar|nom\s*en\s*arabe|ar\s*last\s*name|ar\s*lname)\b/i) ||
+			matchToken(raw, /(اللقب[-_]?(العائلي|بالعربية|عربي)|اسم[-_]?العائلة[-_]?بالعربية|اللقب)/i)
+		) {
+			return 'personal_lastNameArabic';
+		}
+
+		if (
+			matchToken(norm, /\b(full\s*name\s*ar(abic)?|nom\s*prenom\s*ar|arabic\s*full\s*name|ar\s*full\s*name)\b/i) ||
+			matchToken(raw, /(الاسم[-_]?الكامل[-_]?بالعربية|الاسم[-_]?واللقب[-_]?بالعربية|الاسم[-_]?الكامل)/i)
+		) {
+			return 'personal_fullNameArabic';
+		}
+
 		// 10. Personal Info: First Name
 		if (
 			autocomplete === 'given-name' ||
 			(matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			matchToken(raw, /(الاسم[-_]?الأول|الاسم[-_]?الاول|الاسم[-_]?الشخصي)/i)
+			matchToken(raw, /(الاسم)/i)
 		) {
 			return 'personal_firstName';
 		}
@@ -356,8 +378,7 @@
 		if (
 			autocomplete === 'family-name' ||
 			(matchToken(norm, /\b(last\s*name|family\s*name|surname|lname|nom\s*de\s*famille)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|full|user|card|holder|titulaire|porteur|cc)\b/i)) ||
-			matchToken(raw, /(اللقب|اسم[-_]?العائلة|اسم[-_]?النسب)/i)
+			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|full|user|card|holder|titulaire|porteur|cc)\b/i))
 		) {
 			return 'personal_lastName';
 		}
@@ -365,8 +386,7 @@
 		// 12. Personal Info: Full Name
 		if (
 			autocomplete === 'name' ||
-			(matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			matchToken(raw, /(الاسم[-_]?الكامل|الاسم[-_]?الثلاثي|الاسم[-_]?واللقب)/i)
+			(matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
 		) {
 			return 'personal_fullName';
 		}
@@ -407,9 +427,17 @@
 			return 'personal_age';
 		}
 
-		// 16. Personal Info: National ID / Passport / NIN
+		// 16a. Personal Info: 18-Digit NIN (National Identification Number)
 		if (
-			matchToken(norm, /\b(national\s*id|nin|ssn|social\s*security|passport|passeport|carte\s*identite|n\s*national|cin|cni|identity\s*card)\b/i) ||
+			matchToken(norm, /\b(nin|national\s*identification\s*num(ber)?|numero\s*d?\s*identification\s*nationale|num\s*identite\s*nationale|identifiant\s*national|matricule\s*national|nin\s*num(ber)?)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف[-_]?الوطني|الهوية[-_]?الوطنية)|الرقم[-_]?الوطني[-_]?(التعريفي|البيومتري)?)/i)
+		) {
+			return 'personal_nin';
+		}
+
+		// 16b. General National ID / Passport
+		if (
+			matchToken(norm, /\b(national\s*id|ssn|social\s*security|passport|passeport|carte\s*identite|n\s*national|cin|cni|identity\s*card)\b/i) ||
 			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف|جواز[-_]?السفر)/i)
 		) {
 			return 'personal_nationalId';
@@ -581,7 +609,7 @@
 			return;
 		}
 		// Do not attach badges to secondary personal info fields (Last Name, Address Line 2, City, State, Zip, Country, Birth fields, Gender, Age)
-		if (['personal_lastName', 'personal_address2', 'personal_city', 'personal_state', 'personal_zip', 'personal_country', 'personal_birthDay', 'personal_birthMonth', 'personal_birthYear', 'personal_age', 'personal_gender'].includes(classification)) {
+		if (['personal_lastName', 'personal_lastNameArabic', 'personal_address2', 'personal_city', 'personal_state', 'personal_zip', 'personal_country', 'personal_birthDay', 'personal_birthMonth', 'personal_birthYear', 'personal_age', 'personal_gender'].includes(classification)) {
 			return;
 		}
 		if (classification === 'generic') {
@@ -1104,6 +1132,9 @@
 		let first = item.firstName || '';
 		let last = item.lastName || '';
 		let full = item.fullName || '';
+		let firstAr = item.firstNameArabic || '';
+		let lastAr = item.lastNameArabic || '';
+		let fullAr = item.fullNameArabic || '';
 
 		if ((!first || !last) && full) {
 			const parts = full.trim().split(/\s+/);
@@ -1118,27 +1149,75 @@
 			full = `${first} ${last}`.trim();
 		}
 
+		if ((!firstAr || !lastAr) && fullAr) {
+			const arParts = fullAr.trim().split(/\s+/);
+			if (arParts.length >= 2) {
+				if (!firstAr) firstAr = arParts[0];
+				if (!lastAr) lastAr = arParts.slice(1).join(' ');
+			} else if (!firstAr) {
+				firstAr = fullAr;
+			}
+		}
+		if (!fullAr && (firstAr || lastAr)) {
+			fullAr = `${firstAr} ${lastAr}`.trim();
+		}
+
+		// Helper to detect if a field context is in Arabic
+		const isFieldContextArabic = (f) => {
+			if (!f) return false;
+			if (f.dir === 'rtl' || (f.getAttribute && f.getAttribute('dir') === 'rtl')) return true;
+			const text = `${f.name || ''} ${f.id || ''} ${f.placeholder || ''} ${getFieldLabelText(f)}`;
+			return /[\u0600-\u06FF]/.test(text);
+		};
+
 		// 2. Birthday Parsing
 		const parsedDob = parseBirthDate(item.birthDate);
 
 		inputs.forEach((field) => {
 			const classification = classifyField(field);
 
-			// First Name
-			if (classification === 'personal_firstName' && first) {
-				setNativeFieldValue(field, first);
+			// Arabic First Name
+			if (classification === 'personal_firstNameArabic') {
+				const val = firstAr || first;
+				if (val) setNativeFieldValue(field, val);
 				return;
 			}
 
-			// Last Name
-			if (classification === 'personal_lastName' && last) {
-				setNativeFieldValue(field, last);
+			// Arabic Last Name
+			if (classification === 'personal_lastNameArabic') {
+				const val = lastAr || last;
+				if (val) setNativeFieldValue(field, val);
 				return;
 			}
 
-			// Full Name
-			if (classification === 'personal_fullName' && full) {
-				setNativeFieldValue(field, full);
+			// Arabic Full Name
+			if (classification === 'personal_fullNameArabic') {
+				const val = fullAr || full;
+				if (val) setNativeFieldValue(field, val);
+				return;
+			}
+
+			// First Name (check if field is in Arabic context)
+			if (classification === 'personal_firstName') {
+				const isAr = isFieldContextArabic(field);
+				const val = isAr ? (firstAr || first) : (first || firstAr);
+				if (val) setNativeFieldValue(field, val);
+				return;
+			}
+
+			// Last Name (check if field is in Arabic context)
+			if (classification === 'personal_lastName') {
+				const isAr = isFieldContextArabic(field);
+				const val = isAr ? (lastAr || last) : (last || lastAr);
+				if (val) setNativeFieldValue(field, val);
+				return;
+			}
+
+			// Full Name (check if field is in Arabic context)
+			if (classification === 'personal_fullName') {
+				const isAr = isFieldContextArabic(field);
+				const val = isAr ? (fullAr || full) : (full || fullAr);
+				if (val) setNativeFieldValue(field, val);
 				return;
 			}
 
@@ -1200,14 +1279,23 @@
 			}
 
 			// Age
-			if (classification === 'personal_age' && item.age) {
-				setNativeFieldValue(field, String(item.age));
+			if (classification === 'personal_age' && (item.age || item.birthDate)) {
+				const ageVal = item.age || (item.birthDate ? parseBirthDate(item.birthDate) : '');
+				setNativeFieldValue(field, String(item.age || ''));
+				return;
+			}
+
+			// 18-Digit NIN
+			if (classification === 'personal_nin') {
+				const ninVal = item.nin || item.nationalId || '';
+				if (ninVal) setNativeFieldValue(field, ninVal);
 				return;
 			}
 
 			// National ID / Passport
-			if (classification === 'personal_nationalId' && item.nationalId) {
-				setNativeFieldValue(field, item.nationalId);
+			if (classification === 'personal_nationalId') {
+				const idVal = item.nationalId || item.nin || '';
+				if (idVal) setNativeFieldValue(field, idVal);
 				return;
 			}
 
@@ -1223,16 +1311,26 @@
 				return;
 			}
 
-			// City
+			// City / Commune
 			if (classification === 'personal_city' && item.city) {
-				setNativeFieldValue(field, item.city);
+				if (field.tagName === 'SELECT') {
+					selectMatchingOption(field, [item.city.toLowerCase()]);
+				} else {
+					setNativeFieldValue(field, item.city);
+				}
 				return;
 			}
 
 			// State / Wilaya / Province
 			if (classification === 'personal_state' && item.stateProvince) {
 				if (field.tagName === 'SELECT') {
-					selectMatchingOption(field, [item.stateProvince.toLowerCase()]);
+					const s = item.stateProvince.toLowerCase();
+					const aliases = [s];
+					const m = s.match(/^(\d{1,2})\s*-\s*(.+)$/);
+					if (m) {
+						aliases.push(m[1], m[2].trim(), `${m[1]} - ${m[2].trim()}`, `wilaya de ${m[2].trim()}`);
+					}
+					selectMatchingOption(field, aliases);
 				} else {
 					setNativeFieldValue(field, item.stateProvince);
 				}
@@ -1250,8 +1348,8 @@
 				if (field.tagName === 'SELECT') {
 					const c = item.country.toLowerCase();
 					const aliases = [c];
-					if (c.includes('algeria') || c.includes('algerie') || c.includes('الجزائر')) aliases.push('dz', 'dza', 'algeria', 'algerie');
-					if (c.includes('united states') || c.includes('usa') || c.includes('america')) aliases.push('us', 'usa', 'united states');
+					if (c.includes('algeria') || c.includes('algerie') || c.includes('الجزائر')) aliases.push('dz', 'dza', 'algeria', 'algerie', 'الجزائر');
+					if (c.includes('united states') || c.includes('usa') || c.includes('america')) aliases.push('us', 'usa', 'united states', 'etats-unis');
 					if (c.includes('france')) aliases.push('fr', 'fra', 'france');
 					selectMatchingOption(field, aliases);
 				} else {
@@ -1274,6 +1372,33 @@
 				return;
 			}
 		});
+
+		// Follow-up pass for dynamic cascading dropdowns (e.g. Country select triggers State options, or State triggers City)
+		setTimeout(() => {
+			const remainingInputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select'));
+			remainingInputs.forEach(field => {
+				const cl = classifyField(field);
+				if (cl === 'personal_state' && item.stateProvince && (!field.value || field.value === '')) {
+					if (field.tagName === 'SELECT') {
+						const s = item.stateProvince.toLowerCase();
+						const aliases = [s];
+						const m = s.match(/^(\d{1,2})\s*-\s*(.+)$/);
+						if (m) {
+							aliases.push(m[1], m[2].trim(), `${m[1]} - ${m[2].trim()}`);
+						}
+						selectMatchingOption(field, aliases);
+					} else {
+						setNativeFieldValue(field, item.stateProvince);
+					}
+				} else if (cl === 'personal_city' && item.city && (!field.value || field.value === '')) {
+					if (field.tagName === 'SELECT') {
+						selectMatchingOption(field, [item.city.toLowerCase()]);
+					} else {
+						setNativeFieldValue(field, item.city);
+					}
+				}
+			});
+		}, 150);
 
 		// Check for radio buttons for gender if select wasn't present
 		if (item.gender) {
@@ -1704,6 +1829,14 @@
 					} else {
 						setNativeFieldValue(yearInput, yearInput.maxLength === 2 ? shortYear : fullYear);
 					}
+				}
+			}
+
+			// 5. NIN if available on ID card or passport
+			if (item.nin) {
+				const ninInput = inputs.find(i => classifyField(i) === 'personal_nin' || (i.name || i.id || i.placeholder || '').toLowerCase().includes('nin'));
+				if (ninInput) {
+					setNativeFieldValue(ninInput, item.nin);
 				}
 			}
 		}
