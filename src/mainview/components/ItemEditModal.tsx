@@ -473,7 +473,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									type="text"
 									value={cardholderName}
 									onChange={(e) => setCardholderName(e.target.value)}
-									placeholder="ALEXANDER VAULT"
+									placeholder="full name"
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 								/>
 							</div>
@@ -697,7 +697,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												setFullName(`${e.target.value} ${lastName}`.trim());
 											}
 										}}
-										placeholder="Alexander"
+										placeholder="name"
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
 									/>
 								</div>
@@ -712,7 +712,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												setFullName(`${firstName} ${e.target.value}`.trim());
 											}
 										}}
-										placeholder="Vault"
+										placeholder="FirstName"
 										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
 									/>
 								</div>
@@ -724,7 +724,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									type="text"
 									value={fullName}
 									onChange={(e) => setFullName(e.target.value)}
-									placeholder="Alexander Vault"
+									placeholder="full name"
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
 								/>
 							</div>
