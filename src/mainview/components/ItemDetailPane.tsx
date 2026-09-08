@@ -643,6 +643,41 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 							</div>
 						</div>
 
+						{/* Arabic Names (if present) */}
+						{(item.firstNameArabic || item.lastNameArabic || item.fullNameArabic) && (
+							<div className="grid grid-cols-2 gap-4">
+								<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+									<div className="flex justify-between items-center">
+										<label className="text-[11px] text-slate-400 font-mono uppercase">First Name (Arabic)</label>
+										<span className="text-slate-500 text-[10px]" dir="rtl">الاسم بالعربية</span>
+									</div>
+									<div className="flex justify-between items-center text-sm font-semibold text-white">
+										<span className="font-sans" dir="rtl">{item.firstNameArabic || "—"}</span>
+										{item.firstNameArabic && (
+											<button onClick={() => handleCopy(item.firstNameArabic || "", "First Name (Arabic)")} className="p-1 text-slate-400 hover:text-emerald-400">
+												<Copy className="w-4 h-4" />
+											</button>
+										)}
+									</div>
+								</div>
+
+								<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
+									<div className="flex justify-between items-center">
+										<label className="text-[11px] text-slate-400 font-mono uppercase">Last Name (Arabic)</label>
+										<span className="text-slate-500 text-[10px]" dir="rtl">اللقب بالعربية</span>
+									</div>
+									<div className="flex justify-between items-center text-sm font-semibold text-white">
+										<span className="font-sans" dir="rtl">{item.lastNameArabic || "—"}</span>
+										{item.lastNameArabic && (
+											<button onClick={() => handleCopy(item.lastNameArabic || "", "Last Name (Arabic)")} className="p-1 text-slate-400 hover:text-emerald-400">
+												<Copy className="w-4 h-4" />
+											</button>
+										)}
+									</div>
+								</div>
+							</div>
+						)}
+
 						<div className="grid grid-cols-2 gap-4">
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
 								<label className="text-[11px] text-slate-400 font-mono uppercase">Full Name</label>
@@ -657,11 +692,18 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 							</div>
 
 							<div className="p-4 bg-[#131315] border border-slate-800/80 rounded-xl space-y-1">
-								<label className="text-[11px] text-slate-400 font-mono uppercase">National ID / Passport</label>
+								<div className="flex justify-between items-center">
+									<label className="text-[11px] text-slate-400 font-mono uppercase">National ID / NIN</label>
+									{(item.nin || (item.nationalId && /^\d{18}$/.test(item.nationalId))) && (
+										<span className="text-emerald-400 font-mono text-[10px] px-1.5 py-0.5 bg-emerald-950/40 border border-emerald-800/50 rounded">
+											18 digits
+										</span>
+									)}
+								</div>
 								<div className="flex justify-between items-center text-sm font-semibold text-white">
-									<span className="font-mono">{item.nationalId || "—"}</span>
-									{item.nationalId && (
-										<button onClick={() => handleCopy(item.nationalId || "", "National ID")} className="p-1 text-slate-400 hover:text-emerald-400">
+									<span className="font-mono tracking-wider">{item.nin || item.nationalId || "—"}</span>
+									{(item.nin || item.nationalId) && (
+										<button onClick={() => handleCopy(item.nin || item.nationalId || "", "National ID / NIN")} className="p-1 text-slate-400 hover:text-emerald-400">
 											<Copy className="w-4 h-4" />
 										</button>
 									)}

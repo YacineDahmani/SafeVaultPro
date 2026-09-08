@@ -1,7 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck, Code2, Plus, Trash2, Upload, FileUp } from "lucide-react";
-import type { VaultItem, VaultItemType, CardSubtype } from "../../bun/types";
+import type { VaultItem, VaultItemType, CardSubtype, PersonalInfoVaultItem } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
+import { POPULAR_COUNTRIES, getStatesForCountry, getCitiesForState } from "../data/locations";
+
+function calculateAgeFromDob(dobStr: string): string {
+	if (!dobStr) return "";
+	const birth = new Date(dobStr);
+	if (isNaN(birth.getTime())) return "";
+	const today = new Date();
+	let years = today.getFullYear() - birth.getFullYear();
+	const monthDiff = today.getMonth() - birth.getMonth();
+	if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+		years--;
+	}
+	return years >= 0 ? String(years) : "";
+}
+
+function isFutureDate(dateStr: string): boolean {
+	if (!dateStr) return false;
+	const d = new Date(dateStr);
+	if (isNaN(d.getTime())) return false;
+	const today = new Date();
+	today.setHours(23, 59, 59, 999);
+	return d.getTime() > today.getTime();
+}
 
 interface ItemEditModalProps {
 	isOpen: boolean;
@@ -83,10 +106,15 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [fullName, setFullName] = useState("");
+	const [firstNameArabic, setFirstNameArabic] = useState("");
+	const [lastNameArabic, setLastNameArabic] = useState("");
+	const [fullNameArabic, setFullNameArabic] = useState("");
 	const [birthDate, setBirthDate] = useState("");
+	const [birthDateError, setBirthDateError] = useState("");
 	const [gender, setGender] = useState("");
 	const [age, setAge] = useState("");
 	const [nationalId, setNationalId] = useState("");
+	const [ninError, setNinError] = useState("");
 	const [phone, setPhone] = useState("");
 	const [email, setEmail] = useState("");
 	const [extraPhones, setExtraPhones] = useState<{ label?: string; phone: string }[]>([]);
@@ -96,8 +124,13 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const [city, setCity] = useState("");
 	const [stateProvince, setStateProvince] = useState("");
 	const [postalCode, setPostalCode] = useState("");
+	const [customCountry, setCustomCountry] = useState(false);
+	const [customState, setCustomState] = useState(false);
+	const [customCity, setCustomCity] = useState(false);
 
 	useEffect(() => {
+		setBirthDateError("");
+		setNinError("");
 		if (item) {
 			setType(item.type);
 			setTitle(item.title);
@@ -130,23 +163,28 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				setEnvironment(item.environment || "Development");
 				setEnvContent(item.content || "");
 			} else if (item.type === "personal_info") {
-				setFirstName(item.firstName || "");
-				setLastName(item.lastName || "");
-				setFullName(item.fullName || "");
-				setBirthDate(item.birthDate || "");
-				setGender(item.gender || "");
-				setAge(item.age ? String(item.age) : "");
-				setNationalId(item.nationalId || "");
-				setPhone(item.phone || "");
-				setEmail(item.email || "");
-				setExtraPhones(item.extraPhones ? [...item.extraPhones] : []);
-				setExtraEmails(item.extraEmails ? [...item.extraEmails] : []);
-				setAddressLine1(item.addressLine1 || "");
-				setAddressLine2(item.addressLine2 || "");
-				setCity(item.city || "");
-				setStateProvince(item.stateProvince || "");
-				setPostalCode(item.postalCode || "");
-				setCountry(item.country || "");
+				const p = item as PersonalInfoVaultItem;
+				setFirstName(p.firstName || "");
+				setLastName(p.lastName || "");
+				setFullName(p.fullName || "");
+				setFirstNameArabic(p.firstNameArabic || "");
+				setLastNameArabic(p.lastNameArabic || "");
+				setFullNameArabic(p.fullNameArabic || "");
+				setBirthDate(p.birthDate || "");
+				setGender(p.gender || "");
+				setAge(p.age ? String(p.age) : (p.birthDate ? calculateAgeFromDob(p.birthDate) : ""));
+				setNationalId(p.nationalId || "");
+				setNin(p.nin || (p.nationalId && /^\d{18}$/.test(p.nationalId) ? p.nationalId : ""));
+				setPhone(p.phone || "");
+				setEmail(p.email || "");
+				setExtraPhones(p.extraPhones ? [...p.extraPhones] : []);
+				setExtraEmails(p.extraEmails ? [...p.extraEmails] : []);
+				setAddressLine1(p.addressLine1 || "");
+				setAddressLine2(p.addressLine2 || "");
+				setCity(p.city || "");
+				setStateProvince(p.stateProvince || "");
+				setPostalCode(p.postalCode || "");
+				setCountry(p.country || "");
 			}
 		} else {
 			const initType = (initialValues?.type as VaultItemType) || defaultType;
@@ -184,10 +222,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setFirstName(pInit?.firstName || "");
 			setLastName(pInit?.lastName || "");
 			setFullName(pInit?.fullName || "");
+			setFirstNameArabic(pInit?.firstNameArabic || "");
+			setLastNameArabic(pInit?.lastNameArabic || "");
+			setFullNameArabic(pInit?.fullNameArabic || "");
 			setBirthDate(pInit?.birthDate || "");
 			setGender(pInit?.gender || "");
-			setAge(pInit?.age ? String(pInit.age) : "");
+			setAge(pInit?.age ? String(pInit.age) : (pInit?.birthDate ? calculateAgeFromDob(pInit.birthDate) : ""));
 			setNationalId(pInit?.nationalId || "");
+			setNin(pInit?.nin || (pInit?.nationalId && /^\d{18}$/.test(pInit.nationalId) ? pInit.nationalId : ""));
 			setPhone(pInit?.phone || "");
 			setEmail(pInit?.email || "");
 			setExtraPhones(pInit?.extraPhones ? [...pInit.extraPhones] : []);
@@ -197,6 +239,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 			setCity(pInit?.city || "");
 			setStateProvince(pInit?.stateProvince || "");
 			setPostalCode(pInit?.postalCode || "");
+			setCountry(pInit?.country || "");
 		}
 	}, [item, defaultType, defaultSubtype, initialValues, isOpen]);
 
@@ -205,6 +248,18 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 	const handleFormSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!title.trim()) return;
+
+		// 18-digit NIN validation if provided
+		if (nin && nin.length !== 18) {
+			setNinError("National Identification Number (NIN) must be exactly 18 digits.");
+			return;
+		}
+
+		// Birthdate validation
+		if (birthDate && isFutureDate(birthDate)) {
+			setBirthDateError("Birth date cannot be in the future.");
+			return;
+		}
 
 		const tags = tagsStr
 			.split(",")
@@ -277,10 +332,14 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 				firstName,
 				lastName,
 				fullName: fullName || `${firstName} ${lastName}`.trim(),
+				firstNameArabic: firstNameArabic || undefined,
+				lastNameArabic: lastNameArabic || undefined,
+				fullNameArabic: fullNameArabic || (firstNameArabic || lastNameArabic ? `${firstNameArabic} ${lastNameArabic}`.trim() : undefined),
 				birthDate,
 				gender,
-				age: age ? parseInt(String(age), 10) || age : undefined,
-				nationalId,
+				age: age ? parseInt(String(age), 10) || age : (birthDate ? calculateAgeFromDob(birthDate) : undefined),
+				nationalId: nationalId || nin || undefined,
+				nin: nin || undefined,
 				phone,
 				email,
 				extraPhones: extraPhones.filter((p) => p.phone.trim().length > 0),
@@ -473,7 +532,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									type="text"
 									value={cardholderName}
 									onChange={(e) => setCardholderName(e.target.value)}
-									placeholder="full name"
+									placeholder="Cardholder Name"
 									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 								/>
 							</div>
@@ -491,15 +550,34 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 								/>
 							</div>
 
+							{/* Issuing Country (for ID/Passport/Licenses) */}
+							{subtype !== "credit_card" && (
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Issuing Country</label>
+									<select
+										value={country}
+										onChange={(e) => setCountry(e.target.value)}
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+									>
+										<option value="">Select Country</option>
+										{POPULAR_COUNTRIES.map((c) => (
+											<option key={c} value={c}>{c}</option>
+										))}
+										{country && !POPULAR_COUNTRIES.includes(country) && (
+											<option value={country}>{country}</option>
+										)}
+									</select>
+								</div>
+							)}
+
 							<div className="grid grid-cols-2 gap-3">
 								<div>
 									<label className="block text-slate-400 font-mono mb-1">Expiration Date</label>
 									<input
-										type="text"
+										type="date"
 										value={expirationDate}
 										onChange={(e) => setExpirationDate(e.target.value)}
-										placeholder="2032-05-13"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
 								{subtype === "credit_card" ? (
@@ -515,24 +593,47 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												setPin(e.target.value);
 											}}
 											placeholder="884"
-											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 										/>
 									</div>
 								) : (
 									<div>
-										<label className="block text-slate-400 font-mono mb-1">
-											NIN 
-										</label>
+										<div className="flex items-center justify-between mb-1">
+											<label className="block text-slate-400 font-mono">
+												NIN (18 Digits)
+											</label>
+											{nin ? (
+												<span className={`text-[10px] font-mono font-bold ${nin.length === 18 ? "text-emerald-400" : "text-amber-400"}`}>
+													{nin.length === 18 ? "✓ 18 digits" : `${nin.length}/18`}
+												</span>
+											) : (
+												<span className="text-slate-500 text-[10px] font-mono">18 digits</span>
+											)}
+										</div>
 										<input
 											type="text"
 											value={nin}
-											onChange={(e) => setNin(e.target.value)}
-											placeholder="NIN982104928"
-											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+											onChange={(e) => {
+												const cleaned = e.target.value.replace(/\D/g, "").slice(0, 18);
+												setNin(cleaned);
+												if (cleaned.length > 0 && cleaned.length !== 18) {
+													setNinError("NIN must be exactly 18 digits.");
+												} else {
+													setNinError("");
+												}
+											}}
+											placeholder="18-digit national number"
+											maxLength={18}
+											className={`w-full px-3 py-2 bg-[#09090b] border rounded-lg text-white font-mono tracking-wider focus:outline-none ${
+												nin && nin.length !== 18 ? "border-amber-500/70 focus:border-amber-400" : nin && nin.length === 18 ? "border-emerald-500/70 focus:border-emerald-400" : "border-slate-800 focus:border-emerald-500"
+											}`}
 										/>
 									</div>
 								)}
 							</div>
+							{ninError && subtype !== "credit_card" && (
+								<p className="text-[11px] text-amber-400 font-mono -mt-1">{ninError}</p>
+							)}
 						</>
 					)}
 
@@ -685,6 +786,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 					{/* TYPE 6: PERSONAL INFO */}
 					{type === "personal_info" && (
 						<>
+							{/* Standard Names */}
 							<div className="grid grid-cols-2 gap-3">
 								<div>
 									<label className="block text-slate-400 font-mono mb-1">First Name</label>
@@ -697,8 +799,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												setFullName(`${e.target.value} ${lastName}`.trim());
 											}
 										}}
-										placeholder="name"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+										placeholder="First Name"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
 								<div>
@@ -712,40 +814,121 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												setFullName(`${firstName} ${e.target.value}`.trim());
 											}
 										}}
-										placeholder="FirstName"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+										placeholder="Last Name"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
 							</div>
 
-							<div>
-								<label className="block text-slate-400 font-mono mb-1">Full Name</label>
-								<input
-									type="text"
-									value={fullName}
-									onChange={(e) => setFullName(e.target.value)}
-									placeholder="full name"
-									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
-								/>
-							</div>
-
-							<div className="grid grid-cols-3 gap-3">
+							{/* Arabic First & Last Names */}
+							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Birth Date</label>
+									<div className="flex items-center justify-between mb-1">
+										<label className="text-slate-400 font-mono">First Name (Arabic)</label>
+										<span className="text-slate-500 font-sans text-[11px]" dir="rtl">الاسم بالعربية</span>
+									</div>
 									<input
 										type="text"
-										value={birthDate}
-										onChange={(e) => setBirthDate(e.target.value)}
-										placeholder="YYYY-MM-DD"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										dir="rtl"
+										value={firstNameArabic}
+										onChange={(e) => {
+											setFirstNameArabic(e.target.value);
+											if (!fullNameArabic || fullNameArabic === `${firstNameArabic} ${lastNameArabic}`.trim()) {
+												setFullNameArabic(`${e.target.value} ${lastNameArabic}`.trim());
+											}
+										}}
+										placeholder="الاسم الشخصي"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium text-right focus:outline-none focus:border-emerald-500"
 									/>
+								</div>
+								<div>
+									<div className="flex items-center justify-between mb-1">
+										<label className="text-slate-400 font-mono">Last Name (Arabic)</label>
+										<span className="text-slate-500 font-sans text-[11px]" dir="rtl">اللقب بالعربية</span>
+									</div>
+									<input
+										type="text"
+										dir="rtl"
+										value={lastNameArabic}
+										onChange={(e) => {
+											setLastNameArabic(e.target.value);
+											if (!fullNameArabic || fullNameArabic === `${firstNameArabic} ${lastNameArabic}`.trim()) {
+												setFullNameArabic(`${firstNameArabic} ${e.target.value}`.trim());
+											}
+										}}
+										placeholder="اللقب"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium text-right focus:outline-none focus:border-emerald-500"
+									/>
+								</div>
+							</div>
+
+							{/* Full Names (Latin & Arabic) */}
+							<div className="grid grid-cols-2 gap-3">
+								<div>
+									<label className="block text-slate-400 font-mono mb-1">Full Name</label>
+									<input
+										type="text"
+										value={fullName}
+										onChange={(e) => setFullName(e.target.value)}
+										placeholder="Full Name"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+									/>
+								</div>
+								<div>
+									<div className="flex items-center justify-between mb-1">
+										<label className="text-slate-400 font-mono">Full Name (Arabic)</label>
+										<span className="text-slate-500 font-sans text-[11px]" dir="rtl">الاسم الكامل</span>
+									</div>
+									<input
+										type="text"
+										dir="rtl"
+										value={fullNameArabic}
+										onChange={(e) => setFullNameArabic(e.target.value)}
+										placeholder="الاسم الكامل"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium text-right focus:outline-none focus:border-emerald-500"
+									/>
+								</div>
+							</div>
+
+							{/* Dates, Gender & Auto Age */}
+							<div className="grid grid-cols-3 gap-3">
+								<div>
+									<div className="flex items-center justify-between mb-1">
+										<label className="block text-slate-400 font-mono">Birth Date</label>
+										{birthDate && !birthDateError && (
+											<span className="text-emerald-400 text-[10px] font-mono">Valid</span>
+										)}
+									</div>
+									<input
+										type="date"
+										value={birthDate}
+										onChange={(e) => {
+											const val = e.target.value;
+											setBirthDate(val);
+											if (isFutureDate(val)) {
+												setBirthDateError("Birth date cannot be in the future.");
+											} else {
+												setBirthDateError("");
+											}
+											const calculatedAge = calculateAgeFromDob(val);
+											if (calculatedAge !== "") {
+												setAge(calculatedAge);
+											}
+										}}
+										className={`w-full px-3 py-2 bg-[#09090b] border rounded-lg text-white font-mono focus:outline-none ${
+											birthDateError ? "border-red-500 focus:border-red-400" : "border-slate-800 focus:border-emerald-500"
+										}`}
+									/>
+									{birthDateError && (
+										<span className="text-red-400 text-[10px] font-mono block mt-1">{birthDateError}</span>
+									)}
 								</div>
 								<div>
 									<label className="block text-slate-400 font-mono mb-1">Gender</label>
 									<select
 										value={gender}
 										onChange={(e) => setGender(e.target.value)}
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 									>
 										<option value="">Unspecified</option>
 										<option value="Male">Male</option>
@@ -754,15 +937,60 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 									</select>
 								</div>
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Age</label>
+									<div className="flex items-center justify-between mb-1">
+										<label className="block text-slate-400 font-mono">Age</label>
+										{age && birthDate && (
+											<span className="text-emerald-400 text-[10px] font-mono font-bold">Auto</span>
+										)}
+									</div>
 									<input
-										type="text"
+										type="number"
+										min="0"
+										max="150"
 										value={age}
 										onChange={(e) => setAge(e.target.value)}
 										placeholder="30"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
+							</div>
+
+							{/* 18-Digit NIN Field */}
+							<div>
+								<div className="flex items-center justify-between mb-1">
+									<label className="text-slate-400 font-mono">National Identification Number (NIN - 18 Digits)</label>
+									{nin ? (
+										<span className={`text-[10px] font-mono font-bold ${nin.length === 18 ? "text-emerald-400" : "text-amber-400"}`}>
+											{nin.length === 18 ? "✓ 18 digits valid" : `${nin.length}/18 digits`}
+										</span>
+									) : (
+										<span className="text-slate-500 text-[10px] font-mono">Exactly 18 digits</span>
+									)}
+								</div>
+								<input
+									type="text"
+									value={nin}
+									onChange={(e) => {
+										const cleaned = e.target.value.replace(/\D/g, "").slice(0, 18);
+										setNin(cleaned);
+										if (cleaned.length > 0 && cleaned.length !== 18) {
+											setNinError("NIN must be exactly 18 digits.");
+										} else {
+											setNinError("");
+										}
+										if (!nationalId || /^\d{0,18}$/.test(nationalId)) {
+											setNationalId(cleaned);
+										}
+									}}
+									placeholder="18-digit NIN"
+									maxLength={18}
+									className={`w-full px-3 py-2 bg-[#09090b] border rounded-lg text-white font-mono tracking-wider focus:outline-none ${
+										nin && nin.length !== 18 ? "border-amber-500/70 focus:border-amber-400" : nin && nin.length === 18 ? "border-emerald-500/70 focus:border-emerald-400" : "border-slate-800 focus:border-emerald-500"
+									}`}
+								/>
+								{ninError && (
+									<p className="text-[10px] text-amber-400 font-mono mt-1">{ninError}</p>
+								)}
 							</div>
 
 							{/* Primary Phone & Email */}
@@ -773,8 +1001,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 										type="text"
 										value={phone}
 										onChange={(e) => setPhone(e.target.value)}
-										placeholder="+1 (555) 019-2834"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										placeholder="Phone Number"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
 								<div>
@@ -783,8 +1011,8 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 										type="email"
 										value={email}
 										onChange={(e) => setEmail(e.target.value)}
-										placeholder="user@proton.me"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
+										placeholder="Email Address"
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
 							</div>
@@ -812,7 +1040,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												next[idx].label = e.target.value;
 												setExtraPhones(next);
 											}}
-											placeholder="Label (e.g. Work)"
+											placeholder="Label"
 											className="w-28 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
 										/>
 										<input
@@ -823,7 +1051,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												next[idx].phone = e.target.value;
 												setExtraPhones(next);
 											}}
-											placeholder="+1 (555) 998-1029"
+											placeholder="Phone Number"
 											className="flex-1 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
 										/>
 										<button
@@ -860,7 +1088,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												next[idx].label = e.target.value;
 												setExtraEmails(next);
 											}}
-											placeholder="Label (e.g. Backup)"
+											placeholder="Label"
 											className="w-28 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
 										/>
 										<input
@@ -871,7 +1099,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 												next[idx].email = e.target.value;
 												setExtraEmails(next);
 											}}
-											placeholder="work@company.com"
+											placeholder="Email Address"
 											className="flex-1 px-2.5 py-1.5 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono text-xs"
 										/>
 										<button
@@ -885,82 +1113,179 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 								))}
 							</div>
 
-							<div>
-								<label className="block text-slate-400 font-mono mb-1">National ID / Passport / NIN</label>
-								<input
-									type="text"
-									value={nationalId}
-									onChange={(e) => setNationalId(e.target.value)}
-									placeholder="NIN982104928"
-									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
-								/>
-							</div>
+							{/* CASCADING GEOGRAPHIC LOCATION (Country -> State/Wilaya -> City/Commune) */}
+							<div className="space-y-3 border-t border-slate-800/60 pt-3">
+								<span className="text-[11px] font-mono text-slate-400 uppercase block tracking-wider">
+									Geographic Location & Address
+								</span>
 
-							<div className="grid grid-cols-2 gap-3">
+								{/* Country Selector */}
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Address Line 1</label>
-									<input
-										type="text"
-										value={addressLine1}
-										onChange={(e) => setAddressLine1(e.target.value)}
-										placeholder="742 Evergreen Terr"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
-									/>
+									<div className="flex items-center justify-between mb-1">
+										<label className="text-slate-400 font-mono">Country</label>
+										<button
+											type="button"
+											onClick={() => setCustomCountry(!customCountry)}
+											className="text-[10px] text-emerald-400 hover:underline font-mono"
+										>
+											{customCountry ? "Choose from list" : "Type custom"}
+										</button>
+									</div>
+									{customCountry ? (
+										<input
+											type="text"
+											value={country}
+											onChange={(e) => setCountry(e.target.value)}
+											placeholder="e.g. Algeria, France, United States..."
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+										/>
+									) : (
+										<select
+											value={country}
+											onChange={(e) => {
+												const nextCountry = e.target.value;
+												setCountry(nextCountry);
+												const states = getStatesForCountry(nextCountry);
+												if (!states.some((s) => s.toLowerCase() === stateProvince.toLowerCase())) {
+													setStateProvince("");
+													setCity("");
+												}
+											}}
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+										>
+											<option value="">Select Country</option>
+											{POPULAR_COUNTRIES.map((c) => (
+												<option key={c} value={c}>{c}</option>
+											))}
+											{country && !POPULAR_COUNTRIES.includes(country) && (
+												<option value={country}>{country}</option>
+											)}
+										</select>
+									)}
 								</div>
+
+								{/* State / Wilaya & City / Commune Cascading Dropdowns */}
+								<div className="grid grid-cols-2 gap-3">
+									{/* State / Wilaya */}
+									<div>
+										<div className="flex items-center justify-between mb-1">
+											<label className="text-slate-400 font-mono">
+												{country.toLowerCase() === "algeria" ? "State / Wilaya (58)" : "State / Province"}
+											</label>
+											<button
+												type="button"
+												onClick={() => setCustomState(!customState)}
+												className="text-[10px] text-emerald-400 hover:underline font-mono"
+											>
+												{customState ? "Choose from list" : "Type custom"}
+											</button>
+										</div>
+										{customState || getStatesForCountry(country).length === 0 ? (
+											<input
+												type="text"
+												value={stateProvince}
+												onChange={(e) => setStateProvince(e.target.value)}
+												placeholder={country.toLowerCase() === "algeria" ? "16 - Alger" : "State/Province"}
+												className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+											/>
+										) : (
+											<select
+												value={stateProvince}
+												onChange={(e) => {
+													const nextState = e.target.value;
+													setStateProvince(nextState);
+													const cities = getCitiesForState(country, nextState);
+													if (!cities.some((ci) => ci.toLowerCase() === city.toLowerCase())) {
+														setCity("");
+													}
+												}}
+												className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+											>
+												<option value="">Select {country.toLowerCase() === "algeria" ? "Wilaya" : "State"}</option>
+												{getStatesForCountry(country).map((s) => (
+													<option key={s} value={s}>{s}</option>
+												))}
+												{stateProvince && !getStatesForCountry(country).includes(stateProvince) && (
+													<option value={stateProvince}>{stateProvince}</option>
+												)}
+											</select>
+										)}
+									</div>
+
+									{/* City / Commune */}
+									<div>
+										<div className="flex items-center justify-between mb-1">
+											<label className="text-slate-400 font-mono">
+												{country.toLowerCase() === "algeria" ? "City / Commune" : "City"}
+											</label>
+											<button
+												type="button"
+												onClick={() => setCustomCity(!customCity)}
+												className="text-[10px] text-emerald-400 hover:underline font-mono"
+											>
+												{customCity ? "Choose from list" : "Type custom"}
+											</button>
+										</div>
+										{customCity || getCitiesForState(country, stateProvince).length === 0 ? (
+											<input
+												type="text"
+												value={city}
+												onChange={(e) => setCity(e.target.value)}
+												placeholder="City or Commune"
+												className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+											/>
+										) : (
+											<select
+												value={city}
+												onChange={(e) => setCity(e.target.value)}
+												className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+											>
+												<option value="">Select {country.toLowerCase() === "algeria" ? "Commune / City" : "City"}</option>
+												{getCitiesForState(country, stateProvince).map((ci) => (
+													<option key={ci} value={ci}>{ci}</option>
+												))}
+												{city && !getCitiesForState(country, stateProvince).includes(city) && (
+													<option value={city}>{city}</option>
+												)}
+											</select>
+										)}
+									</div>
+								</div>
+
+								{/* Postal Code & Address Lines */}
+								<div className="grid grid-cols-3 gap-3">
+									<div className="col-span-2">
+										<label className="block text-slate-400 font-mono mb-1">Address Line 1</label>
+										<input
+											type="text"
+											value={addressLine1}
+											onChange={(e) => setAddressLine1(e.target.value)}
+											placeholder="Street Address, Building, Apt..."
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
+										/>
+									</div>
+									<div>
+										<label className="block text-slate-400 font-mono mb-1">Postal Code</label>
+										<input
+											type="text"
+											value={postalCode}
+											onChange={(e) => setPostalCode(e.target.value)}
+											placeholder="e.g. 16000"
+											className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500"
+										/>
+									</div>
+								</div>
+
 								<div>
-									<label className="block text-slate-400 font-mono mb-1">Address Line 2</label>
+									<label className="block text-slate-400 font-mono mb-1">Address Line 2 (Optional)</label>
 									<input
 										type="text"
 										value={addressLine2}
 										onChange={(e) => setAddressLine2(e.target.value)}
-										placeholder="Suite 400"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
+										placeholder="Suite, Floor, Department, Unit..."
+										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium focus:outline-none focus:border-emerald-500"
 									/>
 								</div>
-							</div>
-
-							<div className="grid grid-cols-3 gap-3">
-								<div>
-									<label className="block text-slate-400 font-mono mb-1">City</label>
-									<input
-										type="text"
-										value={city}
-										onChange={(e) => setCity(e.target.value)}
-										placeholder="Springfield"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
-									/>
-								</div>
-								<div>
-									<label className="block text-slate-400 font-mono mb-1">State / Wilaya</label>
-									<input
-										type="text"
-										value={stateProvince}
-										onChange={(e) => setStateProvince(e.target.value)}
-										placeholder="Oregon"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
-									/>
-								</div>
-								<div>
-									<label className="block text-slate-400 font-mono mb-1">Postal Code</label>
-									<input
-										type="text"
-										value={postalCode}
-										onChange={(e) => setPostalCode(e.target.value)}
-										placeholder="97477"
-										className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-mono"
-									/>
-								</div>
-							</div>
-
-							<div>
-								<label className="block text-slate-400 font-mono mb-1">Country</label>
-								<input
-									type="text"
-									value={country}
-									onChange={(e) => setCountry(e.target.value)}
-									placeholder="Algeria / United States"
-									className="w-full px-3 py-2 bg-[#09090b] border border-slate-800 rounded-lg text-white font-medium"
-								/>
 							</div>
 						</>
 					)}
@@ -1002,7 +1327,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-lg flex items-center gap-1.5 shadow-lg"
 						>
 							<Save className="w-4 h-4" />
-							<span>Save Secret</span>
+							<span>Secret</span>
 						</button>
 					</div>
 				</form>
