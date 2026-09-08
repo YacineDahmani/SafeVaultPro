@@ -533,7 +533,7 @@ export function startExtensionServer() {
 					if (query) {
 						const cleanQ = query.toLowerCase();
 						matches = allItems.filter((item) => {
-							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""} ${(item as any).cardholderName || ""} ${(item as any).number || ""}`.toLowerCase();
+							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).url || ""} ${(item as any).notes || ""} ${(item as any).cardholderName || ""} ${(item as any).number || ""} ${(item as any).firstName || ""} ${(item as any).lastName || ""} ${(item as any).fullName || ""} ${(item as any).firstNameArabic || ""} ${(item as any).lastNameArabic || ""} ${(item as any).fullNameArabic || ""} ${(item as any).nin || ""} ${(item as any).nationalId || ""} ${(item as any).city || ""} ${(item as any).stateProvince || ""} ${(item as any).country || ""}`.toLowerCase();
 							return searchTarget.includes(cleanQ);
 						});
 					} else if (fieldType && (fieldType.startsWith("card_") || fieldType === "card")) {
