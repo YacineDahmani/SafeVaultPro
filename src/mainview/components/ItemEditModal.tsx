@@ -1327,7 +1327,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-bold rounded-lg flex items-center gap-1.5 shadow-lg"
 						>
 							<Save className="w-4 h-4" />
-							<span>Secret</span>
+							<span>Save</span>
 						</button>
 					</div>
 				</form>
