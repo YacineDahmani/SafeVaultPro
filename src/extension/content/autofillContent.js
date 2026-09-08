@@ -595,6 +595,42 @@
 		return false;
 	}
 
+	function isElementVisible(el) {
+		if (!el) return false;
+		try {
+			const style = window.getComputedStyle(el);
+			if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+			return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+		} catch (e) {
+			return true;
+		}
+	}
+
+	function getProfileScope(input) {
+		if (input && input.form) return input.form;
+		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="form"], [id*="form"], [class*="modal"], [id*="modal"], section, main')) || document;
+	}
+
+	function getPrimaryProfileField(input) {
+		const scope = getProfileScope(input);
+		const allElements = Array.from(scope.querySelectorAll('input:not([type="hidden"]), select'));
+		const profileFields = allElements.filter(el => {
+			if (shouldIgnoreField(el)) return false;
+			if (!isElementVisible(el)) return false;
+			const cl = classifyField(el);
+			return cl.startsWith('personal_');
+		});
+		if (profileFields.length === 0) return null;
+
+		// Preferred order if present: Latin/Arabic first name or full name, else the very first visible profile field
+		const preferred = profileFields.find(f => {
+			const c = classifyField(f);
+			return c === 'personal_firstName' || c === 'personal_fullName' || c === 'personal_firstNameArabic' || c === 'personal_fullNameArabic';
+		});
+
+		return preferred || profileFields[0];
+	}
+
 	// Bulletproof Badge Injection and Positioning
 	function attachBadge(input) {
 		if (attachedBadges.has(input)) return;
@@ -608,9 +644,12 @@
 		if (classification === 'card_cvv' || classification === 'card_exp' || classification === 'card_exp_month' || classification === 'card_exp_year' || classification === 'card_holder') {
 			return;
 		}
-		// Do not attach badges to secondary personal info fields (Last Name, Address Line 2, City, State, Zip, Country, Birth fields, Gender, Age)
-		if (['personal_lastName', 'personal_lastNameArabic', 'personal_address2', 'personal_city', 'personal_state', 'personal_zip', 'personal_country', 'personal_birthDay', 'personal_birthMonth', 'personal_birthYear', 'personal_age', 'personal_gender'].includes(classification)) {
-			return;
+		// For personal profile fields, ONLY attach a single badge to the primary field in the form/container
+		if (classification.startsWith('personal_')) {
+			const primaryField = getPrimaryProfileField(input);
+			if (primaryField !== input) {
+				return;
+			}
 		}
 		if (classification === 'generic') {
 			return;
@@ -618,7 +657,7 @@
 
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
-		badge.title = 'Autofill';
+		badge.title = classification.startsWith('personal_') ? 'Autofill Form' : 'Autofill';
 		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
 		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
 
@@ -934,7 +973,7 @@
 							<div class="safevault-item-title">${escapeHtml(item.fullName || item.title)}</div>
 							<div class="safevault-item-sub">${escapeHtml(sub)}</div>
 						</div>
-						<span class="safevault-fill-btn">Fill Profile</span>
+						<span class="safevault-fill-btn">Fill Form</span>
 					</div>
 				`;
 			}
@@ -959,7 +998,7 @@
 			if (targetItem) {
 				autofillItem(input, targetItem);
 				if (targetItem.type === 'card') showToastBanner('Card filled');
-				else if (targetItem.type === 'personal_info') showToastBanner('Profile filled');
+				else if (targetItem.type === 'personal_info') showToastBanner('Profile & form filled');
 				else if (targetItem.type === 'totp') showToastBanner('2FA code inserted');
 				else showToastBanner('Credentials filled');
 			}
@@ -1954,6 +1993,17 @@
 		const inputs = document.querySelectorAll('input:not([type="hidden"]), select');
 		inputs.forEach((input) => {
 			if (!shouldIgnoreField(input)) {
+				const cl = classifyField(input);
+				if (cl.startsWith('personal_')) {
+					const primary = getPrimaryProfileField(input);
+					if (primary && primary !== input && attachedBadges.has(input)) {
+						const oldBadge = attachedBadges.get(input);
+						if (oldBadge) {
+							oldBadge.remove();
+							attachedBadges.delete(input);
+						}
+					}
+				}
 				attachBadge(input);
 			}
 		});
