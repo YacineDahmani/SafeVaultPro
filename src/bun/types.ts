@@ -65,10 +65,14 @@ export interface PersonalInfoVaultItem extends BaseVaultItem {
 	firstName?: string;
 	lastName?: string;
 	fullName: string;
+	firstNameArabic?: string;
+	lastNameArabic?: string;
+	fullNameArabic?: string;
 	birthDate?: string;
 	age?: number | string;
 	gender?: string;
 	nationalId?: string;
+	nin?: string;
 	addressLine1?: string;
 	addressLine2?: string;
 	city?: string;
