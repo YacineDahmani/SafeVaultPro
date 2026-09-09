@@ -270,6 +270,10 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 							ingestPendingItems([data.item]);
 						} else if (data && data.type === "VAULT_LOCKED") {
 							lock();
+						} else if (data && data.type === "SYSTEM_SLEEP") {
+							if (settings.lockOnSleep) {
+								lock();
+							}
 						}
 					} catch (err) {
 						console.error("Failed to parse SSE event:", err);
@@ -336,7 +340,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		};
 	}, [isUnlocked, settings.autoLockTimeout, lock]);
 
-	// Lock on Window Blur and System Sleep
+	// Lock on Window Blur and auto-refresh on window focus
 	useEffect(() => {
 		if (!isUnlocked) return;
 
@@ -347,9 +351,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		};
 
 		const handleVisibilityChange = () => {
-			if (document.hidden && settings.lockOnSleep) {
-				lock();
-			} else if (document.visibilityState === "visible") {
+			if (document.visibilityState === "visible") {
 				refreshItems();
 			}
 		};
@@ -361,7 +363,7 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 			window.removeEventListener("blur", handleBlur);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
-	}, [isUnlocked, settings.lockOnWindowBlur, settings.lockOnSleep, lock, refreshItems]);
+	}, [isUnlocked, settings.lockOnWindowBlur, lock, refreshItems]);
 
 	const unlock = async (masterPassword: string): Promise<boolean> => {
 		try {

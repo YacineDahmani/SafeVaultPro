@@ -328,17 +328,26 @@ export function isWindowHidden(): boolean {
 }
 
 /**
- * Handles window close according to user's minimizeToTray preference.
+ * Handles window minimize according to user's minimizeToTray preference.
  */
-export function handleCloseOrMinimize(win?: any, minimizeToTray = false): { action: "hidden" | "closed" } {
+export function handleMinimize(win?: any, minimizeToTray = false): { action: "hidden" | "minimized" } {
 	const target = win || mainWinRef;
 	if (minimizeToTray) {
 		hideToTray(target);
 		return { action: "hidden" };
 	} else {
-		closeWindow(target);
-		return { action: "closed" };
+		minimizeWindow(target);
+		return { action: "minimized" };
 	}
+}
+
+/**
+ * Handles window close - always exits application cleanly.
+ */
+export function handleCloseOrMinimize(win?: any, minimizeToTray = false): { action: "hidden" | "closed" } {
+	const target = win || mainWinRef;
+	forceQuitApp(target);
+	return { action: "closed" };
 }
 
 /**

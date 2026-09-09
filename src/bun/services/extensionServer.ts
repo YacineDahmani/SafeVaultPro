@@ -8,10 +8,11 @@ import {
 	unmaximizeWindow,
 	toggleMaximize,
 	minimizeWindow,
-	closeWindow,
 	hideToTray,
 	restoreFromTray,
+	handleMinimize,
 	handleCloseOrMinimize,
+	forceQuitApp,
 } from "./windowManager";
 import { DEFAULT_SETTINGS, type VaultSettings } from "../db/settingsStorage";
 import { updateTrayStatus } from "./trayService";
@@ -301,8 +302,20 @@ export function startExtensionServer() {
 						let isMax = false;
 
 						if (body.action === "minimize") {
-							minimizeWindow();
+							const shouldTray = typeof body.minimizeToTray === "boolean"
+								? body.minimizeToTray
+								: Boolean(currentSettings.minimizeToTray);
+							const minResult = handleMinimize(undefined, shouldTray);
 							isMax = isWindowMaximized();
+							return new Response(
+								JSON.stringify({
+									success: true,
+									isMaximized: isMax,
+									action: minResult.action,
+									minimizedToTray: minResult.action === "hidden",
+								}),
+								{ headers }
+							);
 						} else if (body.action === "maximize" || body.action === "toggleMaximize") {
 							isMax = toggleMaximize();
 						} else if (body.action === "unmaximize") {
@@ -314,16 +327,12 @@ export function startExtensionServer() {
 						} else if (body.action === "restoreFromTray") {
 							restoreFromTray();
 						} else if (body.action === "close") {
-							const shouldMinimize = typeof body.minimizeToTray === "boolean"
-								? body.minimizeToTray
-								: Boolean(currentSettings.minimizeToTray);
-							const closeResult = handleCloseOrMinimize(undefined, shouldMinimize);
+							forceQuitApp();
 							return new Response(
 								JSON.stringify({
 									success: true,
 									isMaximized: false,
-									action: closeResult.action,
-									minimizedToTray: closeResult.action === "hidden",
+									action: "closed",
 								}),
 								{ headers }
 							);
@@ -566,8 +575,12 @@ export function startExtensionServer() {
 						// Focused on 2FA code field
 						matches = allItems.filter((i) => i.type === "totp");
 					} else if (fieldType === "personal") {
-						// Focused on identity / personal info field
-						matches = allItems.filter((i) => i.type === "personal_info");
+						// Focused on identity / personal info field (include personal profiles and identity cards/passports)
+						matches = allItems.filter(
+							(i) =>
+								i.type === "personal_info" ||
+								(i.type === "card" && ((i as any).subtype === "id_card" || (i as any).subtype === "passport"))
+						);
 					} else if (domain) {
 						// Standard domain match for logins/passwords
 						matches = allItems.filter((item) => {
@@ -640,6 +653,20 @@ export function startExtensionServer() {
 		});
 
 		console.log(`[SafeVaultPro Extension Bridge] Listening on http://localhost:${PORT}`);
+
+		// Background OS sleep/wake detection (independent of webview throttling)
+		let lastHeartbeatTime = Date.now();
+		setInterval(() => {
+			const now = Date.now();
+			if (now - lastHeartbeatTime > 15000) {
+				broadcastSSE({
+					type: "SYSTEM_SLEEP",
+					timestamp: now,
+				});
+			}
+			lastHeartbeatTime = now;
+		}, 3000);
+
 		return server;
 	} catch (error) {
 		console.error("[SafeVaultPro Extension Bridge] Failed to start server:", error);

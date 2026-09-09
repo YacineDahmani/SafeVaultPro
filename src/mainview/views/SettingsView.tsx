@@ -20,8 +20,6 @@ import {
 	Terminal,
 	HardDrive,
 	FolderOpen,
-	FileSpreadsheet,
-	FileText,
 	Copy,
 	Check,
 	Activity,
@@ -66,10 +64,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 		securityGrade: string;
 	} | null>(null);
 
-	// Plaintext export confirmation modal state
-	const [showPlaintextModal, setShowPlaintextModal] = useState<"csv" | "json" | null>(null);
-	const [plaintextConfirmPhrase, setPlaintextConfirmPhrase] = useState("");
-
 	// Reload seed confirm modal state
 	const [showReloadConfirmModal, setShowReloadConfirmModal] = useState(false);
 
@@ -86,13 +80,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 	// Handle Esc key to return to vault
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && !showPlaintextModal && !showReloadConfirmModal) {
+			if (e.key === "Escape" && !showReloadConfirmModal) {
 				onBack();
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [onBack, showPlaintextModal, showReloadConfirmModal]);
+	}, [onBack, showReloadConfirmModal]);
 
 	// Auto-test bridge connection on mount
 	useEffect(() => {
@@ -328,69 +322,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 		}
 	};
 
-	// 5. Plaintext Export (Guarded)
-	const executePlaintextExport = () => {
-		if (plaintextConfirmPhrase !== "EXPORT UNENCRYPTED") {
-			showToast('Please type "EXPORT UNENCRYPTED" to proceed', "warning");
-			return;
-		}
 
-		const format = showPlaintextModal;
-		setShowPlaintextModal(null);
-		setPlaintextConfirmPhrase("");
-
-		try {
-			if (format === "json") {
-				const dataStr = JSON.stringify(allItems, null, 2);
-				const fileName = `SafeVaultPro_Plaintext_${Date.now()}.json`;
-				downloadStringFile(fileName, dataStr, "application/json");
-				showToast("Plaintext JSON exported. Store this file securely!", "warning");
-			} else if (format === "csv") {
-				// Format standard CSV with headers
-				const headers = ["id", "type", "title", "username", "password", "url", "notes", "favorite", "createdAt"];
-				const rows = allItems.map((item) => {
-					const escapeCsv = (str: string | undefined) => {
-						if (!str) return '""';
-						return `"${str.replace(/"/g, '""')}"`;
-					};
-					const pItem = item as any;
-					return [
-						escapeCsv(item.id),
-						escapeCsv(item.type),
-						escapeCsv(item.title),
-						escapeCsv(pItem.username || pItem.cardholderName || pItem.fullName || pItem.issuer || ""),
-						escapeCsv(pItem.password || pItem.number || pItem.secret || ""),
-						escapeCsv(pItem.url || ""),
-						escapeCsv(item.notes || (item as any).content || ""),
-						item.favorite ? "true" : "false",
-						new Date(item.createdAt).toISOString(),
-					].join(",");
-				});
-
-				const csvContent = [headers.join(","), ...rows].join("\n");
-				const fileName = `SafeVaultPro_Plaintext_${Date.now()}.csv`;
-				downloadStringFile(fileName, csvContent, "text/csv");
-				showToast("Plaintext CSV exported. Store this file securely!", "warning");
-			}
-		} catch (err: any) {
-			showToast(`Export error: ${err.message}`, "warning");
-		}
-	};
-
-	const downloadStringFile = (fileName: string, content: string, mime: string) => {
-		const blob = new Blob([content], { type: `${mime};charset=utf-8` });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.style.display = "none";
-		a.href = url;
-		a.download = fileName;
-		document.body.appendChild(a);
-		a.click();
-		setTimeout(() => {
-			if (document.body.contains(a)) document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-		}, 1000);
-	};
 
 	// 6. Restore Encrypted Backup File
 	const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -629,24 +561,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								</label>
 							</div>
 
-							{/* Close Button & System Tray Behavior */}
+							{/* Minimize Button & System Tray Behavior */}
 							<div className="p-5 bg-[#131315] border border-slate-800/80 rounded-2xl space-y-4">
 								<div className="flex items-start justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-											<span>Close Button & Tray Behavior</span>
+											<span>Minimize & System Tray Behavior</span>
 											{settings.minimizeToTray ? (
 												<span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-[10px] rounded font-mono font-bold">
 													MINIMIZE TO TRAY
 												</span>
 											) : (
 												<span className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-400 text-[10px] rounded font-mono font-bold">
-													NORMAL CLOSE (DEFAULT)
+													NORMAL MINIMIZE (DEFAULT)
 												</span>
 											)}
 										</h3>
 										<p className="text-xs text-slate-400 mt-1">
-											Choose whether closing the app exits completely or keeps running in the background.
+											Choose whether minimizing the window sends SafeVaultPro to the system tray or keeps it in the taskbar. Closing the window always exits the application.
 										</p>
 									</div>
 								</div>
@@ -654,10 +586,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<label className="p-4 bg-[#09090b] border border-slate-800/80 rounded-xl flex items-center justify-between cursor-pointer hover:border-slate-700/80 transition-colors">
 									<div className="space-y-1 pr-4">
 										<div className="flex items-center gap-2">
-											<span className="text-xs font-bold text-white">Minimize to system tray on close</span>
+											<span className="text-xs font-bold text-white">Minimize to system tray</span>
 										</div>
 										<p className="text-[11px] text-slate-400 leading-relaxed">
-											When closing the window, keep SafeVaultPro running in the Windows system tray. The browser extension stays continuously connected for live autofill and credential capturing.
+											When minimizing the window, keep SafeVaultPro running in the Windows system tray instead of the taskbar. The browser extension stays continuously connected for live autofill and credential capturing.
 										</p>
 									</div>
 									<input
@@ -668,8 +600,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 											updateSettings({ minimizeToTray: val });
 											showToast(
 												val
-													? "Window close will now minimize to system tray"
-													: "Window close will now exit the application",
+													? "Minimize button will now minimize to system tray"
+													: "Minimize button will now minimize to taskbar",
 												"info"
 											);
 										}}
@@ -1016,7 +948,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 									<span>Backup & Export</span>
 								</h2>
 								<p className="text-xs text-slate-400 mt-1">
-									Save encrypted backups or export your data.
+									Save encrypted backups or restore your vault.
 								</p>
 							</div>
 
@@ -1068,39 +1000,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 									<span className="text-[10px] text-slate-500 font-mono mt-1">Replaces current vault</span>
 									<input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
 								</label>
-							</div>
-
-							{/* Plaintext Export */}
-							<div className="p-5 bg-[#131315] border border-amber-900/40 rounded-2xl space-y-3">
-								<div className="flex items-start gap-3">
-									<AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-									<div>
-										<h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider font-mono">
-											Unencrypted Export
-										</h3>
-										<p className="text-xs text-slate-400 mt-0.5">
-											Exports data without password protection. Store securely.
-										</p>
-									</div>
-								</div>
-
-								<div className="grid grid-cols-2 gap-3 pt-2">
-									<button
-										onClick={() => setShowPlaintextModal("csv")}
-										className="py-2.5 px-3 bg-[#18181b] hover:bg-amber-950/40 border border-amber-800/40 text-amber-300 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all"
-									>
-										<FileSpreadsheet className="w-4 h-4 text-amber-400" />
-										<span>Export CSV</span>
-									</button>
-
-									<button
-										onClick={() => setShowPlaintextModal("json")}
-										className="py-2.5 px-3 bg-[#18181b] hover:bg-amber-950/40 border border-amber-800/40 text-amber-300 rounded-xl text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all"
-									>
-										<FileText className="w-4 h-4 text-amber-400" />
-										<span>Export JSON</span>
-									</button>
-								</div>
 							</div>
 						</div>
 					)}
@@ -1262,56 +1161,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 				</div>
 			</div>
 
-			{/* Modal 1: Plaintext Export Guard Modal */}
-			{showPlaintextModal && (
-				<div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none animate-fade-in">
-					<div className="bg-[#131315] border border-red-900/80 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 text-slate-200">
-						<div className="flex items-center gap-3 text-red-400">
-							<AlertOctagon className="w-6 h-6 shrink-0" />
-							<h3 className="text-sm font-bold uppercase font-mono tracking-wider">
-								Warning: Unencrypted Plaintext Export
-							</h3>
-						</div>
 
-						<p className="text-xs text-slate-300 leading-relaxed">
-							You are about to export your entire password and secrets vault as unencrypted <span className="font-bold text-white uppercase">{showPlaintextModal}</span>.
-							Anyone with access to the exported file will have access to all your credentials in plaintext.
-						</p>
-
-						<div className="p-3 bg-red-950/40 border border-red-900/50 rounded-xl text-xs text-red-300 font-mono">
-							Type <span className="text-white font-bold">EXPORT UNENCRYPTED</span> to confirm:
-						</div>
-
-						<input
-							type="text"
-							value={plaintextConfirmPhrase}
-							onChange={(e) => setPlaintextConfirmPhrase(e.target.value)}
-							placeholder="EXPORT UNENCRYPTED"
-							className="w-full px-4 py-2.5 bg-[#09090b] border border-red-900/80 rounded-xl text-red-300 font-mono text-xs focus:outline-none"
-						/>
-
-						<div className="flex items-center justify-end gap-3 pt-2">
-							<button
-								onClick={() => {
-									setShowPlaintextModal(null);
-									setPlaintextConfirmPhrase("");
-								}}
-								className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-colors"
-							>
-								Cancel
-							</button>
-
-							<button
-								onClick={executePlaintextExport}
-								disabled={plaintextConfirmPhrase !== "EXPORT UNENCRYPTED"}
-								className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-lg font-mono"
-							>
-								Export Plaintext
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
 
 			{/* Modal 2: Reload Dataset Confirmation Modal */}
 			{showReloadConfirmModal && (

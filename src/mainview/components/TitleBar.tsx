@@ -64,7 +64,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 					<button
 						type="button"
 						onClick={(e) => handleWindowAction("minimize", e)}
-						title="Minimize Window"
+						title={minimizeToTray ? "Minimize to System Tray" : "Minimize Window"}
 						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
 						<Minus className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 					<button
 						type="button"
 						onClick={(e) => handleWindowAction("close", e)}
-						title={minimizeToTray ? "Minimize to System Tray" : "Close Application"}
+						title="Close Application"
 						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-red-600/90 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
 						<X className="w-3.5 h-3.5" />
