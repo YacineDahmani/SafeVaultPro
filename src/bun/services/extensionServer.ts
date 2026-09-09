@@ -30,7 +30,22 @@ try {
 	console.warn("[Bridge] Using default token fallback:", e);
 }
 
-const SETTINGS_FILE_PATH = path.resolve(process.cwd(), "src", "bun", "db", "user-settings.json");
+function getSettingsFilePath(): string {
+	const appDataDir = process.env.LOCALAPPDATA
+		? path.join(process.env.LOCALAPPDATA, "com.safevaultpro.app")
+		: path.join(process.env.HOME || process.cwd(), ".safevaultpro");
+
+	try {
+		if (!fs.existsSync(appDataDir)) {
+			fs.mkdirSync(appDataDir, { recursive: true });
+		}
+		return path.join(appDataDir, "user-settings.json");
+	} catch {
+		return path.resolve(process.cwd(), "src", "bun", "db", "user-settings.json");
+	}
+}
+
+const SETTINGS_FILE_PATH = getSettingsFilePath();
 
 let currentSettings: VaultSettings = { ...DEFAULT_SETTINGS };
 

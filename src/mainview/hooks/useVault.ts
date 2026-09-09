@@ -45,8 +45,11 @@ export function useVault() {
 		}).catch(() => {});
 	}, []);
 
-	// Sync initial settings from backend if available
+	// Sync settings with backend on startup
 	useEffect(() => {
+		const localSettings = getVaultSettings();
+		const hasSavedLocal = typeof localStorage !== "undefined" && localStorage.getItem("safevault_user_settings") !== null;
+
 		fetch("http://localhost:48920/api/settings", {
 			headers: {
 				"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
@@ -55,8 +58,21 @@ export function useVault() {
 			.then((res) => res.json())
 			.then((data) => {
 				if (data?.success && data?.settings) {
-					const merged = saveVaultSettings(data.settings);
-					setSettings(merged);
+					if (hasSavedLocal) {
+						// Local settings are user-configured; ensure backend is synchronized with them
+						fetch("http://localhost:48920/api/settings", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								"Authorization": `Bearer ${BRIDGE_AUTH_TOKEN}`,
+							},
+							body: JSON.stringify(localSettings),
+						}).catch(() => {});
+					} else {
+						// First-time launch or local storage empty: adopt backend settings
+						const merged = saveVaultSettings(data.settings);
+						setSettings(merged);
+					}
 				}
 			})
 			.catch(() => {});

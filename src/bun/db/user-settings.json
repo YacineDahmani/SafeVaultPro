@@ -1,0 +1,14 @@
+{
+  "autoLockTimeout": "30",
+  "lockOnSleep": true,
+  "lockOnWindowBlur": false,
+  "clipboardTimeout": 30,
+  "wipeClipboardOnLock": true,
+  "argon2Memory": 65536,
+  "argon2Iterations": 3,
+  "argon2Parallelism": 1,
+  "defaultLandingView": "all",
+  "autoBackupEnabled": true,
+  "lastBackupTimestamp": null,
+  "minimizeToTray": true
+}
