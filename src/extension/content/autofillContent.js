@@ -631,6 +631,51 @@
 		return preferred || profileFields[0];
 	}
 
+	function getTotpScope(input) {
+		if (input && input.form) return input.form;
+		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="otp" i], [class*="2fa" i], [class*="verification" i], [class*="code" i], [id*="otp" i], [id*="2fa" i], [id*="verification" i], [class*="modal" i], [id*="modal" i], section, main')) || document;
+	}
+
+	function getPrimaryTotpField(input) {
+		const scope = getTotpScope(input);
+		const allElements = Array.from(scope.querySelectorAll('input:not([type="hidden"]), select'));
+		const totpFields = allElements.filter(el => {
+			if (shouldIgnoreField(el) || !isElementVisible(el)) return false;
+			return classifyField(el) === 'totp';
+		});
+		if (totpFields.length === 0) return null;
+		return totpFields[0];
+	}
+
+	function isSecondaryTotpField(input) {
+		if (!input) return false;
+
+		const cl = classifyField(input);
+		if (cl === 'totp') {
+			const primary = getPrimaryTotpField(input);
+			if (primary && primary !== input) return true;
+		}
+
+		// Suppress subsequent boxes in multi-digit segmented OTP rows (e.g. GitHub, PayPal, Stripe 6-box inputs)
+		const maxLen = input.maxLength || parseInt(input.getAttribute('maxlength') || '0', 10);
+		const isSingleChar = maxLen === 1 || input.getAttribute('size') === '1';
+		if (isSingleChar) {
+			const scope = getTotpScope(input);
+			const siblings = Array.from(scope.querySelectorAll('input:not([type="hidden"])'))
+				.filter(el => {
+					if (shouldIgnoreField(el) || !isElementVisible(el)) return false;
+					const ml = el.maxLength || parseInt(el.getAttribute('maxlength') || '0', 10);
+					return ml === 1 || el.getAttribute('size') === '1';
+				});
+
+			if (siblings.length >= 2 && siblings.indexOf(input) > 0) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	// Bulletproof Badge Injection and Positioning
 	function attachBadge(input) {
 		if (attachedBadges.has(input)) return;
@@ -651,13 +696,17 @@
 				return;
 			}
 		}
+		// For 2FA / TOTP / OTP verification code fields, NEVER attach to secondary boxes
+		if (isSecondaryTotpField(input)) {
+			return;
+		}
 		if (classification === 'generic') {
 			return;
 		}
 
 		const badge = document.createElement('div');
 		badge.className = 'safevault-input-badge';
-		badge.title = classification.startsWith('personal_') ? 'Autofill Form' : 'Autofill';
+		badge.title = classification.startsWith('personal_') ? 'Autofill Form' : (classification === 'totp' ? 'Insert 2FA Code' : 'Autofill');
 		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
 		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
 
@@ -737,6 +786,12 @@
 		let offset = 8;
 		if (isPassword) {
 			offset = 38; // Safe default clearance for view password eye icons
+		}
+
+		// Narrow single-digit boxes (e.g. segmented OTP inputs): tuck badge close to right edge
+		const maxLen = inp.maxLength || parseInt(inp.getAttribute('maxlength') || '0', 10);
+		if ((maxLen === 1 || inp.getAttribute('size') === '1') && inp.offsetWidth > 0 && inp.offsetWidth <= 55) {
+			return 2;
 		}
 
 		try {
@@ -1594,6 +1649,45 @@
 		return false;
 	}
 
+	// Smart 2FA / TOTP Code Filling (Supports both segmented multi-box inputs like GitHub/PayPal and single inputs)
+	function fillTotpCode(targetInput, code) {
+		if (!targetInput || !code) return;
+		const cleanCode = String(code).trim().replace(/\s+/g, '');
+
+		const scope = getTotpScope(targetInput);
+		const allInputs = Array.from(scope.querySelectorAll('input:not([type="hidden"])'))
+			.filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+
+		// Check for segmented single-digit inputs (e.g. PayPal, GitHub, Stripe 6-box OTP)
+		const segmentedInputs = allInputs.filter(el => {
+			const ml = el.maxLength || parseInt(el.getAttribute('maxlength') || '0', 10);
+			return ml === 1 || el.getAttribute('size') === '1';
+		});
+
+		if (segmentedInputs.length >= 2) {
+			const startIndex = segmentedInputs.indexOf(targetInput) >= 0 ? segmentedInputs.indexOf(targetInput) : 0;
+			const targetSlice = segmentedInputs.slice(startIndex);
+
+			for (let i = 0; i < cleanCode.length && i < targetSlice.length; i++) {
+				const char = cleanCode[i];
+				const el = targetSlice[i];
+				setNativeFieldValue(el, char);
+				try {
+					el.dispatchEvent(new KeyboardEvent('keydown', { key: char, code: `Digit${char}`, bubbles: true }));
+					el.dispatchEvent(new KeyboardEvent('keypress', { key: char, code: `Digit${char}`, bubbles: true }));
+					el.dispatchEvent(new KeyboardEvent('keyup', { key: char, code: `Digit${char}`, bubbles: true }));
+				} catch (e) {}
+			}
+
+			const lastTarget = targetSlice[Math.min(cleanCode.length - 1, targetSlice.length - 1)];
+			if (lastTarget) lastTarget.focus();
+			return;
+		}
+
+		// Single standard input
+		setNativeFieldValue(targetInput, cleanCode);
+	}
+
 	// Smart Autofill Engine dispatcher
 	function autofillItem(targetInput, item) {
 		const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
@@ -1630,7 +1724,7 @@
 		else if (item.type === 'totp') {
 			chrome.runtime.sendMessage({ action: "GET_TOTP", secret: item.secret }, (res) => {
 				if (res && res.success && res.code) {
-					setNativeFieldValue(targetInput, res.code);
+					fillTotpCode(targetInput, res.code);
 				}
 			});
 		}
@@ -2002,6 +2096,13 @@
 							oldBadge.remove();
 							attachedBadges.delete(input);
 						}
+					}
+				}
+				if (isSecondaryTotpField(input) && attachedBadges.has(input)) {
+					const oldBadge = attachedBadges.get(input);
+					if (oldBadge) {
+						oldBadge.remove();
+						attachedBadges.delete(input);
 					}
 				}
 				attachBadge(input);
