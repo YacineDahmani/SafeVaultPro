@@ -113,6 +113,7 @@ const AUTH_ALIAS_CLUSTERS: string[][] = [
 	["amazon.com", "amazon.co.uk", "amazon.de", "amazon.fr", "amazon.ca", "amazon.es", "amazon.it"],
 	["yahoo.com", "login.yahoo.com", "mail.yahoo.com"],
 	["github.com", "gist.github.com"],
+	["dzds.dz", "sso.dzds.dz", "app.dzairdigitalservices.dz", "dzairdigitalservices.dz"],
 ];
 
 function matchDomain(itemUrl: string | undefined, domain: string): boolean {
@@ -583,8 +584,11 @@ export function startExtensionServer() {
 						// Focused strictly on personal profile info
 						matches = allItems.filter((i) => i.type === "personal_info");
 					} else if (domain) {
-						// Standard domain match for logins/passwords
+						// Standard domain match for logins/passwords + universal personal info
 						matches = allItems.filter((item) => {
+							if (typeFilter === "all" && item.type === "personal_info") {
+								return true;
+							}
 							if (item.type === "password" && matchDomain(item.url, domain)) {
 								return true;
 							}
@@ -595,7 +599,10 @@ export function startExtensionServer() {
 								return item.type === typeFilter;
 							}
 							const searchTarget = `${item.title} ${(item as any).username || ""} ${(item as any).issuer || ""}`.toLowerCase();
-							return searchTarget.includes(domain.toLowerCase());
+							const cleanD = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0].split(":")[0];
+							const baseD = extractBaseDomain(cleanD);
+							const rootKeyword = baseD ? baseD.split(".")[0] : "";
+							return searchTarget.includes(cleanD) || (rootKeyword.length >= 3 && searchTarget.includes(rootKeyword));
 						});
 					} else {
 						matches = allItems;

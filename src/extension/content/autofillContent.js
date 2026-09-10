@@ -72,6 +72,9 @@
 			}
 
 			field.dispatchEvent(new Event('input', { bubbles: true }));
+			try {
+				field.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: String(val) }));
+			} catch (_) {}
 			field.dispatchEvent(new Event('change', { bubbles: true }));
 			field.dispatchEvent(new Event('blur', { bubbles: true }));
 		} catch (e) {
@@ -101,8 +104,12 @@
 				}
 			}
 
-			const container = input.closest('div, p, li, section');
+			const container = input.closest('div, p, li, section, .form-group, .form-item, mat-form-field');
 			if (container) {
+				const siblingLabel = container.querySelector('label, mat-label, [class*="label" i]');
+				if (siblingLabel && siblingLabel !== parentLabel) {
+					text += siblingLabel.textContent + ' ';
+				}
 				const prev = container.previousElementSibling;
 				if (prev && (prev.tagName === 'LABEL' || prev.tagName === 'SPAN' || prev.tagName === 'P')) {
 					text += prev.textContent + ' ';
@@ -248,11 +255,20 @@
 		return inputs.some(el => {
 			const label = getFieldLabelText(el);
 			const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''} ${el.autocomplete || ''} ${label}`.toLowerCase();
+			if (
+				a.includes('identite') || a.includes('identité') || a.includes('national') ||
+				a.includes('cni') || a.includes('cin') || a.includes('nin') ||
+				a.includes('passeport') || a.includes('passport') ||
+				a.includes('التعريف') || a.includes('الهوية') || a.includes('الوطني') || a.includes('جواز')
+			) {
+				return false;
+			}
 			return a.includes('cc-') ||
 				a.includes('cvv') ||
 				a.includes('cvc') ||
 				a.includes('cvw') ||
-				a.includes('carte') ||
+				a.includes('carte bancaire') ||
+				a.includes('carte de credit') ||
 				a.includes('credit card') ||
 				a.includes('card number') ||
 				a.includes('card_number') ||
@@ -261,8 +277,7 @@
 				a.includes('cib') ||
 				a.includes('baridi') ||
 				a.includes('satim') ||
-				a.includes('expiration') ||
-				a.includes('validite');
+				((a.includes('expiration') || a.includes('validite')) && !a.includes('naissance') && !a.includes('birth'));
 		});
 	}
 
@@ -304,6 +319,28 @@
 			return 'password';
 		}
 
+		// Identity Documents: Algerian National NIN (18 digits) - Checked BEFORE cards to avoid false positives
+		if (
+			matchToken(norm, /\b(nin|national\s*identification\s*num(ber)?|numero\s*d?\s*identification\s*nationale|num\s*identite\s*nationale|identifiant\s*national|matricule\s*national|nin\s*num(ber)?)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف[-_]?الوطني|الهوية[-_]?الوطنية)|الرقم[-_]?الوطني[-_]?(التعريفي|البيومتري)?)/i)
+		) {
+			return 'doc_nin';
+		}
+
+		// Identity Documents: Passport & General National ID / CNI
+		if (
+			matchToken(norm, /\b(passport|passeport|num\s*passeport|passport\s*number|passport\s*no)\b/i) ||
+			matchToken(raw, /(جواز[-_]?السفر|رقم[-_]?جواز[-_]?السفر)/i)
+		) {
+			return 'doc_passport';
+		}
+		if (
+			matchToken(norm, /\b(national\s*id|ssn|social\s*security|carte\s*identite|carte\s*nationale|num\s*carte\s*identite|cni|cnib|cin|identity\s*card|id\s*card|id\s*number)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني|بطاقة[-_]?التعريف)|بطاقة[-_]?التعريف|بطاقة[-_]?الهوية)/i)
+		) {
+			return 'doc_nationalId';
+		}
+
 		// Credit Card CVV / CVC (Check BEFORE generic password check since CVV is frequently input type="password")
 		if (
 			autocomplete === 'cc-csc' ||
@@ -333,29 +370,31 @@
 			return 'password';
 		}
 
-
 		// Credit Card Number (Algerian Edahabia, CIB, BaridiMob, SATIM, Visa, MC, Amex)
 		if (
 			autocomplete === 'cc-number' ||
-			matchToken(norm, /\b(card\s*num(ber)?|cc\s*num(ber)?|credit\s*card|num\s*carte|numero\s*carte|n\s*carte|pan|carte\s*(cib|edahabia|bancaire)|edahabia|baridi|satim|cardno|card_no)\b/i) ||
-			matchToken(raw, /(رقم[-_]?(البطاقة|الائتمان)|الذهبية|البطاقة)/i)
+			matchToken(norm, /\b(card\s*num(ber)?|cc\s*num(ber)?|credit\s*card|num\s*carte\s*(bancaire|cib|edahabia)|carte\s*(cib|edahabia|bancaire|credit|paiement)|edahabia|baridi|satim|cardno|card_no)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(البطاقة[-_]?(الذهبية|البنكية|المصرفية|الائتمانية)|الائتمان)|الذهبية)/i)
 		) {
 			return 'card_number';
 		}
 
 		// Card Expiry Month / Year / Date
-		if (autocomplete === 'cc-exp-month' || (matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
-			return 'card_exp_month';
-		}
-		if (autocomplete === 'cc-exp-year' || (matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
-			return 'card_exp_year';
-		}
-		if (
-			autocomplete === 'cc-exp' ||
-			(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee)\b/i)) ||
-			matchToken(raw, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
-		) {
-			return 'card_exp';
+		const isIdentityContext = matchToken(norm, /\b(identite|national|cni|cin|nin|passport|passeport)\b/i) || matchToken(raw, /(التعريف|الهوية|الوطني|جواز)/i);
+		if (!isIdentityContext) {
+			if (autocomplete === 'cc-exp-month' || (matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
+				return 'card_exp_month';
+			}
+			if (autocomplete === 'cc-exp-year' || (matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
+				return 'card_exp_year';
+			}
+			if (
+				autocomplete === 'cc-exp' ||
+				(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee)\b/i)) ||
+				matchToken(raw, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
+			) {
+				return 'card_exp';
+			}
 		}
 
 		// Cardholder Name
@@ -364,7 +403,7 @@
 			autocomplete === 'cc-name' ||
 			autocomplete === 'cc-given-name' ||
 			autocomplete === 'cc-family-name' ||
-			matchToken(norm, /\b(card\s*holder|cardholder|name\s*on\s*card|name\s*on\s*the\s*card|card\s*name|cc\s*name|titulaire|porteur|nom\s*porteur|nom\s*titulaire|nom\s*carte|nom\s*sur\s*carte|titulaire\s*carte|karteninhaber|titular|nombre\s*titular|nombre\s*tarjeta|card\s*owner|cardowner)\b/i) ||
+			matchToken(norm, /\b(card\s*holder|cardholder|name\s*on\s*card|name\s*on\s*the\s*card|card\s*name|cc\s*name|titulaire\s*(carte|compte)|porteur\s*carte|nom\s*porteur|nom\s*titulaire|nom\s*sur\s*carte|titulaire\s*carte|karteninhaber|titular|nombre\s*titular|nombre\s*tarjeta|card\s*owner|cardowner)\b/i) ||
 			(inPayment && matchToken(norm, /\b(my\s*name|your\s*name|mon\s*nom|nom\s*prenom|nom\s*et\s*prenom|nom|name|owner|client\s*name|nom\s*client)\b/i) && !matchToken(norm, /\b(billing[-_]?address|shipping[-_]?address|street|city|zip|state|country|email|phone)\b/i)) ||
 			matchToken(raw, /(اسم[-_]?(صاحب|حامل)[-_]?البطاقة|صاحب[-_]?البطاقة|حامل[-_]?البطاقة)/i) ||
 			(inPayment && matchToken(raw, /(اسمي|الاسم[-_]?واللقب|اسم[-_]?الزبون|اسم[-_]?العميل)/i))
@@ -374,28 +413,6 @@
 
 		if (inPayment) {
 			return 'generic';
-		}
-
-		// Identity Documents: Algerian National NIN (18 digits)
-		if (
-			matchToken(norm, /\b(nin|national\s*identification\s*num(ber)?|numero\s*d?\s*identification\s*nationale|num\s*identite\s*nationale|identifiant\s*national|matricule\s*national|nin\s*num(ber)?)\b/i) ||
-			matchToken(raw, /(رقم[-_]?(التعريف[-_]?الوطني|الهوية[-_]?الوطنية)|الرقم[-_]?الوطني[-_]?(التعريفي|البيومتري)?)/i)
-		) {
-			return 'doc_nin';
-		}
-
-		// Identity Documents: Passport & General National ID
-		if (
-			matchToken(norm, /\b(passport|passeport|num\s*passeport|passport\s*number|passport\s*no)\b/i) ||
-			matchToken(raw, /(جواز[-_]?السفر|رقم[-_]?جواز[-_]?السفر)/i)
-		) {
-			return 'doc_passport';
-		}
-		if (
-			matchToken(norm, /\b(national\s*id|ssn|social\s*security|carte\s*identite|n\s*national|cin|cni|identity\s*card|id\s*card)\b/i) ||
-			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف)/i)
-		) {
-			return 'doc_nationalId';
 		}
 
 		// Personal Info: Explicit Arabic Names (First, Last, Full)
@@ -496,10 +513,11 @@
 			if (
 				type === 'email' ||
 				type === 'tel' ||
+				type === 'text' ||
 				autocomplete === 'username' ||
 				autocomplete === 'email' ||
-				matchToken(norm, /\b(username|user\s*name|login|email|e\s*mail|mail|phone|telephone|mobile|identifiant|account|identifier|auth\s*user|session|ident)\b/i) ||
-				matchToken(raw, /(اسم[-_]?المستخدم|المعرف|البريد|الهاتف)/i)
+				matchToken(norm, /\b(username|user\s*name|login|email|e\s*mail|mail|phone|telephone|mobile|identifiant|account|identifier|auth\s*user|session|ident|nin|national\s*id)\b/i) ||
+				matchToken(raw, /(اسم[-_]?المستخدم|المعرف|البريد|الهاتف|رقم[-_]?(التعريف|الهوية|الوطني))/i)
 			) {
 				return 'login_username';
 			}
@@ -519,9 +537,27 @@
 		return 'generic';
 	}
 
+	function isLoginUrl() {
+		const hash = (window.location.hash || '').split('?')[0].toLowerCase();
+		const path = (window.location.pathname || '').toLowerCase();
+		return ['login', 'signin', 'sign-in', 'log-in', 'connexion', 'auth'].some(
+			kw => hash.includes(kw) || path.includes(kw)
+		);
+	}
+
+	function isRegistrationUrl() {
+		if (isLoginUrl()) return false;
+		const hash = (window.location.hash || '').split('?')[0].toLowerCase();
+		const path = (window.location.pathname || '').toLowerCase();
+		return ['register', 'signup', 'sign-up', 'inscription', "s'inscrire", 'create-account', 'creer-compte'].some(
+			kw => hash.includes(kw) || path.includes(kw)
+		);
+	}
+
 	function isLoginForm(input) {
 		if (!input) return false;
-		if (isRegistrationForm(input)) return false;
+		if (isLoginUrl()) return true;
+		if (isRegistrationUrl()) return false;
 		const form = input.form || input.closest('form, [class*="login" i], [class*="signin" i], [id*="login" i], [id*="signin" i], main') || document;
 		const hasPassword = form.querySelector('input[type="password"]') !== null;
 		if (hasPassword) return true;
@@ -529,15 +565,17 @@
 		const autocomplete = (input.autocomplete || '').toLowerCase();
 		if (autocomplete === 'username' || autocomplete === 'current-password') return true;
 
-		const pageUrl = window.location.href.toLowerCase();
+		const pagePath = window.location.pathname.toLowerCase();
 		const pageTitle = document.title.toLowerCase();
 		return ['login', 'signin', 'sign-in', 'log-in', 'connexion', 'auth', 'sessions/new', 'identifier', 'accounts.google.com', 'login.live.com', 'login.microsoftonline.com', 'تسجيل الدخول'].some(
-			kw => pageUrl.includes(kw) || pageTitle.includes(kw)
+			kw => pagePath.includes(kw) || pageTitle.includes(kw)
 		);
 	}
 
 	function isRegistrationForm(input) {
 		if (!input) return false;
+		if (isLoginUrl()) return false;
+		if (isRegistrationUrl()) return true;
 		const form = input.form || input.closest('form');
 		const autocomplete = (input.autocomplete || '').toLowerCase();
 		const attr = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''}`.toLowerCase();
@@ -550,28 +588,55 @@
 			return true;
 		}
 
-		const pageUrl = window.location.href.toLowerCase();
+		if (form && form.querySelectorAll('input[type="password"]').length >= 2) return true;
+
+		const pagePath = window.location.pathname.toLowerCase();
 		const pageTitle = document.title.toLowerCase();
 		const formHtml = form ? (form.action + ' ' + (form.id || '') + ' ' + (form.name || '') + ' ' + (form.className || '')).toLowerCase() : '';
-		const submitBtn = form ? form.querySelector('button[type="submit"], input[type="submit"], button') : null;
+		const submitBtn = form ? form.querySelector('button[type="submit"], input[type="submit"]') : null;
 		const submitText = submitBtn ? (submitBtn.textContent || submitBtn.value || '').toLowerCase() : '';
 
 		const isRegister = ['register', 'signup', 'sign-up', 'create account', 'create-account', "s'inscrire", 'creer compte', 'إنشاء حساب', 'تسجيل حساب'].some(
-			kw => pageUrl.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw)
+			kw => pagePath.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw)
 		);
 		const isLogin = ['login', 'log in', 'log-in', 'sign in', 'signin', 'connexion', 'تسجيل الدخول'].some(
-			kw => pageUrl.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw)
+			kw => pagePath.includes(kw) || pageTitle.includes(kw) || formHtml.includes(kw) || submitText.includes(kw)
 		);
 
-		if (isRegister && !isLogin) return true;
-		if (form && form.querySelectorAll('input[type="password"]').length >= 2) return true;
-
-		return false;
+		return isRegister && !isLogin;
 	}
 
 	function getFormScope(input) {
 		if (input && input.form) return input.form;
-		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="form" i], [id*="form" i], [class*="modal" i], [id*="modal" i], section, main')) || document.body;
+		if (!input || !input.closest) return document.body;
+
+		// If on a dedicated registration flow, treat the main content as the registration container
+		if (isRegistrationUrl()) {
+			return document.querySelector('form, [role="main"], main, article, .main-content') || document.body;
+		}
+		if (isLoginUrl()) {
+			return document.querySelector('form, [role="main"], main, article, .main-content') || document.body;
+		}
+
+		const major = input.closest('form, fieldset, [role="form"], [class*="modal" i], [id*="modal" i], main, article');
+		if (major) return major;
+
+		let parent = input.parentElement;
+		while (parent && parent !== document.body) {
+			const tag = parent.tagName.toLowerCase();
+			if (tag === 'form' || tag === 'fieldset' || tag === 'main' || tag === 'section') {
+				return parent;
+			}
+			const count = parent.querySelectorAll('input:not([type="hidden"]), select').length;
+			if (count >= 2) {
+				const className = (parent.className || '').toLowerCase();
+				if (!className.includes('form-item') && !className.includes('form-group') && !className.includes('form-control') && !className.includes('form-row') && !className.includes('input-group')) {
+					return parent;
+				}
+			}
+			parent = parent.parentElement;
+		}
+		return document.body;
 	}
 
 	/**
@@ -585,18 +650,37 @@
 
 		const classifications = inputs.map(classifyField);
 
+		// 1. Payment Form (must have payment card fields)
 		if (classifications.some(c => c === 'card_number' || c === 'card_cvv' || c === 'card_exp')) {
 			return 'payment';
 		}
-		if (classifications.some(c => c === 'doc_nin' || c === 'doc_passport' || c === 'doc_nationalId')) {
-			return 'identity_verification';
+
+		// 2. Explicit Login Page or Form with Single Password & Identifier
+		if (isLoginUrl()) {
+			return 'login';
 		}
-		if (inputs.some(isRegistrationForm) || classifications.some(c => c === 'new_password') || classifications.filter(c => c === 'password').length >= 2) {
+
+		// 3. Explicit Registration Page
+		if (isRegistrationUrl()) {
 			return 'register';
 		}
+
+		// 4. Form-level detection
+		const passCount = inputs.filter(i => i.type === 'password' || classifyField(i) === 'password' || classifyField(i) === 'new_password').length;
+		if (passCount >= 2 || classifications.some(c => c === 'new_password') || inputs.some(isRegistrationForm)) {
+			return 'register';
+		}
+
 		if (inputs.some(isLoginForm) || classifications.some(c => c === 'login_username' || c === 'password')) {
 			return 'login';
 		}
+
+		// 5. Standalone Identity Documents (Only if NOT registration or login)
+		if (classifications.some(c => c === 'doc_nin' || c === 'doc_passport' || c === 'doc_nationalId')) {
+			return 'identity_verification';
+		}
+
+		// 6. Standalone Profile Form
 		if (classifications.some(c => c.startsWith('personal_'))) {
 			return 'profile';
 		}
@@ -624,12 +708,14 @@
 		}
 
 		if (formType === 'register') {
-			// Prefer identifier field (email/username), fallback to new_password or first password
-			const idField = inputs.find(i => {
+			// Prefer the very first name / identifier input so the badge anchors at the top of the form
+			const anchor = inputs.find(i => {
 				const c = classifyField(i);
-				return c === 'personal_email' || c === 'login_username' || (i.type === 'email' || i.type === 'text');
+				return c === 'personal_lastNameArabic' || c === 'personal_firstNameArabic' || c === 'personal_fullNameArabic' ||
+					c === 'personal_firstName' || c === 'personal_lastName' || c === 'personal_fullName' ||
+					c === 'personal_email' || c === 'login_username' || c === 'doc_nin' || c === 'doc_nationalId';
 			});
-			if (idField) return idField;
+			if (anchor) return anchor;
 			return inputs.find(i => classifyField(i) === 'new_password') || inputs.find(i => i.type === 'password') || inputs[0];
 		}
 
@@ -707,6 +793,11 @@
 		if (formBadgeMap.has(formRoot)) {
 			const existing = formBadgeMap.get(formRoot);
 			if (existing.input === primaryInput && existing.badge.isConnected) {
+				if (existing.formType !== formType) {
+					existing.formType = formType;
+					existing.badge.dataset.formType = formType;
+					existing.badge.title = formType === 'register' ? 'SafeVaultPro Registration & Credentials' : (formType === 'payment' ? 'Fill Payment Card' : 'SafeVaultPro Autofill');
+				}
 				return;
 			}
 			// Remove old badge if form anchor shifted dynamically
@@ -724,20 +815,16 @@
 		const rightOffset = calculateBadgeRightOffset(primaryInput);
 		badge.style.right = `${rightOffset}px`;
 
-		let container = primaryInput.parentElement;
-		let parentStyle = container ? window.getComputedStyle(container) : null;
-		const isClipped = parentStyle && (parentStyle.overflow === 'hidden' || parentStyle.overflowX === 'hidden' || parentStyle.overflowY === 'hidden');
-
-		if (isClipped || !container) {
-			badge.style.position = 'fixed';
-			updateBadgeFixedPosition(primaryInput, badge);
-			document.body.appendChild(badge);
-		} else {
-			if (parentStyle.position === 'static') {
-				container.style.position = 'relative';
-			}
-			container.appendChild(badge);
+		let container = primaryInput.parentElement || document.body;
+		let parentStyle = window.getComputedStyle(container);
+		if (parentStyle.position === 'static') {
+			container.style.position = 'relative';
 		}
+		badge.style.position = 'absolute';
+		badge.style.top = '50%';
+		badge.style.transform = 'translateY(-50%)';
+		badge.style.zIndex = '99999';
+		container.appendChild(badge);
 
 		formBadgeMap.set(formRoot, { badge, input: primaryInput, formType });
 		attachedBadges.set(primaryInput, badge);
@@ -934,7 +1021,15 @@
 			// Query both credentials and personal profiles
 			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, type: "all" }, (response) => {
 				const allItems = response?.items || [];
-				const profileItems = allItems.filter(i => i.type === 'personal_info');
+				let profileItems = allItems.filter(i => i.type === 'personal_info');
+				if (profileItems.length === 0) {
+					// Direct query fallback for personal profiles without domain filter
+					chrome.runtime.sendMessage({ action: "QUERY_ITEMS", fieldType: "personal" }, (res2) => {
+						profileItems = (res2?.items || []).filter(i => i.type === 'personal_info');
+						renderRegistrationDropdownMenu(input, badge, formRoot, profileItems);
+					});
+					return;
+				}
 				renderRegistrationDropdownMenu(input, badge, formRoot, profileItems);
 			});
 			return;
@@ -1144,9 +1239,10 @@
 	 * 1. Authentication & Multi-Step Login Autofill
 	 */
 	function fillLoginCredentials(formRoot, targetInput, item) {
-		const allInputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+		const searchRoot = (formRoot && formRoot.querySelectorAll('input:not([type="hidden"]), select').length >= 2) ? formRoot : document;
+		const allInputs = Array.from(searchRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
 		const passInput = allInputs.find(i => i.type === 'password');
-		const userInput = allInputs.find(i => classifyField(i) === 'login_username' || (i.type !== 'password' && (i.type === 'email' || i.type === 'text')));
+		const userInput = allInputs.find(i => classifyField(i) === 'login_username' || (i.type !== 'password' && (i.type === 'email' || i.type === 'text' || i.type === 'tel')));
 
 		if (userInput && item.username) {
 			setNativeFieldValue(userInput, item.username);
@@ -1168,11 +1264,12 @@
 			const generatedPass = res.password;
 
 			// Populate both password and confirm_password fields simultaneously
-			const passFields = Array.from(formRoot.querySelectorAll('input[type="password"]')).filter(isElementVisible);
+			const searchRoot = (formRoot && formRoot.querySelectorAll('input[type="password"]').length >= 1) ? formRoot : document;
+			const passFields = Array.from(searchRoot.querySelectorAll('input[type="password"]')).filter(isElementVisible);
 			passFields.forEach(pField => setNativeFieldValue(pField, generatedPass));
 
 			// Identity Priority Queue: Active Primary Email -> Phone Number -> Full Name
-			const userField = formRoot.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
+			const userField = searchRoot.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
 			let identifierVal = '';
 			if (defaultProfile) {
 				identifierVal = defaultProfile.email || defaultProfile.phone || defaultProfile.fullName || '';
@@ -1362,6 +1459,12 @@
 			} else if (classification === 'personal_email' || (field.type === 'email' && !field.value)) {
 				const emailVal = item.email || item.extraEmails?.[0]?.email;
 				if (emailVal) setNativeFieldValue(field, emailVal);
+			} else if (classification === 'doc_nin' && (item.nin || item.nationalId)) {
+				setNativeFieldValue(field, item.nin || item.nationalId);
+			} else if (classification === 'doc_nationalId' && (item.nationalId || item.nin)) {
+				setNativeFieldValue(field, item.nationalId || item.nin);
+			} else if (classification === 'doc_passport' && item.passportNumber) {
+				setNativeFieldValue(field, item.passportNumber);
 			}
 		});
 	}
@@ -1592,6 +1695,25 @@
 	// --------------------------------------------------------------------------
 
 	function scanAndAttach() {
+		// 1. If on a dedicated registration flow or URL, enforce STRICTLY ONE UNIFIED BADGE for the page
+		if (isRegistrationUrl()) {
+			const allInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]), select')).filter(i => !shouldIgnoreField(i) && isElementVisible(i));
+			if (allInputs.length > 0) {
+				const rootScope = document.querySelector('form, [role="main"], main, article, .main-content') || document.body;
+				const primaryInput = getPrimaryAnchorField(rootScope, 'register') || allInputs[0];
+				if (primaryInput) {
+					// Remove any other duplicate badges attached anywhere else on the document
+					document.querySelectorAll('.safevault-input-badge').forEach(b => {
+						if (b.parentElement !== primaryInput.parentElement) {
+							b.remove();
+						}
+					});
+					attachFormBadge(rootScope, primaryInput, 'register');
+				}
+				return;
+			}
+		}
+
 		const forms = Array.from(document.querySelectorAll('form'));
 		const standaloneInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]), select')).filter(i => !i.form && !shouldIgnoreField(i) && isElementVisible(i));
 
@@ -1712,5 +1834,21 @@
 	});
 
 	setupAutoSaveSubmitListener();
+	window.addEventListener('hashchange', () => {
+		// Clean up existing badges on SPA route change
+		document.querySelectorAll('.safevault-input-badge').forEach(b => b.remove());
+		formBadgeMap.clear();
+		attachedBadges = new WeakMap();
+		closeDropdown();
+		setTimeout(scanAndAttach, 150);
+	});
+	window.addEventListener('popstate', () => {
+		document.querySelectorAll('.safevault-input-badge').forEach(b => b.remove());
+		formBadgeMap.clear();
+		attachedBadges = new WeakMap();
+		closeDropdown();
+		setTimeout(scanAndAttach, 150);
+	});
+
 	setTimeout(scanAndAttach, 300);
 })();
