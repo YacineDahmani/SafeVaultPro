@@ -1,26 +1,51 @@
 /**
  * SafeVaultPro Smart Autofill Content Script
- * Highly accurate field detection, multi-step authentication (Google / Gmail, Microsoft, etc.),
- * comprehensive personal profile autofill (birthdays, gender, names, address, IDs),
- * credit card payment filling, and password generation.
+ * Refactored Architecture adhering to /refactor-clean and /logic principles.
+ * 
+ * Invariants & Architecture:
+ * 1. Single Badge Per Form: Exactly one badge is attached per form instance.
+ * 2. Form Allowlist: Badges inject exclusively on login, register, profile/checkout, and identity verification.
+ * 3. Identity Priority Queue: Active Primary Email -> Phone Number -> Full Name for registration identifiers.
+ * 4. Multi-Step Authentication: Handles sequential single-field view flows (e.g. Gmail / Microsoft).
+ * 5. Isolation: Identity documents (NIN / Passport) are strictly isolated from payment card pipelines.
  */
 (function () {
 	'use strict';
 
 	let activeDropdown = null;
-	let currentDomain = window.location.hostname;
+	const currentDomain = window.location.hostname;
 	const attachedBadges = new WeakMap();
+	const formBadgeMap = new WeakMap();
 
 	const SVG_ICONS = {
 		password: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>',
 		totp: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>',
 		card: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
 		personal_info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+		document: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>',
 		generate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>',
 		check: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
 	};
 
-	// Helper to send native event triggers so React/Vue/Angular/Svelte state updates cleanly
+	const MONTH_NAMES = {
+		1: ['jan', 'january', 'janvier', 'جانفي', 'يناير', '1', '01'],
+		2: ['feb', 'february', 'fevrier', 'février', 'فيفري', 'فبراير', '2', '02'],
+		3: ['mar', 'march', 'mars', 'مارس', '3', '03'],
+		4: ['apr', 'april', 'avril', 'أفريل', 'ابريل', 'أبريل', '4', '04'],
+		5: ['may', 'mai', 'ماي', 'مايو', '5', '05'],
+		6: ['jun', 'june', 'juin', 'جوان', 'يونيو', '6', '06'],
+		7: ['jul', 'july', 'juillet', 'جويلية', 'يوليو', '7', '07'],
+		8: ['aug', 'august', 'aout', 'août', 'أوت', 'اوت', 'أغسطس', '8', '08'],
+		9: ['sep', 'september', 'septembre', 'سبتمبر', '9', '09'],
+		10: ['oct', 'october', 'octobre', 'أكتوبر', 'اكتوبر', '10'],
+		11: ['nov', 'november', 'novembre', 'نوفمبر', '11'],
+		12: ['dec', 'december', 'decembre', 'دسمبر', '12']
+	};
+
+	// --------------------------------------------------------------------------
+	// 1. DOM Helper Utilities & Value Setters
+	// --------------------------------------------------------------------------
+
 	function setNativeFieldValue(field, val) {
 		if (!field || val === undefined || val === null) return;
 		try {
@@ -54,8 +79,8 @@
 		}
 	}
 
-	// Extract normalized text from label, aria, or parent context
 	function getFieldLabelText(input) {
+		if (!input) return '';
 		let text = '';
 		try {
 			if (input.id) {
@@ -65,7 +90,6 @@
 			const parentLabel = input.closest('label');
 			if (parentLabel) text += parentLabel.textContent + ' ';
 
-			// Table Row / Cell inspection (Handles banking & payment tables)
 			const tr = input.closest('tr');
 			if (tr) text += tr.textContent + ' ';
 			const td = input.closest('td');
@@ -88,7 +112,30 @@
 		return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 	}
 
-	// Strict filter to completely ignore unrelated or non-interactive fields
+	function isElementVisible(el) {
+		if (!el) return false;
+		try {
+			const style = window.getComputedStyle(el);
+			if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+			return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+		} catch (e) {
+			return true;
+		}
+	}
+
+	function matchToken(text, regex) {
+		return regex.test(text);
+	}
+
+	function escapeHtml(str) {
+		if (!str) return '';
+		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	}
+
+	// --------------------------------------------------------------------------
+	// 2. Field Classification & Form Scoping
+	// --------------------------------------------------------------------------
+
 	function shouldIgnoreField(input) {
 		if (!input || !input.tagName) return true;
 		const tag = input.tagName.toLowerCase();
@@ -101,7 +148,6 @@
 		if (input.disabled || input.readOnly) return true;
 		if (input.getAttribute('aria-hidden') === 'true') return true;
 
-		// Dimension & Visibility Check
 		const style = window.getComputedStyle(input);
 		if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) < 0.05) {
 			return true;
@@ -113,15 +159,13 @@
 		const name = (input.name || '').toLowerCase();
 		const id = (input.id || '').toLowerCase();
 		const placeholder = (input.placeholder || '').toLowerCase();
-		const aria = (input.getAttribute('aria-label') || '').toLowerCase();
 		const role = (input.getAttribute('role') || '').toLowerCase();
 		const className = (input.className || '').toLowerCase();
 
-		// Check for Search inputs (EXCEPT when on clear login forms or Gmail identifier)
-		const isSearchType = type === 'search' || role === 'search' || role === 'searchbox';
+		// Exclusion Target: Search bars & command palettes
+		const isSearchType = type === 'search' || role === 'search' || role === 'searchbox' || role === 'combobox';
 		const searchNameRegex = /^(_?q|query|search|search_query|keyword|s|find|terms?)$/i;
 		if (isSearchType || searchNameRegex.test(name) || searchNameRegex.test(id)) {
-			// Don't ignore if it has login/username hints
 			if (!name.includes('user') && !id.includes('user') && !id.includes('identifier') && !name.includes('email')) {
 				return true;
 			}
@@ -130,31 +174,37 @@
 			return true;
 		}
 
-		// Bot Protection / Captcha
+		// Exclusion Target: Segmented multi-digit OTP / verification code inputs (length = 1)
+		const maxLen = input.maxLength || parseInt(input.getAttribute('maxlength') || '0', 10);
+		const isSingleDigitBox = maxLen === 1 || input.getAttribute('size') === '1' || (input.offsetWidth > 0 && input.offsetWidth <= 55 && input.offsetHeight >= 28);
+		if (isSingleDigitBox) {
+			const parentContainer = input.parentElement || input.closest('div, section, fieldset, form');
+			if (parentContainer) {
+				const siblings = Array.from(parentContainer.querySelectorAll('input')).filter(el => {
+					const ml = el.maxLength || parseInt(el.getAttribute('maxlength') || '0', 10);
+					return ml === 1 || el.getAttribute('size') === '1' || (el.offsetWidth > 0 && el.offsetWidth <= 55);
+				});
+				if (siblings.length >= 2) {
+					return true;
+				}
+			}
+		}
+
+		// Bot Protection / Captchas
 		const botKeywords = ['captcha', 'recaptcha', 'hcaptcha', 'cf-turnstile', 'turnstile', 'security-check', 'g-recaptcha-response', 'cf-challenge'];
 		if (botKeywords.some(kw => name.includes(kw) || id.includes(kw) || className.includes(kw))) {
 			return true;
 		}
 
-		// Quantity / Cart / Filter / Chat / Message / Coupon
+		// Exclusion Target: Quantity, Filters, Comments, Chat
 		const ignorePatterns = [
 			/\b(qty|quantity|amount|coupon|promo|discount|voucher|filter|page|pagination)\b/i,
 			/\b(message|chat|comment|reply|feedback|review_text)\b/i,
 		];
 		const combined = `${name} ${id} ${className}`;
-		if (ignorePatterns.some(p => p.test(combined))) {
-			return true;
-		}
-
-		return false;
+		return ignorePatterns.some(p => p.test(combined));
 	}
 
-	// Regex Helper for exact token matching
-	function matchToken(text, regex) {
-		return regex.test(text);
-	}
-
-	// Month select dropdown detector
 	function isMonthSelect(el) {
 		if (!el || el.tagName !== 'SELECT') return false;
 		const options = Array.from(el.options);
@@ -164,15 +214,14 @@
 		return options.some(o => {
 			const v = (o.value || '').trim();
 			const t = (o.text || '').trim().toLowerCase();
-			return v === '01' || v === '1' || t === 'jan' || t === 'january' || t === 'janvier' || t === '01' || t === '1';
+			return v === '01' || v === '1' || t === 'jan' || t === 'january' || t === 'janvier';
 		}) && options.some(o => {
 			const v = (o.value || '').trim();
 			const t = (o.text || '').trim().toLowerCase();
-			return v === '12' || t === 'dec' || t === 'december' || t === 'decembre' || t === '12';
+			return v === '12' || t === 'dec' || t === 'december' || t === 'decembre';
 		});
 	}
 
-	// Year select dropdown detector
 	function isYearSelect(el) {
 		if (!el || el.tagName !== 'SELECT') return false;
 		const options = Array.from(el.options);
@@ -189,14 +238,12 @@
 		});
 	}
 
-	// Context Helper: Determine if field is inside a dedicated credit card payment container
 	function isPaymentContext(input) {
 		if (!input) return false;
 		const ac = (input.autocomplete || '').toLowerCase();
 		if (ac.startsWith('cc-')) return true;
 
-		// Check the form if available, or entire document
-		const root = (input.form && input.form.querySelectorAll('input, select').length >= 3) ? input.form : document;
+		const root = (input.form && input.form.querySelectorAll('input, select').length >= 3) ? input.form : (input.closest('form, [class*="payment" i], [id*="payment" i], [class*="checkout" i], [id*="checkout" i]') || document);
 		const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]), select'));
 		return inputs.some(el => {
 			const label = getFieldLabelText(el);
@@ -209,20 +256,16 @@
 				a.includes('credit card') ||
 				a.includes('card number') ||
 				a.includes('card_number') ||
-				a.includes('cardnumber') ||
 				a.includes('pan') ||
 				a.includes('edahabia') ||
 				a.includes('cib') ||
 				a.includes('baridi') ||
 				a.includes('satim') ||
 				a.includes('expiration') ||
-				a.includes('validite') ||
-				a.includes('cvv2') ||
-				a.includes('cvc2');
+				a.includes('validite');
 		});
 	}
 
-	// Robust Field Classification Engine
 	function classifyField(input) {
 		if (shouldIgnoreField(input)) return 'generic';
 
@@ -238,17 +281,14 @@
 			.normalize('NFD')
 			.replace(/[\u0300-\u036f]/g, '')
 			.toLowerCase();
-
-		// Replace underscores, dashes, dots, slashes with spaces so word boundary \b matches compound names (e.g. billing_first_name)
 		const norm = raw.replace(/[-_./:]+/g, ' ');
 
-		// 0. Select-specific immediate check for Month & Year dropdowns
 		if (input.tagName === 'SELECT') {
 			if (isMonthSelect(input)) return 'card_exp_month';
 			if (isYearSelect(input)) return 'card_exp_year';
 		}
 
-		// 1. Google Accounts / Gmail Login Specific Detection
+		// Google Accounts / Multi-Step Identifier Specific Detection
 		if (
 			id === 'identifierid' ||
 			name === 'identifier' ||
@@ -264,24 +304,7 @@
 			return 'password';
 		}
 
-		// 2. 2FA / TOTP / Verification code
-		if (
-			autocomplete === 'one-time-code' ||
-			matchToken(norm, /\b(totp|2fa|mfa|otp|one\s*time\s*code|verification\s*code|validation\s*code|security\s*token)\b/i) ||
-			matchToken(raw, /(رمز[-_]?(التحقق|التأكيد|التفعيل|الأمان))/i)
-		) {
-			return 'totp';
-		}
-
-		// 3. Password Fields (Categorize between Login & New/Registration Password)
-		if (type === 'password' || matchToken(norm, /\b(password|mot\s*de\s*passe|mdp|code\s*secret)\b/i) || matchToken(raw, /(كلمة[-_]?(السر|المرور)|الرمز[-_]?السري)/i)) {
-			if (autocomplete === 'new-password' || matchToken(norm, /\b(new\s*pass(word)?|create\s*pass(word)?|signup\s*pass|confirm\s*pass(word)?|verify\s*pass)\b/i)) {
-				return 'new_password';
-			}
-			return 'password';
-		}
-
-		// 4. Credit Card CVV / CVC
+		// Credit Card CVV / CVC (Check BEFORE generic password check since CVV is frequently input type="password")
 		if (
 			autocomplete === 'cc-csc' ||
 			matchToken(norm, /\b(cvv|cvc|cvw|cvp|cvv2|cvc2|cid|cvn|security\s*code|card\s*security|code\s*(securite|secu|verification)|cryptogramme|crypto)\b/i) ||
@@ -290,7 +313,28 @@
 			return 'card_cvv';
 		}
 
-		// 5. Credit Card Number (Algerian CIB, Edahabia, BaridiMob, SATIM, Visa, MC, Amex)
+		// 2FA / TOTP / Verification code
+		if (
+			autocomplete === 'one-time-code' ||
+			matchToken(norm, /\b(totp|2fa|mfa|otp|one\s*time\s*code|verification\s*code|validation\s*code|security\s*token)\b/i) ||
+			matchToken(raw, /(رمز[-_]?(التحقق|التأكيد|التفعيل|الأمان))/i)
+		) {
+			return 'totp';
+		}
+
+		// Passwords (Login & New Password)
+		if (type === 'password' || matchToken(norm, /\b(password|mot\s*de\s*passe|mdp|code\s*secret)\b/i) || matchToken(raw, /(كلمة[-_]?(السر|المرور)|الرمز[-_]?السري)/i)) {
+			if (
+				autocomplete === 'new-password' ||
+				matchToken(norm, /\b(new\s*pass(word)?|create\s*pass(word)?|signup\s*pass|confirm\s*pass(word)?|verify\s*pass|repeat\s*pass(word)?)\b/i)
+			) {
+				return 'new_password';
+			}
+			return 'password';
+		}
+
+
+		// Credit Card Number (Algerian Edahabia, CIB, BaridiMob, SATIM, Visa, MC, Amex)
 		if (
 			autocomplete === 'cc-number' ||
 			matchToken(norm, /\b(card\s*num(ber)?|cc\s*num(ber)?|credit\s*card|num\s*carte|numero\s*carte|n\s*carte|pan|carte\s*(cib|edahabia|bancaire)|edahabia|baridi|satim|cardno|card_no)\b/i) ||
@@ -299,23 +343,13 @@
 			return 'card_number';
 		}
 
-		// 6. Credit Card Expiry Month
-		if (
-			autocomplete === 'cc-exp-month' ||
-			(matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))
-		) {
+		// Card Expiry Month / Year / Date
+		if (autocomplete === 'cc-exp-month' || (matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
 			return 'card_exp_month';
 		}
-
-		// 7. Credit Card Expiry Year
-		if (
-			autocomplete === 'cc-exp-year' ||
-			(matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))
-		) {
+		if (autocomplete === 'cc-exp-year' || (matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
 			return 'card_exp_year';
 		}
-
-		// 8. Credit Card Expiry Date (Combined Date)
 		if (
 			autocomplete === 'cc-exp' ||
 			(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee)\b/i)) ||
@@ -324,7 +358,7 @@
 			return 'card_exp';
 		}
 
-		// 9. Cardholder Name (Strictly distinct from personal profile names)
+		// Cardholder Name
 		const inPayment = isPaymentContext(input);
 		if (
 			autocomplete === 'cc-name' ||
@@ -338,66 +372,79 @@
 			return 'card_holder';
 		}
 
-		// If inside a payment form context, NEVER classify remaining fields as personal profile info
 		if (inPayment) {
 			return 'generic';
 		}
 
-		// 10a. Personal Info: Arabic Names (First, Last, Full)
+		// Identity Documents: Algerian National NIN (18 digits)
 		if (
-			matchToken(norm, /\b(first\s*name\s*ar(abic)?|prenom\s*ar(abe)?|nom\s*arabe|arabic\s*first\s*name|fname\s*ar|prenom\s*en\s*arabe|ar\s*first\s*name|ar\s*fname)\b/i) ||
+			matchToken(norm, /\b(nin|national\s*identification\s*num(ber)?|numero\s*d?\s*identification\s*nationale|num\s*identite\s*nationale|identifiant\s*national|matricule\s*national|nin\s*num(ber)?)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف[-_]?الوطني|الهوية[-_]?الوطنية)|الرقم[-_]?الوطني[-_]?(التعريفي|البيومتري)?)/i)
+		) {
+			return 'doc_nin';
+		}
+
+		// Identity Documents: Passport & General National ID
+		if (
+			matchToken(norm, /\b(passport|passeport|num\s*passeport|passport\s*number|passport\s*no)\b/i) ||
+			matchToken(raw, /(جواز[-_]?السفر|رقم[-_]?جواز[-_]?السفر)/i)
+		) {
+			return 'doc_passport';
+		}
+		if (
+			matchToken(norm, /\b(national\s*id|ssn|social\s*security|carte\s*identite|n\s*national|cin|cni|identity\s*card|id\s*card)\b/i) ||
+			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف)/i)
+		) {
+			return 'doc_nationalId';
+		}
+
+		// Personal Info: Explicit Arabic Names (First, Last, Full)
+		if (
+			matchToken(norm, /\b(first\s*name\s*ar(abic)?|prenom\s*ar(abe)?|nom\s*arabe|arabic\s*first\s*name|fname\s*ar|prenom\s*en\s*arabe|ar\s*first\s*name|ar\s*fname|ar_first|prenom_ar)\b/i) ||
 			matchToken(raw, /(الاسم[-_]?(الشخصي|الأول|الاول)?[-_]?(بالعربية|باللغة[-_]?العربية|عربي)|الاسم[-_]?(الشخصي|الأول|الاول))/i)
 		) {
 			return 'personal_firstNameArabic';
 		}
-
 		if (
-			matchToken(norm, /\b(last\s*name\s*ar(abic)?|family\s*name\s*ar|nom\s*ar(abe)?|arabic\s*last\s*name|lname\s*ar|nom\s*de\s*famille\s*ar|nom\s*en\s*arabe|ar\s*last\s*name|ar\s*lname)\b/i) ||
+			matchToken(norm, /\b(last\s*name\s*ar(abic)?|family\s*name\s*ar|nom\s*ar(abe)?|arabic\s*last\s*name|lname\s*ar|nom\s*de\s*famille\s*ar|nom\s*en\s*arabe|ar\s*last\s*name|ar\s*lname|ar_last|nom_ar)\b/i) ||
 			matchToken(raw, /(اللقب[-_]?(العائلي|بالعربية|عربي)|اسم[-_]?العائلة[-_]?بالعربية|اللقب)/i)
 		) {
 			return 'personal_lastNameArabic';
 		}
-
 		if (
-			matchToken(norm, /\b(full\s*name\s*ar(abic)?|nom\s*prenom\s*ar|arabic\s*full\s*name|ar\s*full\s*name)\b/i) ||
+			matchToken(norm, /\b(full\s*name\s*ar(abic)?|nom\s*prenom\s*ar|arabic\s*full\s*name|ar\s*full\s*name|nom_prenom_ar|ar_fullname)\b/i) ||
 			matchToken(raw, /(الاسم[-_]?الكامل[-_]?بالعربية|الاسم[-_]?واللقب[-_]?بالعربية|الاسم[-_]?الكامل)/i)
 		) {
 			return 'personal_fullNameArabic';
 		}
 
-		// 10. Personal Info: First Name
+		// Personal Info: First Name (English, French: prénom, Latin Arabic transliteration)
 		if (
 			autocomplete === 'given-name' ||
-			(matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			matchToken(raw, /(الاسم)/i)
+			((matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom|prénom|first_name|firstname)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
 		) {
 			return 'personal_firstName';
 		}
 
-		// 11. Personal Info: Last Name
+		// Personal Info: Last Name (English: surname/last name, French: nom/nom de famille)
 		if (
 			autocomplete === 'family-name' ||
-			(matchToken(norm, /\b(last\s*name|family\s*name|surname|lname|nom\s*de\s*famille)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|full|user|card|holder|titulaire|porteur|cc)\b/i))
+			((matchToken(norm, /\b(last\s*name|family\s*name|surname|lname|nom\s*de\s*famille|last_name|lastname)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|prénom|full|user|card|holder|titulaire|porteur|cc)\b/i))
 		) {
 			return 'personal_lastName';
 		}
 
-		// 12. Personal Info: Full Name
+		// Personal Info: Full Name (English: full name, French: nom complet, nom et prénom)
 		if (
 			autocomplete === 'name' ||
-			(matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
+			((matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|nom\s*complet|fullname|full_name|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
 		) {
 			return 'personal_fullName';
 		}
 
-		// 13. Personal Info: Birth Date (Universal / Specific)
-		if (
-			type === 'date' ||
-			autocomplete === 'bday' ||
-			matchToken(norm, /\b(birth\s*date|dob|date\s*of\s*birth|date\s*naissance|bday)\b/i) ||
-			matchToken(raw, /(تاريخ[-_]?(الميلاد|الولادة))/i)
-		) {
+		// Personal Info: Birth Date
+		if (type === 'date' || autocomplete === 'bday' || matchToken(norm, /\b(birth\s*date|dob|date\s*of\s*birth|date\s*naissance|bday)\b/i) || matchToken(raw, /(تاريخ[-_]?(الميلاد|الولادة))/i)) {
 			return 'personal_birthDate';
 		}
 		if (autocomplete === 'bday-day' || matchToken(norm, /\b(birth\s*day|dob\s*day|jour\s*naissance)\b/i) || matchToken(raw, /(يوم[-_]?الميلاد)/i)) {
@@ -410,88 +457,40 @@
 			return 'personal_birthYear';
 		}
 
-		// 14. Personal Info: Gender
-		if (
-			autocomplete === 'sex' ||
-			matchToken(norm, /\b(gender|sex|sexe)\b/i) ||
-			matchToken(raw, /(الجنس|النوع)/i)
-		) {
+		// Personal Info: Gender & Age
+		if (autocomplete === 'sex' || matchToken(norm, /\b(gender|sex|sexe)\b/i) || matchToken(raw, /(الجنس|النوع)/i)) {
 			return 'personal_gender';
 		}
-
-		// 15. Personal Info: Age
-		if (
-			matchToken(norm, /\b(age|âge)\b/i) ||
-			matchToken(raw, /(العمر|السن)/i)
-		) {
+		if (matchToken(norm, /\b(age|âge)\b/i) || matchToken(raw, /(العمر|السن)/i)) {
 			return 'personal_age';
 		}
 
-		// 16a. Personal Info: 18-Digit NIN (National Identification Number)
-		if (
-			matchToken(norm, /\b(nin|national\s*identification\s*num(ber)?|numero\s*d?\s*identification\s*nationale|num\s*identite\s*nationale|identifiant\s*national|matricule\s*national|nin\s*num(ber)?)\b/i) ||
-			matchToken(raw, /(رقم[-_]?(التعريف[-_]?الوطني|الهوية[-_]?الوطنية)|الرقم[-_]?الوطني[-_]?(التعريفي|البيومتري)?)/i)
-		) {
-			return 'personal_nin';
-		}
-
-		// 16b. General National ID / Passport
-		if (
-			matchToken(norm, /\b(national\s*id|ssn|social\s*security|passport|passeport|carte\s*identite|n\s*national|cin|cni|identity\s*card)\b/i) ||
-			matchToken(raw, /(رقم[-_]?(التعريف|الهوية|الوطني)|بطاقة[-_]?التعريف|جواز[-_]?السفر)/i)
-		) {
-			return 'personal_nationalId';
-		}
-
-		// 17. Personal Info: Address
-		if (
-			autocomplete === 'address-line2' ||
-			matchToken(norm, /\b(address\s*line2|address\s*line\s*2|address2|address\s*2|apt|suite|complement\s*adresse|batiment|etage)\b/i) ||
-			matchToken(raw, /(شقة|عمارة|رقم[-_]?الشقة)/i)
-		) {
+		// Personal Info: Address & Geo
+		if (autocomplete === 'address-line2' || matchToken(norm, /\b(address\s*line2|address\s*line\s*2|address2|address\s*2|apt|suite|complement\s*adresse|batiment|etage)\b/i) || matchToken(raw, /(شقة|عمارة|رقم[-_]?الشقة)/i)) {
 			return 'personal_address2';
 		}
-		if (
-			autocomplete === 'address-line1' ||
-			autocomplete === 'street-address' ||
-			matchToken(norm, /\b(address\s*line1|address\s*line\s*1|address1|address\s*1|street\s*address|street|adresse|rue)\b/i) ||
-			matchToken(raw, /(العنوان|الشارع|عنوان[-_]?الاقامة)/i)
-		) {
+		if (autocomplete === 'address-line1' || autocomplete === 'street-address' || matchToken(norm, /\b(address\s*line1|address\s*line\s*1|address1|address\s*1|street\s*address|street|adresse|rue)\b/i) || matchToken(raw, /(العنوان|الشارع|عنوان[-_]?الاقامة)/i)) {
 			return 'personal_address1';
 		}
-
-		// 18. Personal Info: City & State/Wilaya & Postal Code & Country
-		if (
-			autocomplete === 'address-level2' ||
-			matchToken(norm, /\b(city|ville|town|commune|municipality)\b/i) ||
-			matchToken(raw, /(المدينة|البلدية)/i)
-		) {
+		if (autocomplete === 'address-level2' || matchToken(norm, /\b(city|ville|town|commune|municipality)\b/i) || matchToken(raw, /(المدينة|البلدية)/i)) {
 			return 'personal_city';
 		}
-		if (
-			autocomplete === 'address-level1' ||
-			matchToken(norm, /\b(state|province|wilaya|region|departement|county)\b/i) ||
-			matchToken(raw, /(الولاية|المحافظة|الاقليم|المنطقة)/i)
-		) {
+		if (autocomplete === 'address-level1' || matchToken(norm, /\b(state|province|wilaya|region|departement|county)\b/i) || matchToken(raw, /(الولاية|المحافظة|الاقليم|المنطقة)/i)) {
 			return 'personal_state';
 		}
-		if (
-			autocomplete === 'postal-code' ||
-			matchToken(norm, /\b(zip|zip\s*code|postal\s*code|postcode|code\s*postal)\b/i) ||
-			matchToken(raw, /(الرمز[-_]?البريدي)/i)
-		) {
+		if (autocomplete === 'postal-code' || matchToken(norm, /\b(zip|zip\s*code|postal\s*code|postcode|code\s*postal)\b/i) || matchToken(raw, /(الرمز[-_]?البريدي)/i)) {
 			return 'personal_zip';
 		}
-		if (
-			autocomplete === 'country' ||
-			autocomplete === 'country-name' ||
-			matchToken(norm, /\b(country|pays|nation)\b/i) ||
-			matchToken(raw, /(الدولة|البلد)/i)
-		) {
+		if (autocomplete === 'country' || autocomplete === 'country-name' || matchToken(norm, /\b(country|pays|nation)\b/i) || matchToken(raw, /(الدولة|البلد)/i)) {
 			return 'personal_country';
 		}
 
-		// Check if this input is within a Login context (has password or login URL)
+		// Contact: Phone
+		if (type === 'tel' || autocomplete.includes('tel') || matchToken(norm, /\b(phone|telephone|mobile|cell|cellphone|num\s*tel)\b/i) || matchToken(raw, /(الهاتف|المحمول|الجوال|رقم[-_]?الهاتف)/i)) {
+			return 'personal_phone';
+		}
+
+		// Login & Identifiers
 		const isLogin = isLoginForm(input);
 		if (isLogin) {
 			if (
@@ -506,41 +505,20 @@
 			}
 		}
 
-		// 19. Contact: Phone (Only when not in a login context)
-		if (
-			type === 'tel' ||
-			autocomplete.includes('tel') ||
-			matchToken(norm, /\b(phone|telephone|mobile|cell|cellphone|num\s*tel)\b/i) ||
-			matchToken(raw, /(الهاتف|المحمول|الجوال|رقم[-_]?الهاتف)/i)
-		) {
-			return 'personal_phone';
-		}
-
-		// 20. Contact: Email / Username / Login
-		if (
-			type === 'email' ||
-			autocomplete === 'email' ||
-			matchToken(norm, /\b(email|e\s*mail|mail|courriel|adresse\s*email)\b/i) ||
-			matchToken(raw, /(البريد[-_]?(الإلكتروني|الالكتروني|البريد)?)/i)
-		) {
+		if (type === 'email' || autocomplete === 'email' || matchToken(norm, /\b(email|e\s*mail|mail|courriel|adresse\s*email)\b/i) || matchToken(raw, /(البريد[-_]?(الإلكتروني|الالكتروني|البريد)?)/i)) {
 			if (isRegistrationForm(input)) {
 				return 'personal_email';
 			}
 			return 'login_username';
 		}
 
-		if (
-			autocomplete === 'username' ||
-			matchToken(norm, /\b(username|user\s*name|login|identifiant|num\s*ccp|rip|user\s*id|auth\s*user)\b/i) ||
-			matchToken(raw, /(اسم[-_]?المستخدم|المعرف|رقم[-_]?الحساب)/i)
-		) {
+		if (autocomplete === 'username' || matchToken(norm, /\b(username|user\s*name|login|identifiant|num\s*ccp|rip|user\s*id|auth\s*user)\b/i) || matchToken(raw, /(اسم[-_]?المستخدم|المعرف|رقم[-_]?الحساب)/i)) {
 			return 'login_username';
 		}
 
 		return 'generic';
 	}
 
-	// Determine if field belongs to a Login context
 	function isLoginForm(input) {
 		if (!input) return false;
 		if (isRegistrationForm(input)) return false;
@@ -553,26 +531,22 @@
 
 		const pageUrl = window.location.href.toLowerCase();
 		const pageTitle = document.title.toLowerCase();
-		const isLoginSite = ['login', 'signin', 'sign-in', 'log-in', 'connexion', 'auth', 'sessions/new', 'identifier', 'accounts.google.com', 'login.live.com', 'login.microsoftonline.com', 'تسجيل الدخول'].some(
+		return ['login', 'signin', 'sign-in', 'log-in', 'connexion', 'auth', 'sessions/new', 'identifier', 'accounts.google.com', 'login.live.com', 'login.microsoftonline.com', 'تسجيل الدخول'].some(
 			kw => pageUrl.includes(kw) || pageTitle.includes(kw)
 		);
-		return isLoginSite;
 	}
 
-	// Determine if field belongs to a Registration / Signup context
 	function isRegistrationForm(input) {
 		if (!input) return false;
 		const form = input.form || input.closest('form');
 		const autocomplete = (input.autocomplete || '').toLowerCase();
 		const attr = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''}`.toLowerCase();
 
-		// Explicit login check
 		if (autocomplete === 'current-password' || attr.includes('current-password') || attr.includes('login_password')) {
 			return false;
 		}
 
-		// Explicit signup checks
-		if (autocomplete === 'new-password' || attr.includes('new-password') || attr.includes('create_password') || attr.includes('signup')) {
+		if (autocomplete === 'new-password' || attr.includes('new-password') || attr.includes('create_password') || attr.includes('signup') || attr.includes('register')) {
 			return true;
 		}
 
@@ -595,203 +569,98 @@
 		return false;
 	}
 
-	function isElementVisible(el) {
-		if (!el) return false;
-		try {
-			const style = window.getComputedStyle(el);
-			if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
-			return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-		} catch (e) {
-			return true;
-		}
-	}
-
-	function getProfileScope(input) {
+	function getFormScope(input) {
 		if (input && input.form) return input.form;
-		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="form"], [id*="form"], [class*="modal"], [id*="modal"], section, main')) || document;
+		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="form" i], [id*="form" i], [class*="modal" i], [id*="modal" i], section, main')) || document.body;
 	}
 
-	function getPrimaryProfileField(input) {
-		const scope = getProfileScope(input);
-		const allElements = Array.from(scope.querySelectorAll('input:not([type="hidden"]), select'));
-		const profileFields = allElements.filter(el => {
-			if (shouldIgnoreField(el)) return false;
-			if (!isElementVisible(el)) return false;
-			const cl = classifyField(el);
-			return cl.startsWith('personal_');
-		});
-		if (profileFields.length === 0) return null;
+	/**
+	 * Classify the form instance to enforce allowlist:
+	 * Returns: 'login' | 'register' | 'payment' | 'profile' | 'identity_verification' | 'disallowed'
+	 */
+	function classifyForm(formRoot) {
+		if (!formRoot) return 'disallowed';
+		const inputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+		if (inputs.length === 0) return 'disallowed';
 
-		// Preferred order if present: Latin/Arabic first name or full name, else the very first visible profile field
-		const preferred = profileFields.find(f => {
-			const c = classifyField(f);
-			return c === 'personal_firstName' || c === 'personal_fullName' || c === 'personal_firstNameArabic' || c === 'personal_fullNameArabic';
-		});
+		const classifications = inputs.map(classifyField);
 
-		return preferred || profileFields[0];
+		if (classifications.some(c => c === 'card_number' || c === 'card_cvv' || c === 'card_exp')) {
+			return 'payment';
+		}
+		if (classifications.some(c => c === 'doc_nin' || c === 'doc_passport' || c === 'doc_nationalId')) {
+			return 'identity_verification';
+		}
+		if (inputs.some(isRegistrationForm) || classifications.some(c => c === 'new_password') || classifications.filter(c => c === 'password').length >= 2) {
+			return 'register';
+		}
+		if (inputs.some(isLoginForm) || classifications.some(c => c === 'login_username' || c === 'password')) {
+			return 'login';
+		}
+		if (classifications.some(c => c.startsWith('personal_'))) {
+			return 'profile';
+		}
+
+		return 'disallowed';
 	}
 
-	function getTotpScope(input) {
-		if (input && input.form) return input.form;
-		return (input && input.closest && input.closest('form, fieldset, [role="form"], [class*="otp" i], [class*="2fa" i], [class*="verification" i], [class*="code" i], [id*="otp" i], [id*="2fa" i], [id*="verification" i], [class*="modal" i], [id*="modal" i], section, main')) || document;
+	/**
+	 * Determine the single primary anchor input for a given form instance
+	 * Invariant: Exactly one primary input field receives the badge per form.
+	 */
+	function getPrimaryAnchorField(formRoot, formType) {
+		const inputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+		if (inputs.length === 0) return null;
+
+		if (formType === 'payment') {
+			return inputs.find(i => classifyField(i) === 'card_number') || inputs[0];
+		}
+
+		if (formType === 'identity_verification') {
+			return inputs.find(i => {
+				const c = classifyField(i);
+				return c === 'doc_nin' || c === 'doc_passport' || c === 'doc_nationalId';
+			}) || inputs[0];
+		}
+
+		if (formType === 'register') {
+			// Prefer identifier field (email/username), fallback to new_password or first password
+			const idField = inputs.find(i => {
+				const c = classifyField(i);
+				return c === 'personal_email' || c === 'login_username' || (i.type === 'email' || i.type === 'text');
+			});
+			if (idField) return idField;
+			return inputs.find(i => classifyField(i) === 'new_password') || inputs.find(i => i.type === 'password') || inputs[0];
+		}
+
+		if (formType === 'login') {
+			// Multi-Step view support: if username field exists, choose it; if only password exists (Step 2), choose password
+			const userField = inputs.find(i => classifyField(i) === 'login_username' || (i.type !== 'password' && (i.type === 'email' || i.type === 'text')));
+			if (userField) return userField;
+			return inputs.find(i => classifyField(i) === 'password') || inputs[0];
+		}
+
+		if (formType === 'profile') {
+			// Profile: first name or full name, or the first personal field
+			const preferred = inputs.find(i => {
+				const c = classifyField(i);
+				return c === 'personal_firstName' || c === 'personal_fullName' || c === 'personal_firstNameArabic' || c === 'personal_fullNameArabic';
+			});
+			return preferred || inputs.find(i => classifyField(i).startsWith('personal_')) || inputs[0];
+		}
+
+		return inputs[0];
 	}
 
-	function getPrimaryTotpField(input) {
-		const scope = getTotpScope(input);
-		const allElements = Array.from(scope.querySelectorAll('input:not([type="hidden"]), select'));
-		const totpFields = allElements.filter(el => {
-			if (shouldIgnoreField(el) || !isElementVisible(el)) return false;
-			return classifyField(el) === 'totp';
-		});
-		if (totpFields.length === 0) return null;
-		return totpFields[0];
-	}
+	// --------------------------------------------------------------------------
+	// 3. Collision Avoidance & Badge Injection
+	// --------------------------------------------------------------------------
 
-	function isSecondaryTotpField(input) {
-		if (!input) return false;
-
-		const cl = classifyField(input);
-		if (cl === 'totp') {
-			const primary = getPrimaryTotpField(input);
-			if (primary && primary !== input) return true;
-		}
-
-		// Suppress subsequent boxes in multi-digit segmented OTP rows (e.g. GitHub, PayPal, Stripe 6-box inputs)
-		const maxLen = input.maxLength || parseInt(input.getAttribute('maxlength') || '0', 10);
-		const isSingleChar = maxLen === 1 || input.getAttribute('size') === '1';
-		if (isSingleChar) {
-			const scope = getTotpScope(input);
-			const siblings = Array.from(scope.querySelectorAll('input:not([type="hidden"])'))
-				.filter(el => {
-					if (shouldIgnoreField(el) || !isElementVisible(el)) return false;
-					const ml = el.maxLength || parseInt(el.getAttribute('maxlength') || '0', 10);
-					return ml === 1 || el.getAttribute('size') === '1';
-				});
-
-			if (siblings.length >= 2 && siblings.indexOf(input) > 0) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// Bulletproof Badge Injection and Positioning
-	function attachBadge(input) {
-		if (attachedBadges.has(input)) return;
-
-		const classification = classifyField(input);
-		// In payment contexts, only attach a badge to the card number field — one badge is enough
-		if (isPaymentContext(input) && classification !== 'card_number') {
-			return;
-		}
-		// Do not attach badges to secondary card fields (CVV, Expiry, Month, Year, Holder) -> Only to Card Number
-		if (classification === 'card_cvv' || classification === 'card_exp' || classification === 'card_exp_month' || classification === 'card_exp_year' || classification === 'card_holder') {
-			return;
-		}
-		// For personal profile fields, ONLY attach a single badge to the primary field in the form/container
-		if (classification.startsWith('personal_')) {
-			const primaryField = getPrimaryProfileField(input);
-			if (primaryField !== input) {
-				return;
-			}
-		}
-		// For 2FA / TOTP / OTP verification code fields, NEVER attach to secondary boxes
-		if (isSecondaryTotpField(input)) {
-			return;
-		}
-		if (classification === 'generic') {
-			return;
-		}
-
-		const badge = document.createElement('div');
-		badge.className = 'safevault-input-badge';
-		badge.title = classification.startsWith('personal_') ? 'Autofill Form' : (classification === 'totp' ? 'Insert 2FA Code' : 'Autofill');
-		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
-		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
-
-		const rightOffset = calculateBadgeRightOffset(input);
-		badge.style.right = `${rightOffset}px`;
-
-		// Check if parent container clips overflow (e.g. Google Material inputs)
-		let container = input.parentElement;
-		let parentStyle = container ? window.getComputedStyle(container) : null;
-		const isClipped = parentStyle && (parentStyle.overflow === 'hidden' || parentStyle.overflowX === 'hidden' || parentStyle.overflowY === 'hidden');
-
-		// If clipped, we position fixed/absolute attached to viewport or body overlay anchor
-		if (isClipped || !container) {
-			badge.style.position = 'fixed';
-			updateBadgeFixedPosition(input, badge);
-			document.body.appendChild(badge);
-		} else {
-			if (parentStyle.position === 'static') {
-				container.style.position = 'relative';
-			}
-			container.appendChild(badge);
-		}
-
-		attachedBadges.set(input, badge);
-
-		// Drag & Click handlers
-		let isDragging = false;
-		let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-
-		function onPointerDown(e) {
-			if (e.button !== 0 && e.pointerType === 'mouse') return;
-			isDragging = false;
-			startX = e.clientX;
-			startY = e.clientY;
-			const rect = badge.getBoundingClientRect();
-			initialLeft = rect.left;
-			initialTop = rect.top;
-
-			document.addEventListener('pointermove', onPointerMove);
-			document.addEventListener('pointerup', onPointerUp);
-		}
-
-		function onPointerMove(e) {
-			const dx = e.clientX - startX;
-			const dy = e.clientY - startY;
-			if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-				isDragging = true;
-				badge.classList.add('safevault-dragging');
-				badge.style.position = 'fixed';
-				badge.style.right = 'auto';
-				badge.style.transform = 'none';
-				const newLeft = Math.max(0, Math.min(window.innerWidth - 30, initialLeft + dx));
-				const newTop = Math.max(0, Math.min(window.innerHeight - 30, initialTop + dy));
-				badge.style.left = `${newLeft}px`;
-				badge.style.top = `${newTop}px`;
-			}
-		}
-
-		function onPointerUp(e) {
-			document.removeEventListener('pointermove', onPointerMove);
-			document.removeEventListener('pointerup', onPointerUp);
-			setTimeout(() => badge.classList.remove('safevault-dragging'), 50);
-
-			if (!isDragging) {
-				e.preventDefault();
-				e.stopPropagation();
-				toggleDropdown(input, badge);
-			}
-		}
-
-		badge.addEventListener('pointerdown', onPointerDown);
-	}
-
-	// Calculate smart right offset to avoid covering password eye / reveal toggle buttons
 	function calculateBadgeRightOffset(inp) {
 		const isPassword = (inp.type || '').toLowerCase() === 'password';
 		let offset = 8;
 		if (isPassword) {
 			offset = 38; // Safe default clearance for view password eye icons
-		}
-
-		// Narrow single-digit boxes (e.g. segmented OTP inputs): tuck badge close to right edge
-		const maxLen = inp.maxLength || parseInt(inp.getAttribute('maxlength') || '0', 10);
-		if ((maxLen === 1 || inp.getAttribute('size') === '1') && inp.offsetWidth > 0 && inp.offsetWidth <= 55) {
-			return 2;
 		}
 
 		try {
@@ -834,87 +703,96 @@
 		badge.style.zIndex = '99999';
 	}
 
-	// Dropdown Controller: Dispatches correct view based on field classification
-	function toggleDropdown(input, badge) {
-		if (activeDropdown) {
-			closeDropdown();
-			return;
-		}
-
-		const classification = classifyField(input);
-		const isRegister = isRegistrationForm(input);
-
-		// 1. Credit Card Number Field or Payment Context
-		if (classification === 'card_number' || classification === 'card_holder' || classification === 'card_exp' || classification === 'card_exp_month' || classification === 'card_exp_year' || classification === 'card_cvv' || isPaymentContext(input)) {
-			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "card_number" }, (response) => {
-				if (!response || !response.success) {
-					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
-					return;
-				}
-				const cardItems = (response.items || []).filter(i => i.type === 'card');
-				if (cardItems.length === 0) {
-					showEmptyDropdown(badge, "No payment cards saved in SafeVaultPro.", false);
-					return;
-				}
-				renderGenericDropdownMenu(input, badge, cardItems);
-			});
-			return;
-		}
-
-		// 2. 2FA / TOTP Field
-		if (classification === 'totp') {
-			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "totp" }, (response) => {
-				if (!response || !response.success) {
-					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
-					return;
-				}
-				const totpItems = (response.items || []).filter(i => i.type === 'totp');
-				if (totpItems.length === 0) {
-					showEmptyDropdown(badge, "No 2FA items saved in SafeVaultPro.", false);
-					return;
-				}
-				renderGenericDropdownMenu(input, badge, totpItems);
-			});
-			return;
-		}
-
-		// 3. Personal Info / Identity Profile Fields
-		if (classification.startsWith('personal_')) {
-			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "personal" }, (response) => {
-				if (!response || !response.success) {
-					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
-					return;
-				}
-				const personalItems = (response.items || []).filter(i => i.type === 'personal_info');
-				if (personalItems.length === 0) {
-					showEmptyDropdown(badge, "No personal identity profiles saved in SafeVaultPro.", false);
-					return;
-				}
-				renderGenericDropdownMenu(input, badge, personalItems);
-			});
-			return;
-		}
-
-		// 4. Registration Password Field (Generate Strong Password)
-		if (classification === 'new_password' || (isRegister && classification === 'password')) {
-			renderRegisterPasswordDropdown(input, badge);
-			return;
-		}
-
-		// 5. Standard Login & Domain-Matched Credentials (e.g. Gmail / Google Accounts / Microsoft / Web logins)
-		chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "password", type: "password" }, (response) => {
-			if (!response || !response.success) {
-				showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.", true);
+	function attachFormBadge(formRoot, primaryInput, formType) {
+		if (formBadgeMap.has(formRoot)) {
+			const existing = formBadgeMap.get(formRoot);
+			if (existing.input === primaryInput && existing.badge.isConnected) {
 				return;
 			}
-			const matchedLogins = (response.items || []).filter(i => i.type === 'password');
-			if (matchedLogins.length === 0) {
-				showEmptyDropdown(badge, `No saved credentials for ${currentDomain}`, false);
-				return;
+			// Remove old badge if form anchor shifted dynamically
+			if (existing.badge) existing.badge.remove();
+			formBadgeMap.delete(formRoot);
+		}
+
+		const badge = document.createElement('div');
+		badge.className = 'safevault-input-badge';
+		badge.dataset.formType = formType;
+		badge.title = formType === 'register' ? 'SafeVaultPro Registration & Credentials' : (formType === 'payment' ? 'Fill Payment Card' : 'SafeVaultPro Autofill');
+		const badgeLogoUrl = chrome.runtime.getURL('icon-32.png');
+		badge.innerHTML = `<img src="${badgeLogoUrl}" width="26" height="26" alt="SafeVault" style="pointer-events:none;object-fit:contain;display:block;" />`;
+
+		const rightOffset = calculateBadgeRightOffset(primaryInput);
+		badge.style.right = `${rightOffset}px`;
+
+		let container = primaryInput.parentElement;
+		let parentStyle = container ? window.getComputedStyle(container) : null;
+		const isClipped = parentStyle && (parentStyle.overflow === 'hidden' || parentStyle.overflowX === 'hidden' || parentStyle.overflowY === 'hidden');
+
+		if (isClipped || !container) {
+			badge.style.position = 'fixed';
+			updateBadgeFixedPosition(primaryInput, badge);
+			document.body.appendChild(badge);
+		} else {
+			if (parentStyle.position === 'static') {
+				container.style.position = 'relative';
 			}
-			renderGenericDropdownMenu(input, badge, matchedLogins);
-		});
+			container.appendChild(badge);
+		}
+
+		formBadgeMap.set(formRoot, { badge, input: primaryInput, formType });
+		attachedBadges.set(primaryInput, badge);
+
+		// Drag & Click handlers
+		let isDragging = false;
+		let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+		function onPointerDown(e) {
+			if (e.button !== 0 && e.pointerType === 'mouse') return;
+			isDragging = false;
+			startX = e.clientX;
+			startY = e.clientY;
+			const rect = badge.getBoundingClientRect();
+			initialLeft = rect.left;
+			initialTop = rect.top;
+
+			document.addEventListener('pointermove', onPointerMove);
+			document.addEventListener('pointerup', onPointerUp);
+		}
+
+		function onPointerMove(e) {
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
+			if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+				isDragging = true;
+				badge.classList.add('safevault-dragging');
+				badge.style.position = 'fixed';
+				badge.style.right = 'auto';
+				badge.style.transform = 'none';
+				const newLeft = Math.max(0, Math.min(window.innerWidth - 30, initialLeft + dx));
+				const newTop = Math.max(0, Math.min(window.innerHeight - 30, initialTop + dy));
+				badge.style.left = `${newLeft}px`;
+				badge.style.top = `${newTop}px`;
+			}
+		}
+
+		function onPointerUp(e) {
+			document.removeEventListener('pointermove', onPointerMove);
+			document.removeEventListener('pointerup', onPointerUp);
+			setTimeout(() => badge.classList.remove('safevault-dragging'), 50);
+
+			if (!isDragging) {
+				e.preventDefault();
+				e.stopPropagation();
+				toggleDropdown(primaryInput, badge, formRoot, formType);
+			}
+		}
+
+		badge.addEventListener('pointerdown', onPointerDown);
 	}
+
+	// --------------------------------------------------------------------------
+	// 4. Shadow DOM Dropdown UI & Management
+	// --------------------------------------------------------------------------
 
 	let shadowHost = null;
 	let shadowRoot = null;
@@ -948,7 +826,15 @@
 		}
 	}
 
-	function showEmptyDropdown(badge, message, isError) {
+	function positionDropdown(badge, dropdown) {
+		const rect = badge.getBoundingClientRect();
+		dropdown.style.position = 'fixed';
+		dropdown.style.top = `${Math.min(window.innerHeight - 280, rect.bottom + 4)}px`;
+		dropdown.style.left = `${Math.max(10, Math.min(window.innerWidth - 270, rect.left - 160))}px`;
+		dropdown.style.zIndex = '999999';
+	}
+
+	function showEmptyDropdown(badge, message) {
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
@@ -974,7 +860,119 @@
 		activeDropdown = dropdown;
 	}
 
-	function renderGenericDropdownMenu(input, badge, items) {
+	function showToastBanner(message) {
+		const root = getSafeVaultShadowRoot();
+		const existing = root.querySelector('.safevault-toast-banner');
+		if (existing) existing.remove();
+
+		const toast = document.createElement('div');
+		toast.className = 'safevault-toast-banner';
+		toast.style.pointerEvents = 'none';
+		toast.innerHTML = `
+			<span class="safevault-toast-icon">${SVG_ICONS.check}</span>
+			<span class="safevault-toast-text">${escapeHtml(message)}</span>
+		`;
+		root.appendChild(toast);
+		setTimeout(() => {
+			toast.style.opacity = '0';
+			toast.style.transform = 'translateY(6px)';
+			toast.style.transition = 'all 0.18s ease';
+			setTimeout(() => toast.remove(), 180);
+		}, 1600);
+	}
+
+	// --------------------------------------------------------------------------
+	// 5. Dropdown Controller & Action Dispatching
+	// --------------------------------------------------------------------------
+
+	function toggleDropdown(input, badge, formRoot, formType) {
+		if (activeDropdown) {
+			closeDropdown();
+			return;
+		}
+
+		// 1. Payment Form Handler
+		if (formType === 'payment') {
+			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "card_number" }, (response) => {
+				if (!response || !response.success) {
+					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.");
+					return;
+				}
+				// Strictly exclude identity documents (passports, national IDs) from payment pipeline
+				const cardItems = (response.items || []).filter(i => i.type === 'card' && i.subtype !== 'passport' && i.subtype !== 'id_card' && i.subtype !== 'drivers_license');
+				if (cardItems.length === 0) {
+					showEmptyDropdown(badge, "No payment cards saved in SafeVaultPro.");
+					return;
+				}
+				renderDropdownMenu(input, badge, formRoot, cardItems, 'payment');
+			});
+			return;
+		}
+
+		// 2. Identity Document Verification Handler (Strictly Isolated Schema - NO personal profiles)
+		if (formType === 'identity_verification') {
+			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "identity_docs" }, (response) => {
+				if (!response || !response.success) {
+					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.");
+					return;
+				}
+				// Strictly ONLY id_card and passport card items; NEVER personal_info profiles
+				const docItems = (response.items || []).filter(i => 
+					i.type === 'card' && (i.subtype === 'id_card' || i.subtype === 'passport')
+				);
+				if (docItems.length === 0) {
+					showEmptyDropdown(badge, "No national ID or passport documents in SafeVaultPro.");
+					return;
+				}
+				renderDropdownMenu(input, badge, formRoot, docItems, 'identity_verification');
+			});
+			return;
+		}
+
+		// 3. Hybrid / Complex Registration Forms: Unified Trigger
+		if (formType === 'register') {
+			// Query both credentials and personal profiles
+			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, type: "all" }, (response) => {
+				const allItems = response?.items || [];
+				const profileItems = allItems.filter(i => i.type === 'personal_info');
+				renderRegistrationDropdownMenu(input, badge, formRoot, profileItems);
+			});
+			return;
+		}
+
+		// 4. Standard Profile Form
+		if (formType === 'profile') {
+			chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "personal" }, (response) => {
+				if (!response || !response.success) {
+					showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.");
+					return;
+				}
+				const profileItems = (response.items || []).filter(i => i.type === 'personal_info');
+				if (profileItems.length === 0) {
+					showEmptyDropdown(badge, "No personal identity profiles saved.");
+					return;
+				}
+				renderDropdownMenu(input, badge, formRoot, profileItems, 'profile');
+			});
+			return;
+		}
+
+		// 5. Login Authentication & Multi-Step Views
+		chrome.runtime.sendMessage({ action: "QUERY_ITEMS", domain: currentDomain, fieldType: "password", type: "password" }, (response) => {
+			if (!response || !response.success) {
+				showEmptyDropdown(badge, response?.error || "Disconnected from SafeVaultPro app.");
+				return;
+			}
+			const matchedLogins = (response.items || []).filter(i => i.type === 'password');
+			if (matchedLogins.length === 0) {
+				showEmptyDropdown(badge, `No saved credentials for ${currentDomain}`);
+				return;
+			}
+			renderDropdownMenu(input, badge, formRoot, matchedLogins, 'login');
+		});
+	}
+
+	function renderDropdownMenu(input, badge, formRoot, items, contextType) {
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
@@ -993,21 +991,9 @@
 						<span class="safevault-fill-btn">Autofill</span>
 					</div>
 				`;
-			} else if (item.type === 'totp') {
-				itemsHtml += `
-					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="totp">
-						<div class="safevault-item-icon type-totp">${SVG_ICONS.totp}</div>
-						<div class="safevault-item-details">
-							<div class="safevault-item-title">${escapeHtml(item.title || item.issuer)}</div>
-							<div class="safevault-item-sub">2FA Code (${escapeHtml(item.accountName || '')})</div>
-						</div>
-						<span class="safevault-fill-btn">Insert 2FA</span>
-					</div>
-				`;
-			} else if (item.type === 'card') {
+			} else if (item.type === 'card' && item.subtype !== 'passport' && item.subtype !== 'id_card') {
 				const cardNum = item.number ? `•••• ${item.number.slice(-4)}` : 'Card';
 				const cardHolder = item.cardholderName ? escapeHtml(item.cardholderName) : '';
-				// Security: Never render plaintext CVV/PIN into the DOM tree
 				const cvvCode = (item.cvv || item.pin) ? ` | CVV: •••` : '';
 				itemsHtml += `
 					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="card">
@@ -1031,6 +1017,20 @@
 						<span class="safevault-fill-btn">Fill Form</span>
 					</div>
 				`;
+			} else if (item.subtype === 'passport' || item.subtype === 'id_card') {
+				// Dedicated Identity Document Schema Item
+				const docType = item.subtype === 'passport' ? 'Passport' : 'National ID';
+				const docId = item.number || item.nin || '';
+				itemsHtml += `
+					<div class="safevault-dropdown-item" data-id="${item.id}" data-type="doc">
+						<div class="safevault-item-icon type-personal">${SVG_ICONS.document}</div>
+						<div class="safevault-item-details">
+							<div class="safevault-item-title">${escapeHtml(item.title || docType)}</div>
+							<div class="safevault-item-sub">${docType} ${docId ? `(${escapeHtml(docId)})` : ''}</div>
+						</div>
+						<span class="safevault-fill-btn">Fill ID</span>
+					</div>
+				`;
 			}
 		});
 
@@ -1051,11 +1051,19 @@
 			if (!itemElem || !itemElem.dataset.id) return;
 			const targetItem = items.find((i) => i.id === itemElem.dataset.id);
 			if (targetItem) {
-				autofillItem(input, targetItem);
-				if (targetItem.type === 'card') showToastBanner('Card filled');
-				else if (targetItem.type === 'personal_info') showToastBanner('Profile & form filled');
-				else if (targetItem.type === 'totp') showToastBanner('2FA code inserted');
-				else showToastBanner('Credentials filled');
+				if (contextType === 'identity_verification' || itemElem.dataset.type === 'doc') {
+					fillIdentityDocument(formRoot, targetItem);
+					showToastBanner('Identity document filled');
+				} else if (contextType === 'payment') {
+					fillPaymentCard(formRoot, targetItem);
+					showToastBanner('Payment details filled');
+				} else if (contextType === 'profile') {
+					fillProfileForm(formRoot, input, targetItem);
+					showToastBanner('Profile filled');
+				} else {
+					fillLoginCredentials(formRoot, input, targetItem);
+					showToastBanner('Credentials filled');
+				}
 			}
 			closeDropdown();
 		});
@@ -1065,84 +1073,61 @@
 		activeDropdown = dropdown;
 	}
 
-	function renderRegisterPasswordDropdown(input, badge) {
+	function renderRegistrationDropdownMenu(input, badge, formRoot, profileItems) {
 		closeDropdown();
 		const dropdown = document.createElement('div');
 		dropdown.className = 'safevault-dropdown-menu';
+		dropdown.style.pointerEvents = 'auto';
+
+		let profileHtml = '';
+		profileItems.forEach(p => {
+			profileHtml += `
+				<div class="safevault-dropdown-item" data-action="fill-profile" data-profile-id="${p.id}">
+					<div class="safevault-item-icon type-personal">${SVG_ICONS.personal_info}</div>
+					<div class="safevault-item-details">
+						<div class="safevault-item-title">${escapeHtml(p.fullName || p.title)}</div>
+						<div class="safevault-item-sub">Fill personal details (${escapeHtml(p.email || p.phone || '')})</div>
+					</div>
+					<span class="safevault-fill-btn">Fill</span>
+				</div>
+			`;
+		});
+
 		dropdown.innerHTML = `
 			<div class="safevault-dropdown-header">
-				<span class="safevault-brand">SafeVaultPro • New Password</span>
+				<span class="safevault-brand">SafeVaultPro • Account Creation</span>
 				<div class="safevault-header-right">
 					<button class="safevault-close-btn" title="Close">&times;</button>
 				</div>
 			</div>
 			<div class="safevault-dropdown-list">
-				<div class="safevault-dropdown-item" data-action="generate">
+				<div class="safevault-dropdown-item" data-action="generate-and-fill">
 					<div class="safevault-item-icon type-generate">${SVG_ICONS.generate}</div>
 					<div class="safevault-item-details">
 						<div class="safevault-item-title" style="color:#34d399;">Generate Strong Password</div>
-						<div class="safevault-item-sub">Create & fill secure 20-char password</div>
+						<div class="safevault-item-sub">Fill both password & confirm fields</div>
 					</div>
 					<span class="safevault-fill-btn">Generate</span>
 				</div>
+				${profileItems.length > 0 ? profileHtml : ''}
 			</div>
 		`;
+
 		dropdown.querySelector('.safevault-close-btn').addEventListener('click', closeDropdown);
 		dropdown.addEventListener('click', (e) => {
 			const itemElem = e.target.closest('.safevault-dropdown-item');
 			if (!itemElem) return;
-			if (itemElem.dataset.action === 'generate') {
+
+			if (itemElem.dataset.action === 'generate-and-fill') {
 				closeDropdown();
-				chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
-					if (res && res.success && res.password) {
-						const generatedPass = res.password;
-						setNativeFieldValue(input, generatedPass);
-
-						let form = input.form || input.closest('form');
-						if (!form) {
-							let parent = input.parentElement;
-							while (parent && parent !== document.body) {
-								if (parent.querySelectorAll('input[type="password"]').length > 0) {
-									form = parent;
-									break;
-								}
-								parent = parent.parentElement;
-							}
-						}
-						if (form) {
-							const passFields = Array.from(form.querySelectorAll('input[type="password"]'));
-							passFields.forEach(pField => setNativeFieldValue(pField, generatedPass));
-						}
-
-						const userField = form
-							? form.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]')
-							: null;
-						const usernameVal = userField ? userField.value : '';
-						const title = `${currentDomain} Account`;
-
-						chrome.runtime.sendMessage(
-							{
-								action: "SAVE_PASSWORD",
-								id: form?.dataset?.safevaultItemId,
-								title,
-								username: usernameVal,
-								password: generatedPass,
-								url: window.location.href,
-								notes: `Generated & saved on ${currentDomain}.`,
-							},
-							(saveRes) => {
-								if (saveRes && saveRes.success && saveRes.item && form && form.dataset) {
-									form.dataset.safevaultItemId = saveRes.item.id;
-								}
-								if (saveRes && saveRes.queued) {
-									showToastBanner('Password queued (vault locked)');
-								} else {
-									showToastBanner('Password saved');
-								}
-							}
-						);
-					}
-				});
+				handleRegistrationPasswordGeneration(formRoot, profileItems[0] || null);
+			} else if (itemElem.dataset.action === 'fill-profile') {
+				const prof = profileItems.find(p => p.id === itemElem.dataset.profileId);
+				if (prof) {
+					fillProfileForm(formRoot, input, prof);
+					showToastBanner('Identity profile populated');
+				}
+				closeDropdown();
 			}
 		});
 
@@ -1151,78 +1136,95 @@
 		activeDropdown = dropdown;
 	}
 
-	function positionDropdown(badge, dropdown) {
-		const rect = badge.getBoundingClientRect();
-		dropdown.style.position = 'fixed';
-		dropdown.style.top = `${Math.min(window.innerHeight - 260, rect.bottom + 4)}px`;
-		dropdown.style.left = `${Math.max(10, Math.min(window.innerWidth - 270, rect.left - 160))}px`;
-		dropdown.style.zIndex = '999999';
+	// --------------------------------------------------------------------------
+	// 6. Autofill Action Implementations
+	// --------------------------------------------------------------------------
+
+	/**
+	 * 1. Authentication & Multi-Step Login Autofill
+	 */
+	function fillLoginCredentials(formRoot, targetInput, item) {
+		const allInputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+		const passInput = allInputs.find(i => i.type === 'password');
+		const userInput = allInputs.find(i => classifyField(i) === 'login_username' || (i.type !== 'password' && (i.type === 'email' || i.type === 'text')));
+
+		if (userInput && item.username) {
+			setNativeFieldValue(userInput, item.username);
+		}
+		if (passInput && item.password) {
+			setNativeFieldValue(passInput, item.password);
+		}
+		if (!userInput && !passInput && targetInput) {
+			setNativeFieldValue(targetInput, item.username || item.password);
+		}
 	}
 
-	// Universal Date Parser (Supports YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY)
-	function parseBirthDate(dateStr) {
-		if (!dateStr) return null;
-		const clean = String(dateStr).trim();
+	/**
+	 * 2. Registration: Password Generation & Priority Identity Queue
+	 */
+	function handleRegistrationPasswordGeneration(formRoot, defaultProfile) {
+		chrome.runtime.sendMessage({ action: "GENERATE_PASSWORD", length: 20, uppercase: true, numbers: true, symbols: true }, (res) => {
+			if (!res || !res.success || !res.password) return;
+			const generatedPass = res.password;
 
-		// Check ISO YYYY-MM-DD
-		let m = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-		if (m) {
-			return { year: m[1], month: m[2].padStart(2, '0'), day: m[3].padStart(2, '0') };
-		}
+			// Populate both password and confirm_password fields simultaneously
+			const passFields = Array.from(formRoot.querySelectorAll('input[type="password"]')).filter(isElementVisible);
+			passFields.forEach(pField => setNativeFieldValue(pField, generatedPass));
 
-		// Check DD/MM/YYYY or MM/DD/YYYY
-		m = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
-		if (m) {
-			const p1 = parseInt(m[1], 10);
-			const p2 = parseInt(m[2], 10);
-			if (p1 > 12) {
-				// p1 is day, p2 is month (DD/MM/YYYY)
-				return { year: m[3], month: String(p2).padStart(2, '0'), day: String(p1).padStart(2, '0') };
+			// Identity Priority Queue: Active Primary Email -> Phone Number -> Full Name
+			const userField = formRoot.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
+			let identifierVal = '';
+			if (defaultProfile) {
+				identifierVal = defaultProfile.email || defaultProfile.phone || defaultProfile.fullName || '';
 			}
-			if (p2 > 12) {
-				// p1 is month, p2 is day (MM/DD/YYYY)
-				return { year: m[3], month: String(p1).padStart(2, '0'), day: String(p2).padStart(2, '0') };
+			if (userField && !userField.value && identifierVal) {
+				setNativeFieldValue(userField, identifierVal);
 			}
-			// Default to DD/MM/YYYY
-			return { year: m[3], month: String(p2).padStart(2, '0'), day: String(p1).padStart(2, '0') };
-		}
 
-		return null;
-	}
+			const finalUsername = (userField ? userField.value : '') || identifierVal;
+			const title = `${currentDomain} Account`;
 
-	// Multilingual Month Names Table for Smart Select Options
-	const MONTH_NAMES = {
-		1: ['jan', 'january', 'janvier', 'جانفي', 'يناير', '1', '01'],
-		2: ['feb', 'february', 'fevrier', 'février', 'فيفري', 'فبراير', '2', '02'],
-		3: ['mar', 'march', 'mars', 'مارس', '3', '03'],
-		4: ['apr', 'april', 'avril', 'أفريل', 'ابريل', 'أبريل', '4', '04'],
-		5: ['may', 'mai', 'ماي', 'مايو', '5', '05'],
-		6: ['jun', 'june', 'juin', 'جوان', 'يونيو', '6', '06'],
-		7: ['jul', 'july', 'juillet', 'جويلية', 'يوليو', '7', '07'],
-		8: ['aug', 'august', 'aout', 'août', 'أوت', 'اوت', 'أغسطس', '8', '08'],
-		9: ['sep', 'september', 'septembre', 'سبتمبر', '9', '09'],
-		10: ['oct', 'october', 'octobre', 'أكتوبر', 'اكتوبر', '10'],
-		11: ['nov', 'november', 'novembre', 'نوفمبر', '11'],
-		12: ['dec', 'december', 'decembre', 'décembre', 'ديسمبر', '12'],
-	};
-
-	// High-Accuracy Autofill Engine for Personal Information Profiles
-	function fillPersonalInfo(targetInput, item) {
-		const form = targetInput.form || targetInput.closest('form') || document.body;
-		const allInputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select'));
-		// Filter out fields that are inside a payment context to prevent personal data leaking into cardholder / card fields
-		const inputs = allInputs.filter(field => {
-			const cl = classifyField(field);
-			if (cl === 'card_number' || cl === 'card_cvv' || cl === 'card_exp' || cl === 'card_exp_month' || cl === 'card_exp_year' || cl === 'card_holder') return false;
-			// Also skip any text input inside a payment form that looks like a cardholder name
-			if (isPaymentContext(field)) {
-				const attr = `${field.name || ''} ${field.id || ''} ${field.placeholder || ''} ${field.autocomplete || ''}`.toLowerCase();
-				if (attr.includes('cc-') || attr.includes('card') || attr.includes('holder') || attr.includes('titulaire') || attr.includes('porteur')) return false;
-			}
-			return true;
+			chrome.runtime.sendMessage(
+				{
+					action: "SAVE_PASSWORD",
+					id: formRoot?.dataset?.safevaultItemId,
+					title,
+					username: finalUsername,
+					password: generatedPass,
+					url: window.location.href,
+					notes: `Generated on registration at ${currentDomain}.`,
+				},
+				(saveRes) => {
+					if (saveRes?.success && saveRes?.item && formRoot?.dataset) {
+						formRoot.dataset.safevaultItemId = saveRes.item.id;
+					}
+					showToastBanner(saveRes?.queued ? 'Password queued (vault locked)' : 'Password generated & saved');
+				}
+			);
 		});
+	}
 
-		// 1. First & Last Names vs Full Name Decomposition
+	/**
+	 * 3. Identity & Profile Autofill (Simultaneous Form-Root Level Population)
+	 */
+	function fillProfileForm(formRoot, targetInput, item) {
+		const inputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(f => !shouldIgnoreField(f));
+
+		// Contextual Partial Profiling: if form is just a standalone email or phone prompt
+		const visibleInputs = inputs.filter(isElementVisible);
+		if (visibleInputs.length === 1) {
+			const single = visibleInputs[0];
+			const cl = classifyField(single);
+			if (cl === 'personal_phone' || single.type === 'tel') {
+				if (item.phone) setNativeFieldValue(single, item.phone);
+				return;
+			}
+			if (cl === 'personal_email' || single.type === 'email') {
+				if (item.email) setNativeFieldValue(single, item.email);
+				return;
+			}
+		}
+
 		let first = item.firstName || '';
 		let last = item.lastName || '';
 		let full = item.fullName || '';
@@ -1252,11 +1254,9 @@
 				firstAr = fullAr;
 			}
 		}
-		if (!fullAr && (firstAr || lastAr)) {
-			fullAr = `${firstAr} ${lastAr}`.trim();
-		}
 
-		// Helper to detect if a field context is in Arabic
+		const parsedDob = parseBirthDate(item.birthDate);
+
 		const isFieldContextArabic = (f) => {
 			if (!f) return false;
 			if (f.dir === 'rtl' || (f.getAttribute && f.getAttribute('dir') === 'rtl')) return true;
@@ -1264,34 +1264,27 @@
 			return /[\u0600-\u06FF]/.test(text);
 		};
 
-		// 2. Birthday Parsing
-		const parsedDob = parseBirthDate(item.birthDate);
-
 		inputs.forEach((field) => {
 			const classification = classifyField(field);
 
-			// Arabic First Name
+			// Explicit Arabic Names
 			if (classification === 'personal_firstNameArabic') {
 				const val = firstAr || first;
 				if (val) setNativeFieldValue(field, val);
 				return;
 			}
-
-			// Arabic Last Name
 			if (classification === 'personal_lastNameArabic') {
 				const val = lastAr || last;
 				if (val) setNativeFieldValue(field, val);
 				return;
 			}
-
-			// Arabic Full Name
 			if (classification === 'personal_fullNameArabic') {
 				const val = fullAr || full;
 				if (val) setNativeFieldValue(field, val);
 				return;
 			}
 
-			// First Name (check if field is in Arabic context)
+			// First Name (English / French, or Arabic if field context is Arabic)
 			if (classification === 'personal_firstName') {
 				const isAr = isFieldContextArabic(field);
 				const val = isAr ? (firstAr || first) : (first || firstAr);
@@ -1299,7 +1292,7 @@
 				return;
 			}
 
-			// Last Name (check if field is in Arabic context)
+			// Last Name (English / French, or Arabic if field context is Arabic)
 			if (classification === 'personal_lastName') {
 				const isAr = isFieldContextArabic(field);
 				const val = isAr ? (lastAr || last) : (last || lastAr);
@@ -1307,7 +1300,7 @@
 				return;
 			}
 
-			// Full Name (check if field is in Arabic context)
+			// Full Name (English / French, or Arabic if field context is Arabic)
 			if (classification === 'personal_fullName') {
 				const isAr = isFieldContextArabic(field);
 				const val = isAr ? (fullAr || full) : (full || fullAr);
@@ -1315,7 +1308,7 @@
 				return;
 			}
 
-			// Birthday: Single input vs Split Day/Month/Year
+			// Birthday
 			if (classification === 'personal_birthDate' && item.birthDate) {
 				if (field.type === 'date' && parsedDob) {
 					setNativeFieldValue(field, `${parsedDob.year}-${parsedDob.month}-${parsedDob.day}`);
@@ -1324,290 +1317,184 @@
 				}
 				return;
 			}
-
 			if (parsedDob) {
 				if (classification === 'personal_birthDay') {
-					if (field.tagName === 'SELECT') {
-						selectMatchingOption(field, [parsedDob.day, String(parseInt(parsedDob.day, 10))]);
-					} else {
-						setNativeFieldValue(field, parsedDob.day);
-					}
+					if (field.tagName === 'SELECT') selectMatchingOption(field, [parsedDob.day, String(parseInt(parsedDob.day, 10))]);
+					else setNativeFieldValue(field, parsedDob.day);
 					return;
 				}
-
 				if (classification === 'personal_birthMonth') {
 					const monthNum = parseInt(parsedDob.month, 10);
 					const monthAliases = MONTH_NAMES[monthNum] || [parsedDob.month];
-					if (field.tagName === 'SELECT') {
-						selectMatchingOption(field, monthAliases);
-					} else {
-						setNativeFieldValue(field, parsedDob.month);
-					}
+					if (field.tagName === 'SELECT') selectMatchingOption(field, monthAliases);
+					else setNativeFieldValue(field, parsedDob.month);
 					return;
 				}
-
 				if (classification === 'personal_birthYear') {
-					if (field.tagName === 'SELECT') {
-						selectMatchingOption(field, [parsedDob.year, parsedDob.year.slice(-2)]);
-					} else {
-						setNativeFieldValue(field, parsedDob.year);
-					}
+					if (field.tagName === 'SELECT') selectMatchingOption(field, [parsedDob.year, parsedDob.year.slice(-2)]);
+					else setNativeFieldValue(field, parsedDob.year);
 					return;
 				}
 			}
 
-			// Gender Handling (Select dropdown, radio buttons, or text input)
+			// Gender
 			if (classification === 'personal_gender' && item.gender) {
 				const g = item.gender.toLowerCase().trim();
 				const isMale = g.startsWith('m') || g.includes('homme') || g.includes('ذكر') || g === '1';
 				const isFemale = g.startsWith('f') || g.includes('femme') || g.includes('أنثى') || g.includes('انثى') || g === '2';
-
 				if (field.tagName === 'SELECT') {
-					const maleKeywords = ['m', 'male', 'homme', 'ذكر', '1', 'man'];
-					const femaleKeywords = ['f', 'female', 'femme', 'أنثى', 'انثى', '2', 'woman'];
-					selectMatchingOption(field, isMale ? maleKeywords : isFemale ? femaleKeywords : [g]);
+					selectMatchingOption(field, isMale ? ['m', 'male', 'homme', 'ذكر', '1'] : isFemale ? ['f', 'female', 'femme', 'أنثى', '2'] : [g]);
 				} else {
 					setNativeFieldValue(field, item.gender);
 				}
 				return;
 			}
 
-			// Age
-			if (classification === 'personal_age' && (item.age || item.birthDate)) {
-				const ageVal = item.age || (item.birthDate ? parseBirthDate(item.birthDate) : '');
-				setNativeFieldValue(field, String(item.age || ''));
-				return;
-			}
-
-			// 18-Digit NIN
-			if (classification === 'personal_nin') {
-				const ninVal = item.nin || item.nationalId || '';
-				if (ninVal) setNativeFieldValue(field, ninVal);
-				return;
-			}
-
-			// National ID / Passport
-			if (classification === 'personal_nationalId') {
-				const idVal = item.nationalId || item.nin || '';
-				if (idVal) setNativeFieldValue(field, idVal);
-				return;
-			}
-
-			// Address 1
-			if (classification === 'personal_address1' && item.addressLine1) {
-				setNativeFieldValue(field, item.addressLine1);
-				return;
-			}
-
-			// Address 2
-			if (classification === 'personal_address2' && item.addressLine2) {
-				setNativeFieldValue(field, item.addressLine2);
-				return;
-			}
-
-			// City / Commune
-			if (classification === 'personal_city' && item.city) {
-				if (field.tagName === 'SELECT') {
-					selectMatchingOption(field, [item.city.toLowerCase()]);
-				} else {
-					setNativeFieldValue(field, item.city);
-				}
-				return;
-			}
-
-			// State / Wilaya / Province
-			if (classification === 'personal_state' && item.stateProvince) {
-				if (field.tagName === 'SELECT') {
-					const s = item.stateProvince.toLowerCase();
-					const aliases = [s];
-					const m = s.match(/^(\d{1,2})\s*-\s*(.+)$/);
-					if (m) {
-						aliases.push(m[1], m[2].trim(), `${m[1]} - ${m[2].trim()}`, `wilaya de ${m[2].trim()}`);
-					}
-					selectMatchingOption(field, aliases);
-				} else {
-					setNativeFieldValue(field, item.stateProvince);
-				}
-				return;
-			}
-
-			// Postal Code
-			if (classification === 'personal_zip' && item.postalCode) {
-				setNativeFieldValue(field, item.postalCode);
-				return;
-			}
-
-			// Country
-			if (classification === 'personal_country' && item.country) {
-				if (field.tagName === 'SELECT') {
-					const c = item.country.toLowerCase();
-					const aliases = [c];
-					if (c.includes('algeria') || c.includes('algerie') || c.includes('الجزائر')) aliases.push('dz', 'dza', 'algeria', 'algerie', 'الجزائر');
-					if (c.includes('united states') || c.includes('usa') || c.includes('america')) aliases.push('us', 'usa', 'united states', 'etats-unis');
-					if (c.includes('france')) aliases.push('fr', 'fra', 'france');
-					selectMatchingOption(field, aliases);
-				} else {
-					setNativeFieldValue(field, item.country);
-				}
-				return;
-			}
-
-			// Phone
-			if (classification === 'personal_phone') {
-				const phoneVal = item.phone || (item.extraPhones && item.extraPhones[0]?.phone) || '';
-				if (phoneVal) setNativeFieldValue(field, phoneVal);
-				return;
-			}
-
-			// Email
-			if (classification === 'personal_email' || (field.type === 'email' && !field.value)) {
-				const emailVal = item.email || (item.extraEmails && item.extraEmails[0]?.email) || '';
+			// Address & Contact
+			if (classification === 'personal_address1' && item.addressLine1) setNativeFieldValue(field, item.addressLine1);
+			else if (classification === 'personal_address2' && item.addressLine2) setNativeFieldValue(field, item.addressLine2);
+			else if (classification === 'personal_city' && item.city) setNativeFieldValue(field, item.city);
+			else if (classification === 'personal_state' && item.stateProvince) setNativeFieldValue(field, item.stateProvince);
+			else if (classification === 'personal_zip' && item.postalCode) setNativeFieldValue(field, item.postalCode);
+			else if (classification === 'personal_country' && item.country) setNativeFieldValue(field, item.country);
+			else if (classification === 'personal_phone' && (item.phone || item.extraPhones?.[0]?.phone)) {
+				setNativeFieldValue(field, item.phone || item.extraPhones[0].phone);
+			} else if (classification === 'personal_email' || (field.type === 'email' && !field.value)) {
+				const emailVal = item.email || item.extraEmails?.[0]?.email;
 				if (emailVal) setNativeFieldValue(field, emailVal);
-				return;
 			}
 		});
+	}
 
-		// Follow-up pass for dynamic cascading dropdowns (e.g. Country select triggers State options, or State triggers City)
-		setTimeout(() => {
-			const remainingInputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select'));
-			remainingInputs.forEach(field => {
-				const cl = classifyField(field);
-				if (cl === 'personal_state' && item.stateProvince && (!field.value || field.value === '')) {
-					if (field.tagName === 'SELECT') {
-						const s = item.stateProvince.toLowerCase();
-						const aliases = [s];
-						const m = s.match(/^(\d{1,2})\s*-\s*(.+)$/);
-						if (m) {
-							aliases.push(m[1], m[2].trim(), `${m[1]} - ${m[2].trim()}`);
-						}
-						selectMatchingOption(field, aliases);
-					} else {
-						setNativeFieldValue(field, item.stateProvince);
-					}
-				} else if (cl === 'personal_city' && item.city && (!field.value || field.value === '')) {
-					if (field.tagName === 'SELECT') {
-						selectMatchingOption(field, [item.city.toLowerCase()]);
-					} else {
-						setNativeFieldValue(field, item.city);
-					}
-				}
-			});
-		}, 150);
+	/**
+	 * 4. Payment Methods Autofill (Simultaneous Fill + Algerian Edahabia / CIB Optimizations)
+	 */
+	function fillPaymentCard(formRoot, item) {
+		const inputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(f => !shouldIgnoreField(f));
+		const cvvVal = item.cvv || item.pin || '';
+		const holderVal = item.cardholderName || item.fullName || item.title || '';
+		const numVal = (item.number || '').replace(/\s+/g, '');
+		const parsedExp = parseCardExpiry(item.expirationDate);
 
-		// Check for radio buttons for gender if select wasn't present
-		if (item.gender) {
-			const g = item.gender.toLowerCase().trim();
-			const isMale = g.startsWith('m') || g.includes('homme') || g.includes('ذكر') || g === '1';
-			const isFemale = g.startsWith('f') || g.includes('femme') || g.includes('أنثى') || g.includes('انثى') || g === '2';
-			const genderRadios = Array.from(form.querySelectorAll('input[type="radio"]')).filter(r => {
-				const rName = (r.name || '').toLowerCase();
-				return rName.includes('gender') || rName.includes('sex') || rName.includes('sexe');
-			});
-			genderRadios.forEach(radio => {
-				const val = (radio.value || '').toLowerCase();
-				if (isMale && (val === 'm' || val === 'male' || val === 'homme' || val === '1')) {
-					radio.checked = true;
-					radio.dispatchEvent(new Event('change', { bubbles: true }));
-				} else if (isFemale && (val === 'f' || val === 'female' || val === 'femme' || val === '2')) {
-					radio.checked = true;
-					radio.dispatchEvent(new Event('change', { bubbles: true }));
-				}
-			});
+		// 1. Card Number
+		const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || inputs[0];
+		if (cardNumInput && numVal) {
+			setNativeFieldValue(cardNumInput, numVal);
 		}
 
-		// Fallback for target input if not filled
-		if (!targetInput.value) {
-			const targetCl = classifyField(targetInput);
-			if (targetCl === 'personal_email' && item.email) {
-				setNativeFieldValue(targetInput, item.email);
-			} else if ((targetCl === 'personal_fullName' || targetCl === 'personal_firstName') && full) {
-				setNativeFieldValue(targetInput, full);
+		// 2. CVV / CVC
+		let cvvInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_cvv');
+		if (!cvvInput) {
+			cvvInput = inputs.find(i => {
+				if (i === cardNumInput) return false;
+				const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${i.autocomplete || ''} ${i.getAttribute('aria-label') || ''} ${getFieldLabelText(i)}`.toLowerCase();
+				return attr.includes('cvv') || attr.includes('cvc') || attr.includes('cvw') || attr.includes('csc') || attr.includes('security') || attr.includes('securite');
+			});
+		}
+		if (cvvInput && cvvVal) {
+			setNativeFieldValue(cvvInput, cvvVal);
+		}
+
+		// 3. Cardholder Name
+		const holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && classifyField(i) === 'card_holder');
+		if (holderInput && holderVal) {
+			setNativeFieldValue(holderInput, holderVal);
+		}
+
+		// 4. Expiration Date
+		if (parsedExp) {
+			const { month, fullYear, shortYear, monthNum, formatted } = parsedExp;
+			const expInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && classifyField(i) === 'card_exp');
+			if (expInput) {
+				setNativeFieldValue(expInput, formatted);
+			}
+
+			const monthInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_exp_month');
+			if (monthInput) {
+				if (monthInput.tagName === 'SELECT') {
+					selectMatchingOption(monthInput, MONTH_NAMES[monthNum] || [month, String(monthNum)]);
+				} else {
+					setNativeFieldValue(monthInput, month);
+				}
+			}
+
+			const yearInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_exp_year');
+			if (yearInput) {
+				if (yearInput.tagName === 'SELECT') {
+					selectMatchingOption(yearInput, [fullYear, shortYear]);
+				} else {
+					setNativeFieldValue(yearInput, yearInput.maxLength === 2 ? shortYear : fullYear);
+				}
 			}
 		}
 	}
 
-	// Dedicated Expiration Date Parser (Supports YYYY-MM-DD, YYYY-MM, MM/YY, MM/YYYY, DD/MM/YYYY, MMYY, MM-YY, MM-YYYY, M/YY)
-	function parseCardExpiry(expStr) {
-		if (!expStr) return null;
-		const clean = String(expStr).trim();
+	/**
+	 * 5. Identity Documents Autofill (Dedicated Isolated Handler: NIN & Passport)
+	 */
+	function fillIdentityDocument(formRoot, item) {
+		const inputs = Array.from(formRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(f => !shouldIgnoreField(f));
+		const ninVal = item.nin || item.nationalId || (item.subtype === 'id_card' ? item.number : '');
+		const passVal = item.subtype === 'passport' ? item.number : (item.passportNumber || '');
 
-		// 1. YYYY-MM-DD or YYYY/MM/DD or YYYY-MM or YYYY/MM
-		let m = clean.match(/^(\d{4})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?$/);
-		if (m) {
-			const fullYear = m[1];
-			const month = m[2].padStart(2, '0');
-			const monthNum = parseInt(month, 10);
-			const shortYear = fullYear.slice(-2);
-			return {
-				month,
-				year: fullYear,
-				fullYear,
-				shortYear,
-				monthNum,
-				formatted: `${month}/${shortYear}`
-			};
-		}
+		inputs.forEach(input => {
+			const cl = classifyField(input);
+			if (cl === 'doc_nin' && ninVal) {
+				setNativeFieldValue(input, ninVal);
+			} else if (cl === 'doc_passport' && passVal) {
+				setNativeFieldValue(input, passVal);
+			} else if (cl === 'doc_nationalId' && (ninVal || item.nationalId)) {
+				setNativeFieldValue(input, ninVal || item.nationalId);
+			}
+		});
+	}
 
-		// 2. DD/MM/YYYY or DD-MM-YYYY or MM/DD/YYYY
+	// --------------------------------------------------------------------------
+	// 7. Parsing Utilities (Birth Dates & Expiration Dates)
+	// --------------------------------------------------------------------------
+
+	function parseBirthDate(dateStr) {
+		if (!dateStr) return null;
+		const clean = String(dateStr).trim();
+		let m = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+		if (m) return { year: m[1], month: m[2].padStart(2, '0'), day: m[3].padStart(2, '0') };
+
 		m = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
 		if (m) {
 			const p1 = parseInt(m[1], 10);
 			const p2 = parseInt(m[2], 10);
-			const fullYear = m[3];
-			let monthNum;
-			if (p1 > 12) {
-				monthNum = p2;
-			} else if (p2 > 12) {
-				monthNum = p1;
-			} else {
-				monthNum = p2; // Default DD/MM/YYYY
-			}
-			const month = String(monthNum).padStart(2, '0');
-			const shortYear = fullYear.slice(-2);
-			return {
-				month,
-				year: fullYear,
-				fullYear,
-				shortYear,
-				monthNum,
-				formatted: `${month}/${shortYear}`
-			};
+			if (p1 > 12) return { year: m[3], month: String(p2).padStart(2, '0'), day: String(p1).padStart(2, '0') };
+			return { year: m[3], month: String(p2).padStart(2, '0'), day: String(p1).padStart(2, '0') };
+		}
+		return null;
+	}
+
+	function parseCardExpiry(expStr) {
+		if (!expStr) return null;
+		const clean = String(expStr).trim();
+
+		let m = clean.match(/^(\d{4})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?$/);
+		if (m) {
+			const fullYear = m[1];
+			const month = m[2].padStart(2, '0');
+			return { month, fullYear, shortYear: fullYear.slice(-2), monthNum: parseInt(month, 10), formatted: `${month}/${fullYear.slice(-2)}` };
 		}
 
-		// 3. MM/YY or MM/YYYY or MM-YY or MM-YYYY or M/YY or M/YYYY
 		m = clean.match(/^(\d{1,2})[-/.](\d{2,4})$/);
 		if (m) {
 			const monthNum = parseInt(m[1], 10);
 			const month = String(monthNum).padStart(2, '0');
 			const y = m[2];
 			const fullYear = y.length === 2 ? `20${y}` : y;
-			const shortYear = y.length === 4 ? y.slice(-2) : y;
-			return {
-				month,
-				year: fullYear,
-				fullYear,
-				shortYear,
-				monthNum,
-				formatted: `${month}/${shortYear}`
-			};
+			const shortYear = fullYear.slice(-2);
+			return { month, fullYear, shortYear, monthNum, formatted: `${month}/${shortYear}` };
 		}
 
-		// 4. MMYY (4 digits)
 		m = clean.match(/^(\d{2})(\d{2})$/);
 		if (m) {
 			const monthNum = parseInt(m[1], 10);
 			if (monthNum >= 1 && monthNum <= 12) {
-				const month = m[1];
-				const shortYear = m[2];
-				const fullYear = `20${shortYear}`;
-				return {
-					month,
-					year: fullYear,
-					fullYear,
-					shortYear,
-					monthNum,
-					formatted: `${month}/${shortYear}`
-				};
+				return { month: m[1], fullYear: `20${m[2]}`, shortYear: m[2], monthNum, formatted: `${m[1]}/${m[2]}` };
 			}
 		}
 
@@ -1617,25 +1504,19 @@
 	function selectMatchingOption(selectElement, candidateValues) {
 		if (!selectElement || selectElement.tagName !== 'SELECT') return false;
 		const options = Array.from(selectElement.options);
-		const candidates = Array.isArray(candidateValues) ? candidateValues : [candidateValues];
-		const cleanCandidates = candidates.flat().map(c => String(c).toLowerCase().trim()).filter(Boolean);
+		const candidates = (Array.isArray(candidateValues) ? candidateValues : [candidateValues]).flat().map(c => String(c).toLowerCase().trim()).filter(Boolean);
 
-		// 1. Exact value or text match
 		let matched = options.find(opt => {
 			const val = (opt.value || '').toLowerCase().trim();
 			const txt = (opt.text || '').toLowerCase().trim();
-			return cleanCandidates.some(c => val === c || txt === c);
+			return candidates.some(c => val === c || txt === c);
 		});
 
-		// 2. Prefix / StartsWith match
 		if (!matched) {
 			matched = options.find(opt => {
 				const val = (opt.value || '').toLowerCase().trim();
 				const txt = (opt.text || '').toLowerCase().trim();
-				return cleanCandidates.some(c => 
-					(c.length >= 2 && (val.startsWith(c) || txt.startsWith(c))) ||
-					(c.length >= 3 && (val.includes(c) || txt.includes(c)))
-				);
+				return candidates.some(c => (c.length >= 2 && (val.startsWith(c) || txt.startsWith(c))) || (c.length >= 3 && (val.includes(c) || txt.includes(c))));
 			});
 		}
 
@@ -1649,376 +1530,18 @@
 		return false;
 	}
 
-	// Smart 2FA / TOTP Code Filling (Supports both segmented multi-box inputs like GitHub/PayPal and single inputs)
-	function fillTotpCode(targetInput, code) {
-		if (!targetInput || !code) return;
-		const cleanCode = String(code).trim().replace(/\s+/g, '');
+	// --------------------------------------------------------------------------
+	// 8. Vault Form Submission Interception
+	// --------------------------------------------------------------------------
 
-		const scope = getTotpScope(targetInput);
-		const allInputs = Array.from(scope.querySelectorAll('input:not([type="hidden"])'))
-			.filter(el => !shouldIgnoreField(el) && isElementVisible(el));
-
-		// Check for segmented single-digit inputs (e.g. PayPal, GitHub, Stripe 6-box OTP)
-		const segmentedInputs = allInputs.filter(el => {
-			const ml = el.maxLength || parseInt(el.getAttribute('maxlength') || '0', 10);
-			return ml === 1 || el.getAttribute('size') === '1';
-		});
-
-		if (segmentedInputs.length >= 2) {
-			const startIndex = segmentedInputs.indexOf(targetInput) >= 0 ? segmentedInputs.indexOf(targetInput) : 0;
-			const targetSlice = segmentedInputs.slice(startIndex);
-
-			for (let i = 0; i < cleanCode.length && i < targetSlice.length; i++) {
-				const char = cleanCode[i];
-				const el = targetSlice[i];
-				setNativeFieldValue(el, char);
-				try {
-					el.dispatchEvent(new KeyboardEvent('keydown', { key: char, code: `Digit${char}`, bubbles: true }));
-					el.dispatchEvent(new KeyboardEvent('keypress', { key: char, code: `Digit${char}`, bubbles: true }));
-					el.dispatchEvent(new KeyboardEvent('keyup', { key: char, code: `Digit${char}`, bubbles: true }));
-				} catch (e) {}
-			}
-
-			const lastTarget = targetSlice[Math.min(cleanCode.length - 1, targetSlice.length - 1)];
-			if (lastTarget) lastTarget.focus();
-			return;
-		}
-
-		// Single standard input
-		setNativeFieldValue(targetInput, cleanCode);
-	}
-
-	// Smart Autofill Engine dispatcher
-	function autofillItem(targetInput, item) {
-		const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
-
-		// 1. Password credentials (fills both username and password in one click)
-		if (item.type === 'password') {
-			const passInput = root.querySelector('input[type="password"]') || (targetInput && targetInput.type === 'password' ? targetInput : null);
-			let userInput = null;
-
-			if (targetInput && targetInput.type !== 'password' && targetInput.tagName === 'INPUT') {
-				userInput = targetInput;
-			} else {
-				const allInputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"])'));
-				const passIdx = passInput ? allInputs.indexOf(passInput) : -1;
-				if (passIdx > 0) {
-					userInput = allInputs.slice(0, passIdx).reverse().find(i => 
-						classifyField(i) === 'login_username' || i.type === 'email' || i.type === 'text' || i.type === 'tel'
-					);
-				}
-				if (!userInput) {
-					userInput = allInputs.find(i => i !== passInput && (classifyField(i) === 'login_username' || i.type === 'email' || i.type === 'text' || i.type === 'tel'));
-				}
-			}
-
-			if (userInput && item.username) {
-				setNativeFieldValue(userInput, item.username);
-			}
-			if (passInput && item.password) {
-				setNativeFieldValue(passInput, item.password);
-			}
-		}
-
-		// 2. TOTP Code
-		else if (item.type === 'totp') {
-			chrome.runtime.sendMessage({ action: "GET_TOTP", secret: item.secret }, (res) => {
-				if (res && res.success && res.code) {
-					fillTotpCode(targetInput, res.code);
-				}
-			});
-		}
-
-		// 3. Credit Card Payment Details
-		else if (item.type === 'card') {
-			const cvvVal = item.cvv || item.pin || '';
-			const holderVal = item.cardholderName || item.fullName || item.title || (item.firstName ? `${item.firstName} ${item.lastName || ''}`.trim() : '');
-			const numVal = (item.number || '').replace(/\s+/g, '');
-			const parsedExp = parseCardExpiry(item.expirationDate);
-
-			const root = (targetInput.form && targetInput.form.querySelectorAll('input, select').length >= 3) ? targetInput.form : document;
-			const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]), select'));
-
-			// 1. Card Number
-			const cardNumInput = inputs.find(i => classifyField(i) === 'card_number') || (classifyField(targetInput) === 'card_number' ? targetInput : null) || targetInput;
-			if (cardNumInput && numVal) {
-				setNativeFieldValue(cardNumInput, numVal);
-			}
-
-			// 2. CVV / CVC
-			const cvvInput = inputs.find(i => i !== cardNumInput && (classifyField(i) === 'card_cvv' || (i.name || i.id || i.placeholder || '').toLowerCase().match(/cvv|cvc|cvw|crypto|secu|security/)));
-			if (cvvInput && cvvVal) {
-				setNativeFieldValue(cvvInput, cvvVal);
-			}
-
-			// 3. Cardholder Name (My name / Nom et prénom / Titulaire / Porteur / Name on card)
-			// Priority 1: classifyField matches 'card_holder'
-			let holderInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && classifyField(i) === 'card_holder');
-
-			// Priority 2: Direct attribute/label scan for cardholder-specific markers
-			if (!holderInput) {
-				holderInput = inputs.find(i => {
-					if (i === cardNumInput || i === cvvInput) return false;
-					if (i.tagName !== 'INPUT') return false;
-					const iType = (i.type || '').toLowerCase();
-					if (iType && iType !== 'text' && iType !== 'string' && iType !== 'search') return false;
-
-					const ac = (i.autocomplete || '').toLowerCase();
-					if (ac === 'cc-name' || ac === 'cc-given-name' || ac === 'cc-family-name') return true;
-
-					const labelText = getFieldLabelText(i);
-					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''} ${i.className || ''}`.toLowerCase();
-					const norm = (attr + ' ' + labelText).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-					return (
-						norm.includes('holder') ||
-						norm.includes('cardholder') ||
-						norm.includes('titulaire') ||
-						norm.includes('porteur') ||
-						norm.includes('card name') ||
-						norm.includes('name on card') ||
-						norm.includes('name on the card') ||
-						norm.includes('nom sur carte') ||
-						norm.includes('nom carte') ||
-						norm.includes('cc name') ||
-						norm.includes('card owner') ||
-						norm.includes('cardowner') ||
-						norm.includes('صاحب') ||
-						norm.includes('حامل')
-					);
-				});
-			}
-
-			// Priority 3: In a payment context, find a name/nom field that isn't address/email/phone
-			if (!holderInput) {
-				holderInput = inputs.find(i => {
-					if (i === cardNumInput || i === cvvInput) return false;
-					if (i.tagName !== 'INPUT') return false;
-					const iType = (i.type || '').toLowerCase();
-					if (iType && iType !== 'text' && iType !== 'string') return false;
-
-					const labelText = getFieldLabelText(i);
-					const attr = `${i.name || ''} ${i.id || ''} ${i.placeholder || ''}`.toLowerCase();
-					const norm = (attr + ' ' + labelText).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-					// Must have a name-related keyword
-					const hasNameHint = norm.includes('name') || norm.includes('nom') || norm.includes('prenom') || norm.includes('اسم');
-					if (!hasNameHint) return false;
-
-					// Must NOT be an address / billing address / email / phone / city / state / zip field
-					const isOtherField = norm.includes('email') || norm.includes('phone') || norm.includes('address') ||
-						norm.includes('street') || norm.includes('city') || norm.includes('state') ||
-						norm.includes('zip') || norm.includes('postal') || norm.includes('country') ||
-						norm.includes('user') || norm.includes('login');
-					return !isOtherField;
-				});
-			}
-
-			// Priority 4: Fallback — first remaining text input in the form that isn't card number or CVV
-			if (!holderInput) {
-				holderInput = inputs.find(i => 
-					i !== cardNumInput && 
-					i !== cvvInput && 
-					i.tagName === 'INPUT' && 
-					((i.type || '').toLowerCase() === 'text' || !(i.type))
-				);
-			}
-
-			if (holderInput && holderVal && holderInput !== cardNumInput && holderInput !== cvvInput) {
-				setNativeFieldValue(holderInput, holderVal);
-			}
-
-			// 4. Expiration Date (Single input vs separate Month/Year dropdowns)
-			if (parsedExp) {
-				const { month, fullYear, shortYear, monthNum, formatted } = parsedExp;
-				const monthName = MONTH_NAMES[monthNum] ? MONTH_NAMES[monthNum][0] : '';
-				const monthAliases = MONTH_NAMES[monthNum] || [month];
-
-				// Helper: check if field looks like a combined expiry input via attributes/label
-				function looksLikeExpiryInput(el) {
-					if (el.tagName !== 'INPUT') return false;
-					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''} ${getFieldLabelText(el)}`.toLowerCase();
-					return a.includes('expir') || a.includes('exp date') || a.includes('exp_date') || a.includes('expdate') ||
-						a.includes('cc-exp') || a.includes('validite') || a.includes('valid thru') || a.includes('validthru') ||
-						a.includes('mm/yy') || a.includes('mm / yy') || a.includes('mm/aa') || a.includes('mm-yy') ||
-						a.includes('انتهاء') || a.includes('صلاحية') ||
-						(a.includes('date') && (a.includes('card') || a.includes('carte') || a.includes('cc')));
-				}
-
-				// Helper: check if field looks like a separate month field via attributes/label
-				function looksLikeMonthField(el) {
-					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
-					if (a.includes('bday') || a.includes('birth') || a.includes('naissance') || a.includes('dob')) return false;
-					return a.includes('cc-exp-month') || a.includes('exp_month') || a.includes('exp-month') || a.includes('expmonth') ||
-						a.includes('card_month') || a.includes('card-month') || a.includes('cardmonth') ||
-						a.includes('expm') || (a.includes('month') && (a.includes('exp') || a.includes('card') || a.includes('cc'))) ||
-						(el.tagName === 'SELECT' && isMonthSelect(el));
-				}
-
-				// Helper: check if field looks like a separate year field via attributes/label
-				function looksLikeYearField(el) {
-					const a = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.autocomplete || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
-					if (a.includes('bday') || a.includes('birth') || a.includes('naissance') || a.includes('dob')) return false;
-					return a.includes('cc-exp-year') || a.includes('exp_year') || a.includes('exp-year') || a.includes('expyear') ||
-						a.includes('card_year') || a.includes('card-year') || a.includes('cardyear') ||
-						a.includes('expy') || (a.includes('year') && (a.includes('exp') || a.includes('card') || a.includes('cc'))) ||
-						(el.tagName === 'SELECT' && isYearSelect(el));
-				}
-
-				const usedFields = [cardNumInput, cvvInput, holderInput].filter(Boolean);
-				const remaining = inputs.filter(i => !usedFields.includes(i));
-
-				// Single Expiration Date Input (e.g. MM/YY)
-				let expInput = remaining.find(i => classifyField(i) === 'card_exp' && i.tagName === 'INPUT');
-				// Fallback: attribute-based search for combined expiry input
-				if (!expInput) {
-					expInput = remaining.find(i => looksLikeExpiryInput(i));
-				}
-				if (expInput) {
-					const placeholder = (expInput.placeholder || '').toLowerCase();
-					if (expInput.type === 'month') {
-						setNativeFieldValue(expInput, `${fullYear}-${month}`);
-					} else if (expInput.type === 'date') {
-						setNativeFieldValue(expInput, `${fullYear}-${month}-01`);
-					} else if (expInput.maxLength === 4 || placeholder.includes('mmyy')) {
-						setNativeFieldValue(expInput, `${month}${shortYear}`);
-					} else if (placeholder.includes('mm / yy')) {
-						setNativeFieldValue(expInput, `${month} / ${shortYear}`);
-					} else if (placeholder.includes('mm/yyyy') || expInput.maxLength === 7) {
-						setNativeFieldValue(expInput, `${month}/${fullYear}`);
-					} else {
-						setNativeFieldValue(expInput, formatted);
-					}
-				}
-
-				const remainingAfterExp = remaining.filter(i => i !== expInput);
-
-				// Separate Month Select or Input
-				let monthInput = remainingAfterExp.find(i =>
-					classifyField(i) === 'card_exp_month' || looksLikeMonthField(i)
-				);
-				// Fallback: any remaining SELECT that has month-like options (1-12) and isn't a year select
-				if (!monthInput) {
-					monthInput = remainingAfterExp.find(i =>
-						i.tagName === 'SELECT' && isMonthSelect(i) && !isYearSelect(i)
-					);
-				}
-
-				if (monthInput) {
-					if (monthInput.tagName === 'SELECT') {
-						const options = Array.from(monthInput.options);
-						const matchedOpt = options.find(opt => {
-							const val = (opt.value || '').trim().toLowerCase();
-							const txt = (opt.text || '').trim().toLowerCase();
-							return val === month || 
-								val === String(monthNum) || 
-								txt === month || 
-								txt === String(monthNum) ||
-								txt.startsWith(month) || 
-								txt.startsWith(String(monthNum)) ||
-								(monthName && txt.includes(monthName)) ||
-								monthAliases.some(a => val === a || txt === a || txt.includes(a));
-						});
-						if (matchedOpt) {
-							monthInput.value = matchedOpt.value;
-							monthInput.dispatchEvent(new Event('change', { bubbles: true }));
-							monthInput.dispatchEvent(new Event('input', { bubbles: true }));
-						}
-					} else {
-						setNativeFieldValue(monthInput, month);
-					}
-				}
-
-				// Separate Year Select or Input
-				const remainingAfterMonth = remainingAfterExp.filter(i => i !== monthInput);
-				let yearInput = remainingAfterMonth.find(i =>
-					classifyField(i) === 'card_exp_year' || looksLikeYearField(i)
-				);
-				// Fallback: any remaining SELECT that has year-like options and isn't a month select
-				if (!yearInput) {
-					yearInput = remainingAfterMonth.find(i =>
-						i.tagName === 'SELECT' && isYearSelect(i) && !isMonthSelect(i)
-					);
-				}
-
-				if (yearInput) {
-					if (yearInput.tagName === 'SELECT') {
-						const options = Array.from(yearInput.options);
-						const matchedOpt = options.find(opt => {
-							const val = (opt.value || '').trim().toLowerCase();
-							const txt = (opt.text || '').trim().toLowerCase();
-							return val === fullYear || 
-								val === shortYear || 
-								txt === fullYear || 
-								txt === shortYear ||
-								txt.includes(fullYear) || 
-								txt.includes(shortYear);
-						});
-						if (matchedOpt) {
-							yearInput.value = matchedOpt.value;
-							yearInput.dispatchEvent(new Event('change', { bubbles: true }));
-							yearInput.dispatchEvent(new Event('input', { bubbles: true }));
-						}
-					} else {
-						setNativeFieldValue(yearInput, yearInput.maxLength === 2 ? shortYear : fullYear);
-					}
-				}
-			}
-
-			// 5. NIN if available on ID card or passport
-			if (item.nin) {
-				const ninInput = inputs.find(i => classifyField(i) === 'personal_nin' || (i.name || i.id || i.placeholder || '').toLowerCase().includes('nin'));
-				if (ninInput) {
-					setNativeFieldValue(ninInput, item.nin);
-				}
-			}
-		}
-
-		// 4. Personal Info Profiles
-		else if (item.type === 'personal_info') {
-			fillPersonalInfo(targetInput, item);
-		}
-	}
-
-	function escapeHtml(str) {
-		if (!str) return '';
-		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-	}
-
-	function showToastBanner(message) {
-		const root = getSafeVaultShadowRoot();
-		const existing = root.querySelector('.safevault-toast-banner');
-		if (existing) existing.remove();
-
-		const toast = document.createElement('div');
-		toast.className = 'safevault-toast-banner';
-		toast.style.pointerEvents = 'none';
-		toast.innerHTML = `
-			<span class="safevault-toast-icon">${SVG_ICONS.check}</span>
-			<span class="safevault-toast-text">${escapeHtml(message)}</span>
-		`;
-		root.appendChild(toast);
-		setTimeout(() => {
-			toast.style.opacity = '0';
-			toast.style.transform = 'translateY(6px)';
-			toast.style.transition = 'all 0.18s ease';
-			setTimeout(() => toast.remove(), 180);
-		}, 1600);
-	}
-
-	// Auto-Save Form Submit Handler
 	function setupAutoSaveSubmitListener() {
 		const triggerSaveFromForm = (form) => {
 			if (!form) return;
-			const passInputs = Array.from(form.querySelectorAll('input[type="password"]'));
+			const passInputs = Array.from(form.querySelectorAll('input[type="password"]')).filter(isElementVisible);
 			if (passInputs.length === 0) return;
-			// Security: Ignore hidden / zero-dimension honeypots
-			const primaryPass = passInputs[0];
-			if (primaryPass.offsetWidth === 0 || primaryPass.offsetHeight === 0) return;
 
-			const userInput = form.querySelector(
-				'input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]'
-			);
+			const primaryPass = passInputs[0];
+			const userInput = form.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
 			const passVal = primaryPass.value;
 			const userVal = userInput ? userInput.value : '';
 
@@ -2027,7 +1550,7 @@
 				chrome.runtime.sendMessage(
 					{
 						action: "SAVE_PASSWORD",
-						id: form.dataset ? form.dataset.safevaultItemId : undefined,
+						id: form.dataset?.safevaultItemId,
 						title,
 						username: userVal,
 						password: passVal,
@@ -2035,13 +1558,9 @@
 						notes: `Captured from form on ${currentDomain}.`,
 					},
 					(res) => {
-						if (res && res.success) {
+						if (res?.success) {
 							if (res.item && form.dataset) form.dataset.safevaultItemId = res.item.id;
-							if (res.queued) {
-								showToastBanner('Credentials queued (vault locked)');
-							} else {
-								showToastBanner('Credentials saved');
-							}
+							showToastBanner(res.queued ? 'Credentials queued (vault locked)' : 'Credentials saved to vault');
 						}
 					}
 				);
@@ -2049,7 +1568,6 @@
 		};
 
 		document.addEventListener('submit', (e) => {
-			// Security: Ignore untrusted synthetic JavaScript events
 			if (!e.isTrusted) return;
 			if (e.target && e.target instanceof HTMLFormElement) {
 				triggerSaveFromForm(e.target);
@@ -2057,60 +1575,61 @@
 		}, true);
 
 		document.addEventListener('click', (e) => {
-			// Security: Ignore untrusted synthetic JavaScript events
 			if (!e.isTrusted) return;
 			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
 			if (!target) return;
 			const btnText = (target.textContent || target.value || '').toLowerCase();
-			const isRegisterBtn = target.type === 'submit' || ['register', 'signup', 'sign-up', 'join', 'create', 'submit', "s'inscrire", 'إنشاء'].some(kw => btnText.includes(kw));
-			if (isRegisterBtn) {
-				let form = target.form || target.closest('form');
-				if (!form) {
-					// Search upwards for container with password input (supports SPAs / React divs)
-					let parent = target.parentElement;
-					while (parent && parent !== document.body) {
-						if (parent.querySelector('input[type="password"]')) {
-							form = parent;
-							break;
-						}
-						parent = parent.parentElement;
-					}
-				}
-				if (!form) form = document;
+			const isSubmitAction = target.type === 'submit' || ['register', 'signup', 'sign-up', 'join', 'create', 'submit', "s'inscrire", 'إنشاء', 'login', 'connexion'].some(kw => btnText.includes(kw));
+			if (isSubmitAction) {
+				const form = target.form || target.closest('form') || getFormScope(target);
 				setTimeout(() => triggerSaveFromForm(form), 120);
 			}
 		}, true);
 	}
 
-	// Scan DOM and attach badges to relevant candidate fields
+	// --------------------------------------------------------------------------
+	// 9. Scan, Lifecycle & Observer Engine
+	// --------------------------------------------------------------------------
+
 	function scanAndAttach() {
-		const inputs = document.querySelectorAll('input:not([type="hidden"]), select');
-		inputs.forEach((input) => {
-			if (!shouldIgnoreField(input)) {
-				const cl = classifyField(input);
-				if (cl.startsWith('personal_')) {
-					const primary = getPrimaryProfileField(input);
-					if (primary && primary !== input && attachedBadges.has(input)) {
-						const oldBadge = attachedBadges.get(input);
-						if (oldBadge) {
-							oldBadge.remove();
-							attachedBadges.delete(input);
-						}
-					}
+		const forms = Array.from(document.querySelectorAll('form'));
+		const standaloneInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]), select')).filter(i => !i.form && !shouldIgnoreField(i) && isElementVisible(i));
+
+		// Process standard forms
+		forms.forEach(form => {
+			const formType = classifyForm(form);
+			if (formType === 'disallowed') {
+				// Clean up any stale badges
+				if (formBadgeMap.has(form)) {
+					formBadgeMap.get(form).badge.remove();
+					formBadgeMap.delete(form);
 				}
-				if (isSecondaryTotpField(input) && attachedBadges.has(input)) {
-					const oldBadge = attachedBadges.get(input);
-					if (oldBadge) {
-						oldBadge.remove();
-						attachedBadges.delete(input);
-					}
-				}
-				attachBadge(input);
+				return;
+			}
+
+			const primaryInput = getPrimaryAnchorField(form, formType);
+			if (primaryInput) {
+				attachFormBadge(form, primaryInput, formType);
 			}
 		});
+
+		// Process standalone inputs (e.g. SPAs, multi-step views without standard <form> tag)
+		if (standaloneInputs.length > 0) {
+			const containerGroups = new Set();
+			standaloneInputs.forEach(i => containerGroups.add(getFormScope(i)));
+			containerGroups.forEach(scope => {
+				if (scope.tagName === 'FORM') return; // Already handled above
+				const formType = classifyForm(scope);
+				if (formType !== 'disallowed') {
+					const primaryInput = getPrimaryAnchorField(scope, formType);
+					if (primaryInput) {
+						attachFormBadge(scope, primaryInput, formType);
+					}
+				}
+			});
+		}
 	}
 
-	// Optimized MutationObserver targeting only relevant inputs/forms
 	let scanDebounceTimer = null;
 	const observer = new MutationObserver((mutations) => {
 		let relevant = false;
@@ -2149,7 +1668,6 @@
 	// Synchronize fixed badges on scroll & resize
 	window.addEventListener('scroll', () => {
 		document.querySelectorAll('.safevault-input-badge').forEach((badge) => {
-			// Find corresponding input
 			for (const input of document.querySelectorAll('input, select')) {
 				if (attachedBadges.get(input) === badge && badge.style.position === 'fixed') {
 					updateBadgeFixedPosition(input, badge);
@@ -2194,5 +1712,5 @@
 	});
 
 	setupAutoSaveSubmitListener();
-	setTimeout(scanAndAttach, 400);
+	setTimeout(scanAndAttach, 300);
 })();

@@ -574,13 +574,14 @@ export function startExtensionServer() {
 					} else if (fieldType === "totp") {
 						// Focused on 2FA code field
 						matches = allItems.filter((i) => i.type === "totp");
-					} else if (fieldType === "personal") {
-						// Focused on identity / personal info field (include personal profiles and identity cards/passports)
+					} else if (fieldType === "identity_docs" || fieldType === "document") {
+						// Dedicated Identity Documents (Strictly ID cards and Passports only - NEVER personal profiles)
 						matches = allItems.filter(
-							(i) =>
-								i.type === "personal_info" ||
-								(i.type === "card" && ((i as any).subtype === "id_card" || (i as any).subtype === "passport"))
+							(i) => i.type === "card" && ((i as any).subtype === "id_card" || (i as any).subtype === "passport")
 						);
+					} else if (fieldType === "personal") {
+						// Focused strictly on personal profile info
+						matches = allItems.filter((i) => i.type === "personal_info");
 					} else if (domain) {
 						// Standard domain match for logins/passwords
 						matches = allItems.filter((item) => {
