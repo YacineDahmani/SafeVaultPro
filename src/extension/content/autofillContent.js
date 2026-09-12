@@ -232,7 +232,7 @@
 	function isYearSelect(el) {
 		if (!el || el.tagName !== 'SELECT') return false;
 		const options = Array.from(el.options);
-		if (options.length < 3 || options.length > 30) return false;
+		if (options.length < 2 || options.length > 60) return false;
 		const norm = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
 		if (norm.includes('bday') || norm.includes('birth') || norm.includes('naissance') || norm.includes('dob')) return false;
 		const currentYear = new Date().getFullYear();
@@ -240,8 +240,8 @@
 		return options.some(o => {
 			const v = parseInt((o.value || '').trim(), 10);
 			const t = parseInt((o.text || '').trim(), 10);
-			return (v >= currentYear && v <= currentYear + 25) || (t >= currentYear && t <= currentYear + 25) ||
-				(v >= currentShort && v <= currentShort + 25) || (t >= currentShort && t <= currentShort + 25);
+			return (v >= currentYear - 2 && v <= currentYear + 30) || (t >= currentYear - 2 && t <= currentYear + 30) ||
+				(v >= currentShort - 2 && v <= currentShort + 30) || (t >= currentShort - 2 && t <= currentShort + 30);
 		});
 	}
 
@@ -385,13 +385,15 @@
 			if (autocomplete === 'cc-exp-month' || (matchToken(norm, /\b(exp\s*m(onth)?|cc\s*m(onth)?|card\s*exp\s*month|expiry\s*month|mois\s*exp|card\s*month)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
 				return 'card_exp_month';
 			}
-			if (autocomplete === 'cc-exp-year' || (matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i))) {
+			if (autocomplete === 'cc-exp-year' || (matchToken(norm, /\b(exp\s*y(ear)?|cc\s*y(ear)?|card\s*exp\s*year|expiry\s*year|annee\s*exp|card\s*year|year|annee|année|ano|yy|yyyy|aa|aaaa|ccexpyr|expyear|expy|cardyear)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance)\b/i)) || matchToken(norm, /(سنة|عام)/i)) {
 				return 'card_exp_year';
 			}
 			if (
-				autocomplete === 'cc-exp' ||
-				(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee)\b/i)) ||
-				matchToken(raw, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
+				input.tagName !== 'SELECT' && (
+					autocomplete === 'cc-exp' ||
+					(matchToken(norm, /\b(exp\s*(date)?|expiry|expiration|mm\s*yy|mm\s*yyyy|date\s*exp(iration)?|validite|valid\s*thru|validthru)\b/i) && !matchToken(norm, /\b(dob|birth|bday|naissance|month|mois|year|annee|yy|yyyy|aa|aaaa)\b/i)) ||
+					matchToken(raw, /(تاريخ[-_]?(الانتهاء|إنتهاء|الصلاحية|انقضاء))/i)
+				)
 			) {
 				return 'card_exp';
 			}
@@ -415,30 +417,37 @@
 			return 'generic';
 		}
 
+		// Check for explicit Latin / Foreign Name indicator in bilingual forms (e.g. "الإسم باللاتينية", "اللقب باللاتينية", "nom en latin")
+		const isLatinNameRequested = /\b(latin|latine|french|francais|français|english|en\s*latin|_fr|_en|_lat)\b/i.test(raw) ||
+			/(باللاتينية|باللاتينيه|لاتيني|لاتينيه|بالفرنسية|بالفرنسيه|بالانجليزية|بالانكليزية|بالأحرف[-_\s]?اللاتينية|بالاحرف[-_\s]?اللاتينية|بالحروف[-_\s]?اللاتينية|بالحروف[-_\s]?الفرنسية)/i.test(raw);
+
 		// Personal Info: Explicit Arabic Names (First, Last, Full)
-		if (
-			matchToken(norm, /\b(first\s*name\s*ar(abic)?|prenom\s*ar(abe)?|nom\s*arabe|arabic\s*first\s*name|fname\s*ar|prenom\s*en\s*arabe|ar\s*first\s*name|ar\s*fname|ar_first|prenom_ar)\b/i) ||
-			matchToken(raw, /(الاسم[-_]?(الشخصي|الأول|الاول)?[-_]?(بالعربية|باللغة[-_]?العربية|عربي)|الاسم[-_]?(الشخصي|الأول|الاول))/i)
-		) {
-			return 'personal_firstNameArabic';
-		}
-		if (
-			matchToken(norm, /\b(last\s*name\s*ar(abic)?|family\s*name\s*ar|nom\s*ar(abe)?|arabic\s*last\s*name|lname\s*ar|nom\s*de\s*famille\s*ar|nom\s*en\s*arabe|ar\s*last\s*name|ar\s*lname|ar_last|nom_ar)\b/i) ||
-			matchToken(raw, /(اللقب[-_]?(العائلي|بالعربية|عربي)|اسم[-_]?العائلة[-_]?بالعربية|اللقب)/i)
-		) {
-			return 'personal_lastNameArabic';
-		}
-		if (
-			matchToken(norm, /\b(full\s*name\s*ar(abic)?|nom\s*prenom\s*ar|arabic\s*full\s*name|ar\s*full\s*name|nom_prenom_ar|ar_fullname)\b/i) ||
-			matchToken(raw, /(الاسم[-_]?الكامل[-_]?بالعربية|الاسم[-_]?واللقب[-_]?بالعربية|الاسم[-_]?الكامل)/i)
-		) {
-			return 'personal_fullNameArabic';
+		if (!isLatinNameRequested) {
+			if (
+				matchToken(norm, /\b(first\s*name\s*ar(abic)?|prenom\s*ar(abe)?|nom\s*arabe|arabic\s*first\s*name|fname\s*ar|prenom\s*en\s*arabe|ar\s*first\s*name|ar\s*fname|ar_first|prenom_ar)\b/i) ||
+				matchToken(raw, /(الاسم[-_]?(الشخصي|الأول|الاول)?[-_]?(بالعربية|باللغة[-_]?العربية|عربي)|الاسم[-_]?(الشخصي|الأول|الاول)|الإسم[-_]?(الشخصي|الأول|الاول)?[-_]?(بالعربية|باللغة[-_]?العربية|عربي)|الإسم[-_]?(الشخصي|الأول|الاول))/i)
+			) {
+				return 'personal_firstNameArabic';
+			}
+			if (
+				matchToken(norm, /\b(last\s*name\s*ar(abic)?|family\s*name\s*ar|nom\s*ar(abe)?|arabic\s*last\s*name|lname\s*ar|nom\s*de\s*famille\s*ar|nom\s*en\s*arabe|ar\s*last\s*name|ar\s*lname|ar_last|nom_ar)\b/i) ||
+				matchToken(raw, /(اللقب[-_]?(العائلي|بالعربية|عربي)|اسم[-_]?العائلة[-_]?بالعربية|اللقب)/i)
+			) {
+				return 'personal_lastNameArabic';
+			}
+			if (
+				matchToken(norm, /\b(full\s*name\s*ar(abic)?|nom\s*prenom\s*ar|arabic\s*full\s*name|ar\s*full\s*name|nom_prenom_ar|ar_fullname)\b/i) ||
+				matchToken(raw, /(الاسم[-_]?الكامل[-_]?بالعربية|الاسم[-_]?واللقب[-_]?بالعربية|الاسم[-_]?الكامل|الإسم[-_]?الكامل[-_]?بالعربية|الإسم[-_]?واللقب[-_]?بالعربية|الإسم[-_]?الكامل)/i)
+			) {
+				return 'personal_fullNameArabic';
+			}
 		}
 
 		// Personal Info: First Name (English, French: prénom, Latin Arabic transliteration)
 		if (
 			autocomplete === 'given-name' ||
-			((matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom|prénom|first_name|firstname)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
+			((matchToken(norm, /\b(first\s*name|given\s*name|forename|fname|prenom|prénom|first_name|firstname)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			(isLatinNameRequested && (matchToken(raw, /(الاسم|الإسم|اسم|first|prenom)/i) && !matchToken(raw, /(اللقب|عائلة|عائله|last|family|nom)/i)))
 		) {
 			return 'personal_firstName';
 		}
@@ -447,7 +456,8 @@
 		if (
 			autocomplete === 'family-name' ||
 			((matchToken(norm, /\b(last\s*name|family\s*name|surname|lname|nom\s*de\s*famille|last_name|lastname)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
-			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|prénom|full|user|card|holder|titulaire|porteur|cc)\b/i))
+			(matchToken(norm, /\bnom\b/i) && !matchToken(norm, /\b(prenom|prénom|full|user|card|holder|titulaire|porteur|cc)\b/i)) ||
+			(isLatinNameRequested && (matchToken(raw, /(اللقب|عائلة|عائله|nom|last|family)/i) && !matchToken(raw, /(الاسم|الإسم|اسم|first|prenom)/i)))
 		) {
 			return 'personal_lastName';
 		}
@@ -455,7 +465,8 @@
 		// Personal Info: Full Name (English: full name, French: nom complet, nom et prénom)
 		if (
 			autocomplete === 'name' ||
-			((matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|nom\s*complet|fullname|full_name|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i))
+			((matchToken(norm, /\b(full\s*name|your\s*name|nom\s*prenom|nom\s*et\s*prenom|nom\s*complet|fullname|full_name|billing\s*name|shipping\s*name|contact\s*name|recipient\s*name)\b/i)) && !matchToken(norm, /\b(card|holder|titulaire|porteur|cc)\b/i)) ||
+			(isLatinNameRequested && matchToken(raw, /(كامل|full)/i))
 		) {
 			return 'personal_fullName';
 		}
@@ -489,7 +500,7 @@
 		if (autocomplete === 'address-line1' || autocomplete === 'street-address' || matchToken(norm, /\b(address\s*line1|address\s*line\s*1|address1|address\s*1|street\s*address|street|adresse|rue)\b/i) || matchToken(raw, /(العنوان|الشارع|عنوان[-_]?الاقامة)/i)) {
 			return 'personal_address1';
 		}
-		if (autocomplete === 'address-level2' || matchToken(norm, /\b(city|ville|town|commune|municipality)\b/i) || matchToken(raw, /(المدينة|البلدية)/i)) {
+		if (autocomplete === 'address-level2' || matchToken(norm, /\b(city|ville|town|commune|municipality)\b/i) || matchToken(raw, /(المدينة|البلدية|مكان[-_]?الميلاد|بلدية[-_]?الميلاد)/i)) {
 			return 'personal_city';
 		}
 		if (autocomplete === 'address-level1' || matchToken(norm, /\b(state|province|wilaya|region|departement|county)\b/i) || matchToken(raw, /(الولاية|المحافظة|الاقليم|المنطقة)/i)) {
@@ -1354,8 +1365,16 @@
 
 		const parsedDob = parseBirthDate(item.birthDate);
 
+		const isFieldLatinRequested = (f) => {
+			if (!f) return false;
+			const text = `${f.name || ''} ${f.id || ''} ${f.placeholder || ''} ${getFieldLabelText(f)}`.toLowerCase();
+			return /\b(latin|latine|french|francais|français|english|en\s*latin|_fr|_en|_lat)\b/i.test(text) ||
+				/(باللاتينية|باللاتينيه|لاتيني|لاتينيه|بالفرنسية|بالفرنسيه|بالانجليزية|بالانكليزية|بالأحرف[-_\s]?اللاتينية|بالاحرف[-_\s]?اللاتينية|بالحروف[-_\s]?اللاتينية|بالحروف[-_\s]?الفرنسية)/.test(text);
+		};
+
 		const isFieldContextArabic = (f) => {
 			if (!f) return false;
+			if (isFieldLatinRequested(f)) return false;
 			if (f.dir === 'rtl' || (f.getAttribute && f.getAttribute('dir') === 'rtl')) return true;
 			const text = `${f.name || ''} ${f.id || ''} ${f.placeholder || ''} ${getFieldLabelText(f)}`;
 			return /[\u0600-\u06FF]/.test(text);
@@ -1507,12 +1526,18 @@
 		// 4. Expiration Date
 		if (parsedExp) {
 			const { month, fullYear, shortYear, monthNum, formatted } = parsedExp;
-			const expInput = inputs.find(i => i !== cardNumInput && i !== cvvInput && i !== holderInput && classifyField(i) === 'card_exp');
+
+			// Single Expiration Date Input (Must be INPUT, never SELECT)
+			const expInput = inputs.find(i => i.tagName === 'INPUT' && i !== cardNumInput && i !== cvvInput && i !== holderInput && classifyField(i) === 'card_exp');
 			if (expInput) {
 				setNativeFieldValue(expInput, formatted);
 			}
 
-			const monthInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_exp_month');
+			// Month Select or Input
+			let monthInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_exp_month');
+			if (!monthInput) {
+				monthInput = inputs.find(i => i !== cardNumInput && i.tagName === 'SELECT' && isMonthSelect(i) && !isYearSelect(i));
+			}
 			if (monthInput) {
 				if (monthInput.tagName === 'SELECT') {
 					selectMatchingOption(monthInput, MONTH_NAMES[monthNum] || [month, String(monthNum)]);
@@ -1521,10 +1546,40 @@
 				}
 			}
 
-			const yearInput = inputs.find(i => i !== cardNumInput && classifyField(i) === 'card_exp_year');
+			// Year Select or Input
+			let yearInput = inputs.find(i => i !== cardNumInput && i !== monthInput && i !== expInput && classifyField(i) === 'card_exp_year');
+			// Fallback 1: Any remaining SELECT with year options
+			if (!yearInput) {
+				yearInput = inputs.find(i => i !== cardNumInput && i !== monthInput && i !== expInput && i.tagName === 'SELECT' && isYearSelect(i));
+			}
+			// Fallback 2: Any remaining SELECT containing candidate years (e.g. 2026 or 26)
+			if (!yearInput) {
+				yearInput = inputs.find(i => i !== cardNumInput && i !== monthInput && i !== expInput && i.tagName === 'SELECT' &&
+					Array.from(i.options).some(o => {
+						const val = (o.value || '').trim();
+						const txt = (o.text || '').trim();
+						return val === fullYear || val === shortYear || txt === fullYear || txt === shortYear || txt.includes(fullYear);
+					})
+				);
+			}
+			// Fallback 3: Sibling select right next to month select in the same container
+			if (!yearInput && monthInput && monthInput.tagName === 'SELECT') {
+				const parent = monthInput.parentElement || monthInput.closest('div, td, tr, p, .form-group') || formRoot;
+				const siblingSelects = Array.from(parent.querySelectorAll('select')).filter(s => s !== monthInput && !shouldIgnoreField(s));
+				if (siblingSelects.length === 1) {
+					yearInput = siblingSelects[0];
+				}
+			}
+
 			if (yearInput) {
 				if (yearInput.tagName === 'SELECT') {
-					selectMatchingOption(yearInput, [fullYear, shortYear]);
+					const yearCandidates = [
+						fullYear,
+						shortYear,
+						String(parseInt(shortYear, 10)),
+						String(parseInt(fullYear, 10))
+					];
+					selectMatchingOption(yearInput, yearCandidates);
 				} else {
 					setNativeFieldValue(yearInput, yearInput.maxLength === 2 ? shortYear : fullYear);
 				}
@@ -1574,7 +1629,7 @@
 
 	function parseCardExpiry(expStr) {
 		if (!expStr) return null;
-		const clean = String(expStr).trim();
+		const clean = String(expStr).trim().replace(/\s+/g, '');
 
 		let m = clean.match(/^(\d{4})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?$/);
 		if (m) {
@@ -1624,8 +1679,19 @@
 		}
 
 		if (matched) {
-			selectElement.value = matched.value;
+			try {
+				const proto = window.HTMLSelectElement.prototype;
+				const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+				if (setter) {
+					setter.call(selectElement, matched.value);
+				} else {
+					selectElement.value = matched.value;
+				}
+			} catch (_) {
+				selectElement.value = matched.value;
+			}
 			selectElement.selectedIndex = matched.index;
+			matched.selected = true;
 			selectElement.dispatchEvent(new Event('change', { bubbles: true }));
 			selectElement.dispatchEvent(new Event('input', { bubbles: true }));
 			return true;
