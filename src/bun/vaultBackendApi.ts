@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
 	calculatePasswordEntropy,
 	deriveMasterKey,
@@ -152,35 +150,25 @@ export class VaultBackendAPI {
 		return await scanQrCodeFromBlob(blob);
 	}
 
-	public openExtensionDirectory(): boolean {
+	public async openExtensionDirectory(): Promise<boolean> {
 		try {
-			const candidatePaths = [
-				path.resolve(process.cwd(), "src", "extension"),
-				"d:\\repos\\SafeVaultPro\\src\\extension",
-				path.resolve(__dirname, "..", "extension"),
-				path.resolve(__dirname, "..", "..", "src", "extension"),
-			];
-
-			let validPath = candidatePaths.find((p) => fs.existsSync(p));
-			if (!validPath) {
-				validPath = "d:\\repos\\SafeVaultPro\\src\\extension";
+			const res = await fetch("http://localhost:48920/api/open-folder", {
+				method: "POST",
+				headers: {
+					Authorization: "Bearer sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01",
+				},
+			});
+			if (res.ok) {
+				const data = await res.json();
+				return Boolean(data.success);
 			}
-
-			console.log("[SafeVaultPro] Opening verified extension directory:", validPath);
-
-			if (process.platform === "win32") {
-				Bun.spawn(["explorer.exe", validPath]);
-			} else if (process.platform === "darwin") {
-				Bun.spawn(["open", validPath]);
-			}
-			return true;
-		} catch (e) {
-			console.error("Failed to open extension directory:", e);
+			return false;
+		} catch {
 			return false;
 		}
 	}
 
-	public openExternalUrl(url: string): boolean {
+	public async openExternalUrl(url: string): Promise<boolean> {
 		try {
 			if (!url || typeof url !== "string") return false;
 			let cleanUrl = url.trim();
@@ -188,59 +176,26 @@ export class VaultBackendAPI {
 			if (!/^https?:\/\//i.test(cleanUrl)) {
 				cleanUrl = "https://" + cleanUrl;
 			}
-
-			// Validate URL format
 			new URL(cleanUrl);
 
-			if (process.platform === "win32") {
-				// Launch Windows default web browser
-				Bun.spawn(["cmd.exe", "/c", "start", "", cleanUrl]);
-				return true;
-			} else if (process.platform === "darwin") {
-				Bun.spawn(["open", cleanUrl]);
-				return true;
-			} else {
-				Bun.spawn(["xdg-open", cleanUrl]);
-				return true;
-			}
-		} catch (e) {
-			console.error("Failed to open external URL in default browser:", e);
+			const res = await fetch("http://localhost:48920/api/open-url", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: "Bearer sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01",
+				},
+				body: JSON.stringify({ url: cleanUrl }),
+			});
+			return res.ok;
+		} catch {
 			return false;
 		}
 	}
 
-	public saveBackupToDisk(fileName: string, jsonStr: string): string | null {
-		try {
-			let downloadsDir = "";
-			if (process.platform === "win32") {
-				downloadsDir = path.join(process.env.USERPROFILE || "C:\\", "Downloads");
-			} else {
-				downloadsDir = path.join(process.env.HOME || "/", "Downloads");
-			}
-
-			if (!fs.existsSync(downloadsDir)) {
-				downloadsDir = process.cwd();
-			}
-
-			const filePath = path.join(downloadsDir, fileName);
-			fs.writeFileSync(filePath, jsonStr, "utf-8");
-
-			// Open file in Windows Explorer / OS file manager selecting the created backup file
-			try {
-				if (process.platform === "win32") {
-					Bun.spawn(["explorer.exe", "/select,", filePath]);
-				} else if (process.platform === "darwin") {
-					Bun.spawn(["open", "-R", filePath]);
-				}
-			} catch (spawnErr) {
-				console.warn("Failed to open file manager window:", spawnErr);
-			}
-
-			return filePath;
-		} catch (err) {
-			console.error("Failed to save backup to disk:", err);
-			return null;
-		}
+	public saveBackupToDisk(_fileName: string, _jsonStr: string): string | null {
+		// In browser/webview contexts, disk saving is handled via File System Access API
+		// or standard client download anchor.
+		return null;
 	}
 }
 

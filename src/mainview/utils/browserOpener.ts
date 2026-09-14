@@ -26,7 +26,7 @@ export async function openExternalUrl(rawUrl: string): Promise<boolean> {
 	// 1. Direct call to vaultBackend if running in the unified Bun environment
 	try {
 		if (vaultBackend && typeof vaultBackend.openExternalUrl === "function") {
-			const success = vaultBackend.openExternalUrl(url);
+			const success = await vaultBackend.openExternalUrl(url);
 			if (success) return true;
 		}
 	} catch (e) {
