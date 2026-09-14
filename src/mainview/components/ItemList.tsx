@@ -10,6 +10,7 @@ import {
 	BadgeCheck,
 	Lock,
 	Code2,
+	Search,
 } from "lucide-react";
 import type { VaultItem, VaultItemType } from "../../bun/types";
 import type { NavCategory } from "../hooks/useVault";
@@ -20,6 +21,8 @@ interface ItemListProps {
 	selectedItemId: string | null;
 	onSelectItem: (id: string) => void;
 	activeCategory: NavCategory;
+	searchQuery?: string;
+	onClearSearch?: () => void;
 	onNewItem: (type?: VaultItemType) => void;
 	onToggleFavorite: (id: string) => void;
 }
@@ -29,6 +32,8 @@ export const ItemList: React.FC<ItemListProps> = ({
 	selectedItemId,
 	onSelectItem,
 	activeCategory,
+	searchQuery,
+	onClearSearch,
 	onNewItem,
 	onToggleFavorite,
 }) => {
@@ -123,16 +128,40 @@ export const ItemList: React.FC<ItemListProps> = ({
 			{/* Items List Scrollable */}
 			<div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
 				{items.length === 0 ? (
-					<div className="text-center py-12 px-4 text-slate-500 space-y-2">
-						<Lock className="w-8 h-8 mx-auto text-slate-600" />
-						<p className="text-xs">No items here.</p>
-						<button
-							onClick={() => onNewItem()}
-							className="text-xs text-emerald-400 hover:underline font-medium"
-						>
-							Add item
-						</button>
-					</div>
+					searchQuery ? (
+						<div className="text-center py-12 px-4 text-slate-500 space-y-3">
+							<Search className="w-7 h-7 mx-auto text-slate-600" />
+							<div>
+								<p className="text-xs text-slate-300 font-medium">
+									No matches for "{searchQuery}"
+								</p>
+								<p className="text-[11px] text-slate-500 mt-0.5">
+									Check your spelling or reset the filter.
+								</p>
+							</div>
+							{onClearSearch && (
+								<button
+									type="button"
+									onClick={onClearSearch}
+									className="px-3 py-1.5 bg-[#1c1b1d] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-md text-xs font-medium transition-colors"
+								>
+									Clear Search
+								</button>
+							)}
+						</div>
+					) : (
+						<div className="text-center py-12 px-4 text-slate-500 space-y-2">
+							<Lock className="w-8 h-8 mx-auto text-slate-600" />
+							<p className="text-xs">No items in this category.</p>
+							<button
+								type="button"
+								onClick={() => onNewItem()}
+								className="text-xs text-emerald-400 hover:underline font-medium"
+							>
+								Add Item
+							</button>
+						</div>
+					)
 				) : (
 					items.map((item) => {
 						const isSelected = selectedItemId === item.id;

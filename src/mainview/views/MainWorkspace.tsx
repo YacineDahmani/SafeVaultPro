@@ -88,6 +88,8 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 								selectedItemId={vault.selectedItemId}
 								onSelectItem={vault.setSelectedItemId}
 								activeCategory={vault.activeCategory}
+								searchQuery={vault.searchQuery}
+								onClearSearch={() => vault.setSearchQuery("")}
 								onNewItem={() => vault.openCreateModal()}
 								onToggleFavorite={vault.toggleFavorite}
 							/>
@@ -145,7 +147,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 			/>
 
 			{/* Clipboard Toast Banner */}
-			{vault.toast && <Toast message={vault.toast.message} type={vault.toast.type} />}
+			{vault.toast && <Toast message={vault.toast.message} type={vault.toast.type} action={vault.toast.action} />}
 		</div>
 	);
 };
