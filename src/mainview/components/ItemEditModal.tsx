@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, BadgeCheck, Code2, Plus, Trash2, Upload, FileUp } from "lucide-react";
+import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, Code2, Plus, Trash2, Upload, FileUp } from "lucide-react";
 import type { VaultItem, VaultItemType, CardSubtype, PersonalInfoVaultItem } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
 import { POPULAR_COUNTRIES, getStatesForCountry, getCitiesForState } from "../data/locations";

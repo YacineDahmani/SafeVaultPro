@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Copy, RefreshCw, Check, ShieldCheck, Zap } from "lucide-react";
+import { X, Copy, RefreshCw, Check, Zap } from "lucide-react";
 import { calculatePasswordEntropy, generatePassword } from "../../bun/crypto/vaultCrypto";
 
 interface GeneratorPaneProps {

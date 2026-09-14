@@ -75,7 +75,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 						type="button"
 						onClick={(e) => handleWindowAction("maximize", e)}
 						title={isMaximized ? "Restore Down" : "Maximize Window"}
-						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-emerald-400 hover:bg-emerald-950/50 hover:border hover:border-emerald-800/50 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
+						className="w-8 h-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 active:scale-95 transition-all electrobun-webkit-app-region-no-drag cursor-pointer"
 					>
 						{isMaximized ? (
 							<Copy className="w-3 h-3 rotate-180" />

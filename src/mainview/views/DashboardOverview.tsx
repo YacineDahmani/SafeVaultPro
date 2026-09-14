@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-	ShieldCheck,
 	KeyRound,
 	CheckCircle2,
 	AlertTriangle,
@@ -10,8 +9,6 @@ import {
 	Smartphone,
 	Zap,
 	Plus,
-	Filter,
-	Sparkles,
 } from "lucide-react";
 import type { VaultItem, PasswordVaultItem } from "../../bun/types";
 import { calculatePasswordEntropy, generatePassword } from "../../bun/crypto/vaultCrypto";

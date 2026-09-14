@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Puzzle, FolderOpen, Copy, Check, ExternalLink, ShieldCheck, Zap, AlertCircle } from "lucide-react";
+import { X, Puzzle, FolderOpen, Copy, Check } from "lucide-react";
 
 import { useWindowVisibility } from "../hooks/useWindowVisibility";
 

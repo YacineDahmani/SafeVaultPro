@@ -1,7 +1,6 @@
 import React from "react";
 import { SafeVaultLogo } from "./SafeVaultLogo";
 import {
-	Shield,
 	KeyRound,
 	FileText,
 	User,
@@ -95,13 +94,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					<button
 						onClick={onOpenExtensionModal}
 						title="Browser Extension Setup"
-						className="p-1.5 rounded-lg text-purple-400 hover:text-white hover:bg-[#1c1b1d] transition-colors relative"
+						className="p-1.5 rounded-lg text-purple-400 hover:text-white hover:bg-[#1c1b1d] transition-colors"
 					>
 						<Puzzle className="w-4 h-4" />
-						<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full" />
 					</button>
 					<button
-						onClick={() => setActiveCategory("settings")}
+						onClick={onOpenSettings}
 						title="Settings"
 						className={`p-1.5 rounded-lg transition-all ${
 							activeCategory === "settings"
