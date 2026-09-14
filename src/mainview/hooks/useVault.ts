@@ -25,7 +25,7 @@ export function useVault() {
 	const [activeCategory, setActiveCategory] = useState<NavCategory>("all");
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState<string>("");
-	const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
+	const [toast, setToast] = useState<{ message: string; type?: ToastType; action?: { label: string; onClick: () => void } } | null>(null);
 
 	// Settings state & persistence
 	const [settings, setSettings] = useState<VaultSettings>(() => getVaultSettings());
@@ -90,11 +90,11 @@ export function useVault() {
 	const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
 
 	// Toast helper
-	const showToast = useCallback((message: string, type: ToastType = "success") => {
-		setToast({ message, type });
+	const showToast = useCallback((message: string, type: ToastType = "success", action?: { label: string; onClick: () => void }) => {
+		setToast({ message, type, action });
 		setTimeout(() => {
-			setToast(null);
-		}, 3500);
+			setToast((current) => (current?.message === message ? null : current));
+		}, action ? 6000 : 3500);
 	}, []);
 
 	// Initial check on mount
@@ -431,13 +431,22 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 
 	const deleteItem = async (id: string) => {
 		try {
-			const itemToDelete = items.find((i) => i.id === id);
+			const itemToDelete = items.find((i) => i.id === id) || allItems.find((i) => i.id === id);
+			if (!itemToDelete) return;
 			await vaultBackend.deleteItem(id);
 			if (selectedItemId === id) {
 				setSelectedItemId(null);
 			}
 			refreshItems();
-			showToast(`Deleted "${itemToDelete?.title || "Item"}"`, "delete");
+			showToast(`Deleted "${itemToDelete.title || "Item"}"`, "delete", {
+				label: "Undo",
+				onClick: async () => {
+					await vaultBackend.saveItem(itemToDelete);
+					refreshItems();
+					setSelectedItemId(itemToDelete.id);
+					showToast(`Restored "${itemToDelete.title}"`, "success");
+				},
+			});
 		} catch (err: any) {
 			showToast(`Error: ${err.message}`, "warning");
 		}
@@ -547,7 +556,6 @@ const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d
 		setIsEditModalOpen,
 		editingItem,
 		defaultEditType,
-		defaultSubtype: defaultEditSubtype,
 		defaultEditSubtype,
 		isCategoryLocked,
 		initialEditValues,

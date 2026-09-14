@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle, Info, AlertTriangle, Star, Trash2, Copy, Lock, KeyRound } from "lucide-react";
+import { CheckCircle, Info, AlertTriangle, Star, Trash2, Copy, Lock, RotateCcw } from "lucide-react";
 
 export type ToastType =
 	| "success"
@@ -14,9 +14,13 @@ export type ToastType =
 interface ToastProps {
 	message: string;
 	type?: ToastType;
+	action?: {
+		label: string;
+		onClick: () => void;
+	};
 }
 
-export const Toast: React.FC<ToastProps> = ({ message, type = "success" }) => {
+export const Toast: React.FC<ToastProps> = ({ message, type = "success", action }) => {
 	const getIconAndStyle = () => {
 		switch (type) {
 			case "favorite":
@@ -79,6 +83,16 @@ export const Toast: React.FC<ToastProps> = ({ message, type = "success" }) => {
 		>
 			{style.icon}
 			<span className="text-xs font-semibold text-slate-200">{message}</span>
+			{action && (
+				<button
+					type="button"
+					onClick={action.onClick}
+					className="ml-2 px-2.5 py-1 bg-[#27272a] hover:bg-[#3f3f46] text-white font-semibold rounded text-xs transition-colors flex items-center gap-1 cursor-pointer"
+				>
+					<RotateCcw className="w-3 h-3 text-emerald-400" />
+					<span>{action.label}</span>
+				</button>
+			)}
 		</div>
 	);
 };
