@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, QrCode, Upload, Check, AlertCircle } from "lucide-react";
+import { X, QrCode, Upload, Check, Loader2 } from "lucide-react";
 import { vaultBackend } from "../../bun/vaultBackendApi";
 import type { VaultItem } from "../../bun/types";
 
@@ -27,11 +27,11 @@ export const OcrModal: React.FC<OcrModalProps> = ({ isOpen, onClose, onSaveItem 
 
 		try {
 			const res = await vaultBackend.scanQrBlob(file);
-			if (res && res.secret) {
+			if (res && res.totpConfig && res.totpConfig.secret) {
 				setParsedResult({
-					issuer: res.issuer || "Scanned Service",
-					accountName: res.accountName || "Account",
-					secret: res.secret,
+					issuer: res.totpConfig.issuer || "Scanned Service",
+					accountName: res.totpConfig.account || "Account",
+					secret: res.totpConfig.secret,
 				});
 				setStatusMsg("QR Code parsed successfully!");
 			} else {
@@ -78,12 +78,19 @@ export const OcrModal: React.FC<OcrModalProps> = ({ isOpen, onClose, onSaveItem 
 
 				{/* Upload box */}
 				<label className="border-2 border-dashed border-slate-800 hover:border-blue-500/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-[#09090b] transition-all">
-					<Upload className="w-8 h-8 text-blue-400 mb-2 animate-bounce" />
-					<span className="text-xs font-semibold text-slate-300">Select QR code image</span>
+					{isProcessing ? (
+						<Loader2 className="w-8 h-8 text-blue-400 mb-2 animate-spin" />
+					) : (
+						<Upload className="w-8 h-8 text-blue-400 mb-2" />
+					)}
+					<span className="text-xs font-semibold text-slate-300">
+						{isProcessing ? "Scanning QR image..." : "Select QR code image"}
+					</span>
 					<span className="text-[10px] text-slate-500 font-mono mt-1">PNG, JPG, WEBP</span>
 					<input
 						type="file"
 						accept="image/*"
+						disabled={isProcessing}
 						onChange={(e) => {
 							if (e.target.files && e.target.files[0]) {
 								handleFileSelect(e.target.files[0]);
