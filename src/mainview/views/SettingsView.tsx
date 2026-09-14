@@ -8,29 +8,22 @@ import {
 	Trash2,
 	Eye,
 	EyeOff,
-	CheckCircle2,
 	AlertTriangle,
 	RefreshCw,
 	Save,
 	Lock,
 	ArrowLeft,
-	Clock,
 	Zap,
 	Puzzle,
 	Terminal,
-	HardDrive,
 	FolderOpen,
 	Copy,
 	Check,
-	Activity,
-	Radio,
 	AlertOctagon,
-	Sparkles,
 } from "lucide-react";
 import { getVaultMetadata, saveEncryptedVault, saveVaultMetadata } from "../../bun/db/vaultStorage";
 import { deriveMasterKey, calculatePasswordEntropy, generateSaltHex } from "../../bun/crypto/vaultCrypto";
 import { vaultBackend } from "../../bun/vaultBackendApi";
-import type { VaultItem } from "../../bun/types";
 import type { useVault } from "../hooks/useVault";
 
 const BRIDGE_AUTH_TOKEN = "sv_tok_7c9e1b4f2a8d3e6a0b5c9d8e7f2a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f01";
@@ -69,7 +62,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 
 	// Factory reset confirm phrase state
 	const [wipePhrase, setWipePhrase] = useState("");
-	const [isWiping, setIsWiping] = useState(false);
 
 	// Bridge connection ping state
 	const [isPingingBridge, setIsPingingBridge] = useState(false);
@@ -205,9 +197,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 			const durationMs = Math.round(performance.now() - start);
 			const throughput = Math.round((memMB * iters * 1000) / (durationMs || 1));
 
-			let grade = "A+ (Enterprise Defense)";
-			if (durationMs < 100) grade = "A (Balanced Desktop)";
-			else if (durationMs > 1000) grade = "Extreme Hardening";
+			let grade = "Standard (~100-1000ms)";
+			if (durationMs < 100) grade = "Fast (<100ms)";
+			else if (durationMs > 1000) grade = "High Latency (>1000ms)";
 
 			setBenchmarkResult({
 				latencyMs: durationMs,
@@ -887,7 +879,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-											<Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+											<Cpu className="w-3.5 h-3.5 text-indigo-400" />
 											<span>Benchmark</span>
 										</h3>
 										<p className="text-xs text-slate-400 mt-0.5">
@@ -1066,8 +1058,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ vault, onBack }) => 
 										Extension folder: <span className="font-mono text-slate-300">src/extension</span>
 									</div>
 									<button
-										onClick={() => vaultBackend.openExtensionDirectory()}
-										className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 font-bold rounded-xl text-xs transition-all flex items-center gap-2"
+										onClick={async () => {
+											try {
+												await fetch("http://localhost:48920/api/open-folder", {
+													method: "POST",
+													headers: {
+														Authorization: `Bearer ${BRIDGE_AUTH_TOKEN}`,
+													},
+												});
+											} catch (e) {
+												console.error("Failed to open extension folder:", e);
+											}
+										}}
+										className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 font-bold rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer"
 									>
 										<FolderOpen className="w-3.5 h-3.5" />
 										<span>Open Folder</span>
