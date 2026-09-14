@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { SafeVaultLogo } from "../components/SafeVaultLogo";
-import { Lock, KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, AlertTriangle, ArrowRight, Trash2, X } from "lucide-react";
+import { KeyRound, Eye, EyeOff, ShieldCheck, AlertCircle, AlertTriangle, ArrowRight, Trash2, X } from "lucide-react";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 import { useWindowVisibility } from "../hooks/useWindowVisibility";
 
@@ -127,7 +127,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 							}`}
 						/>
 
-						<div className="relative transition-transform duration-500 hover:scale-105 select-none">
+						<div className="relative select-none">
 							<SafeVaultLogo
 								className={`w-24 h-24 drop-shadow-2xl transition-all duration-500 ${
 									isSubmitting
@@ -249,7 +249,7 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 						<button
 							type="submit"
 							disabled={cooldown > 0 || isSubmitting || !password}
-							className="w-full mt-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-[#003824] font-bold rounded-lg text-sm transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+							className="w-full mt-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-[#003824] font-bold rounded-lg text-sm transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 						>
 							{isSubmitting ? (
 								<span className="flex items-center gap-2">
@@ -269,6 +269,19 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 							)}
 						</button>
 					</form>
+
+					{/* Forgot Password / Reset Pathway */}
+					{isConfigured && (
+						<div className="mt-4 pt-3 border-t border-slate-800/60 text-center">
+							<button
+								type="button"
+								onClick={() => setShowWipeConfirmModal(true)}
+								className="text-xs text-slate-500 hover:text-red-400 transition-colors font-medium cursor-pointer"
+							>
+								Forgot master password? Reset vault
+							</button>
+						</div>
+					)}
 				</div>
 			</div>
 
@@ -307,10 +320,12 @@ export const UnlockView: React.FC<UnlockViewProps> = ({ isConfigured, onUnlock }
 							<button
 								type="button"
 								onClick={() => {
-									localStorage.clear();
+									localStorage.removeItem("safevault_encrypted_store");
+									localStorage.removeItem("safevault_encrypted_store_backup");
+									localStorage.removeItem("safevault_metadata");
 									window.location.reload();
 								}}
-								className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg"
+								className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5 shadow-lg cursor-pointer"
 							>
 								<Trash2 className="w-3.5 h-3.5" />
 								<span>Reset Vault</span>
