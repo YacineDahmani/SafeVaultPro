@@ -1,6 +1,5 @@
 import React from "react";
 import { Minus, Square, Copy, X } from "lucide-react";
-import { SafeVaultLogo } from "./SafeVaultLogo";
 
 interface TitleBarProps {
 	isMaximized?: boolean;
@@ -47,11 +46,6 @@ export const TitleBar: React.FC<TitleBarProps> = ({ isMaximized = false, onMaxim
 				className="h-9 bg-[#09090b] border-b border-slate-800/80 flex items-center justify-between px-3.5 select-none shrink-0 cursor-default electrobun-webkit-app-region-drag"
 				style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
 			>
-				{/* Left Drag Region */}
-				<div className="flex items-center gap-2 pointer-events-none opacity-90 select-none">
-					<SafeVaultLogo className="w-4 h-4" />
-				</div>
-
 				{/* Center Drag Region Spacer */}
 				<div className="flex-1 h-full" />
 
