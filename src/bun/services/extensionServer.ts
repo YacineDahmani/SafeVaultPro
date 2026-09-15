@@ -16,6 +16,7 @@ import {
 } from "./windowManager";
 import { DEFAULT_SETTINGS, type VaultSettings } from "../db/settingsStorage";
 import { updateTrayStatus } from "./trayService";
+import { openInDefaultBrowser, openExtensionFolder } from "./urlOpener";
 
 const PORT = 48920;
 
@@ -393,7 +394,7 @@ export function startExtensionServer() {
 					if (!isAuthorized(req)) {
 						return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { headers, status: 401 });
 					}
-					const opened = vaultBackend.openExtensionDirectory();
+					const opened = openExtensionFolder();
 					return new Response(
 						JSON.stringify({ success: opened }),
 						{ headers }
@@ -415,7 +416,7 @@ export function startExtensionServer() {
 					if (!targetUrl) {
 						targetUrl = url.searchParams.get("url") || "";
 					}
-					const opened = vaultBackend.openExternalUrl(targetUrl);
+					const opened = openInDefaultBrowser(targetUrl);
 					return new Response(
 						JSON.stringify({ success: opened }),
 						{ headers }

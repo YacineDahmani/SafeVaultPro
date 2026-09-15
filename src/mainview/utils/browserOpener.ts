@@ -48,7 +48,17 @@ export async function openExternalUrl(rawUrl: string): Promise<boolean> {
 			if (data.success) return true;
 		}
 	} catch (err) {
-		console.error("[BrowserOpener] Bridge API call failed:", err);
+		console.warn("[BrowserOpener] Bridge API call failed:", err);
+	}
+
+	// 3. Fallback for standalone/external browser tabs or environments where bridge is offline
+	try {
+		if (typeof window !== "undefined" && typeof window.open === "function") {
+			const win = window.open(url, "_blank", "noopener,noreferrer");
+			if (win) return true;
+		}
+	} catch (err) {
+		console.error("[BrowserOpener] Window.open fallback failed:", err);
 	}
 
 	return false;

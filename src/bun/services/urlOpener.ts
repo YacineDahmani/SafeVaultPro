@@ -1,3 +1,5 @@
+import path from "node:path";
+import fs from "node:fs";
 import { Utils } from "electrobun/bun";
 
 /**
@@ -52,8 +54,8 @@ export function openInDefaultBrowser(rawUrl: string): boolean {
 	// 2. Cross-platform OS spawn fallbacks
 	try {
 		if (process.platform === "win32") {
-			// On Windows, 'cmd.exe /c start "" "<url>"' triggers the shell's registered default web browser
-			Bun.spawn(["cmd.exe", "/c", "start", "", validUrl]);
+			// rundll32 url.dll,FileProtocolHandler invokes ShellExecute directly, avoiding cmd.exe '&' argument splitting
+			Bun.spawn(["rundll32", "url.dll,FileProtocolHandler", validUrl]);
 			return true;
 		} else if (process.platform === "darwin") {
 			Bun.spawn(["open", validUrl]);
@@ -67,3 +69,31 @@ export function openInDefaultBrowser(rawUrl: string): boolean {
 		return false;
 	}
 }
+
+/**
+ * Opens the extension folder in the user's OS file explorer.
+ */
+export function openExtensionFolder(): boolean {
+	const extPath = path.resolve(process.cwd(), "src", "extension");
+	if (!fs.existsSync(extPath)) {
+		console.warn("[UrlOpener] Extension directory does not exist:", extPath);
+		return false;
+	}
+
+	try {
+		if (process.platform === "win32") {
+			Bun.spawn(["explorer.exe", extPath]);
+			return true;
+		} else if (process.platform === "darwin") {
+			Bun.spawn(["open", extPath]);
+			return true;
+		} else {
+			Bun.spawn(["xdg-open", extPath]);
+			return true;
+		}
+	} catch (err) {
+		console.error("[UrlOpener] Failed to open extension folder:", extPath, err);
+		return false;
+	}
+}
+

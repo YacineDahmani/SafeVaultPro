@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Puzzle, FolderOpen, Copy, Check } from "lucide-react";
 
 import { useWindowVisibility } from "../hooks/useWindowVisibility";
+import { vaultBackend } from "../../bun/vaultBackendApi";
 
 interface ExtensionModalProps {
 	isOpen: boolean;
@@ -46,7 +47,7 @@ export const ExtensionModal: React.FC<ExtensionModalProps> = ({ isOpen, onClose 
 	const handleOpenFolder = async () => {
 		setIsOpeningFolder(true);
 		try {
-			await fetch("http://localhost:48920/api/open-folder", { method: "POST" });
+			await vaultBackend.openExtensionDirectory();
 		} catch (e) {
 			console.error("Failed to trigger open folder:", e);
 		} finally {

@@ -186,7 +186,11 @@ export class VaultBackendAPI {
 				},
 				body: JSON.stringify({ url: cleanUrl }),
 			});
-			return res.ok;
+			if (res.ok) {
+				const data = await res.json();
+				return Boolean(data.success);
+			}
+			return false;
 		} catch {
 			return false;
 		}
