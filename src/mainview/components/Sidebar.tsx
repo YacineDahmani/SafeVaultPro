@@ -116,14 +116,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 			{/* Quick Search Input */}
 			<div className="p-3 shrink-0">
 				<div className="relative">
-					<Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+					<Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500 pointer-events-none" />
 					<input
 						type="text"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						placeholder="Search vault..."
-						className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-slate-800/80 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 transition-all font-sans"
+						className="w-full pl-8 pr-7 py-1.5 bg-[#09090b] border border-slate-800/80 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 transition-all font-sans"
 					/>
+					{searchQuery && (
+						<button
+							type="button"
+							onClick={() => setSearchQuery("")}
+							className="absolute right-2 top-2 p-0.5 text-slate-500 hover:text-slate-200 transition-colors"
+							title="Clear search"
+						>
+							<X className="w-3.5 h-3.5" />
+						</button>
+					)}
 				</div>
 			</div>
 

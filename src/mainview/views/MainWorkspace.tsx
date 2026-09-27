@@ -92,6 +92,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({ vault }) => {
 								onClearSearch={() => vault.setSearchQuery("")}
 								onNewItem={() => vault.openCreateModal()}
 								onToggleFavorite={vault.toggleFavorite}
+								onCopySecret={vault.copySecret}
 							/>
 						</div>
 
