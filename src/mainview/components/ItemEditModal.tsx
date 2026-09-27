@@ -3,6 +3,7 @@ import { X, Save, KeyRound, CreditCard, Smartphone, FileText, User, RefreshCw, C
 import type { VaultItem, VaultItemType, CardSubtype, PersonalInfoVaultItem } from "../../bun/types";
 import { generatePassword } from "../../bun/crypto/vaultCrypto";
 import { POPULAR_COUNTRIES, getStatesForCountry, getCitiesForState } from "../data/locations";
+import { VaultItemIcon } from "./VaultItemIcon";
 
 function calculateAgeFromDob(dobStr: string): string {
 	if (!dobStr) return "";
@@ -421,9 +422,33 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 						</div>
 					)}
 
-					{/* Title */}
+					{/* Title with live website icon preview */}
 					<div>
-						<label className="block text-slate-400 font-mono mb-1">Title *</label>
+						<div className="flex items-center justify-between mb-1">
+							<label className="text-slate-400 font-mono text-xs">Title *</label>
+							{type === "password" && (title.trim() || url.trim()) && (
+								<div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+									<span>Icon Preview:</span>
+									<div className="w-5 h-5 rounded bg-[#18181b] border border-slate-700/80 flex items-center justify-center p-0.5">
+										<VaultItemIcon
+											item={{
+												id: "preview",
+												type: "password",
+												title,
+												url,
+												username: "",
+												password: "",
+												favorite: false,
+												tags: [],
+												createdAt: 0,
+												updatedAt: 0,
+											}}
+											size="sm"
+										/>
+									</div>
+								</div>
+							)}
+						</div>
 						<input
 							type="text"
 							required
@@ -431,7 +456,7 @@ export const ItemEditModal: React.FC<ItemEditModalProps> = ({
 							onChange={(e) => setTitle(e.target.value)}
 							placeholder={
 								type === "password"
-									? "e.g. GitHub"
+									? "e.g. GitHub, Google, Netflix, Amazon"
 									: type === "card"
 									? subtype === "credit_card"
 										? "e.g. Visa"

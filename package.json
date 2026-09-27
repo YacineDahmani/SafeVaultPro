@@ -15,6 +15,7 @@
 		"package:release": "node scripts/package-release.js"
 	},
 	"dependencies": {
+		"@icons-pack/react-simple-icons": "^13.15.1",
 		"electrobun": "1.18.1",
 		"hash-wasm": "^4.12.0",
 		"jsqr": "^1.4.0",

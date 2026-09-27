@@ -1,20 +1,14 @@
 import React from "react";
 import {
 	Plus,
-	KeyRound,
-	CreditCard,
-	Smartphone,
-	FileText,
-	User,
 	Star,
-	BadgeCheck,
 	Lock,
-	Code2,
 	Search,
 } from "lucide-react";
 import type { VaultItem, VaultItemType } from "../../bun/types";
 import type { NavCategory } from "../hooks/useVault";
 import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
+import { VaultItemIcon } from "./VaultItemIcon";
 
 interface ItemListProps {
 	items: VaultItem[];
@@ -60,26 +54,6 @@ export const ItemList: React.FC<ItemListProps> = ({
 		}
 	};
 
-	const getItemIcon = (item: VaultItem) => {
-		switch (item.type) {
-			case "password":
-				return <KeyRound className="w-4 h-4 text-emerald-400" />;
-			case "card":
-				if (item.subtype === "credit_card") {
-					return <CreditCard className="w-4 h-4 text-blue-400" />;
-				}
-				return <BadgeCheck className="w-4 h-4 text-amber-400" />;
-			case "totp":
-				return <Smartphone className="w-4 h-4 text-purple-400" />;
-			case "note":
-				return <FileText className="w-4 h-4 text-amber-400" />;
-			case "personal_info":
-				return <User className="w-4 h-4 text-cyan-400" />;
-			case "env":
-				return <Code2 className="w-4 h-4 text-[#38bdf8]" />;
-		}
-	};
-
 	const getItemSubtitle = (item: VaultItem) => {
 		switch (item.type) {
 			case "password":
@@ -118,7 +92,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 
 				<button
 					onClick={() => onNewItem()}
-					className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-semibold rounded-md text-xs transition-all shadow-md hover:shadow-emerald-500/20"
+					className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-[#003824] font-semibold rounded-md text-xs transition-all shadow-md hover:shadow-emerald-500/20 active:scale-[0.98]"
 				>
 					<Plus className="w-3.5 h-3.5" />
 					<span>New</span>
@@ -181,7 +155,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 
 								<div className="flex items-start gap-3 min-w-0 flex-1">
 									<div className="w-8 h-8 rounded-lg bg-[#09090b] border border-slate-800/80 flex items-center justify-center shrink-0 mt-0.5">
-										{getItemIcon(item)}
+										<VaultItemIcon item={item} size="sm" />
 									</div>
 
 									<div className="min-w-0 flex-1">

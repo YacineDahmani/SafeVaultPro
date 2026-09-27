@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { VaultItem, PasswordVaultItem } from "../../bun/types";
 import { calculatePasswordEntropy, generatePassword } from "../../bun/crypto/vaultCrypto";
+import { VaultItemIcon } from "../components/VaultItemIcon";
 
 interface DashboardOverviewProps {
 	items: VaultItem[];
@@ -392,7 +393,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 									<div className="flex items-start justify-between gap-2">
 										<div className="flex items-center gap-2.5 min-w-0">
 											<div className="w-8 h-8 rounded-lg bg-[#18181b] border border-slate-800 text-slate-200 flex items-center justify-center shrink-0">
-												<KeyRound className="w-4 h-4 text-emerald-400" />
+												<VaultItemIcon item={item} size="sm" />
 											</div>
 											<div className="min-w-0">
 												<h4 className="text-xs font-bold text-white truncate">{item.title}</h4>

@@ -25,6 +25,7 @@ import { calculatePasswordEntropy } from "../../bun/crypto/vaultCrypto";
 import { vaultBackend } from "../../bun/vaultBackendApi";
 import { useWindowVisibility } from "../hooks/useWindowVisibility";
 import { openExternalUrl } from "../utils/browserOpener";
+import { VaultItemIcon } from "./VaultItemIcon";
 
 interface ItemDetailPaneProps {
 	item: VaultItem | null;
@@ -152,13 +153,8 @@ export const ItemDetailPane: React.FC<ItemDetailPaneProps> = ({
 							<ArrowLeft className="w-4 h-4" />
 						</button>
 					)}
-					<div className="w-10 h-10 rounded-xl bg-[#1c1b1d] border border-slate-700/60 flex items-center justify-center text-emerald-400 shrink-0 shadow-md">
-						{item.type === "password" && <KeyRound className="w-5 h-5" />}
-						{item.type === "card" && <CreditCard className="w-5 h-5 text-blue-400" />}
-						{item.type === "totp" && <Smartphone className="w-5 h-5 text-purple-400" />}
-						{item.type === "note" && <FileText className="w-5 h-5 text-amber-400" />}
-						{item.type === "personal_info" && <User className="w-5 h-5 text-cyan-400" />}
-						{item.type === "env" && <Code2 className="w-5 h-5 text-sky-400" />}
+					<div className="w-10 h-10 rounded-xl bg-[#1c1b1d] border border-slate-700/60 flex items-center justify-center shrink-0 shadow-md">
+						<VaultItemIcon item={item} size="md" />
 					</div>
 
 					<div className="min-w-0">

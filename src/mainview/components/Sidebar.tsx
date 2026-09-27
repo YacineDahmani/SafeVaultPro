@@ -18,6 +18,7 @@ import {
 	Puzzle,
 	Code2,
 	ExternalLink,
+	X,
 } from "lucide-react";
 import type { NavCategory } from "../hooks/useVault";
 import { openExternalUrl } from "../utils/browserOpener";
