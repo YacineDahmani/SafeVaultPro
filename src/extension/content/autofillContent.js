@@ -1279,17 +1279,31 @@
 			const passFields = Array.from(searchRoot.querySelectorAll('input[type="password"]')).filter(isElementVisible);
 			passFields.forEach(pField => setNativeFieldValue(pField, generatedPass));
 
-			// Identity Priority Queue: Active Primary Email -> Phone Number -> Full Name
-			const userField = searchRoot.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
+			// Identity Priority Queue for Registration: Active Primary Email -> Phone Number
+			// Find explicit email or phone field, or search by classification
+			const allInputs = Array.from(searchRoot.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+			const emailField = allInputs.find(i => classifyField(i) === 'personal_email' || i.type === 'email');
+			const phoneField = allInputs.find(i => classifyField(i) === 'personal_phone' || i.type === 'tel');
+			const genericUserField = allInputs.find(i => classifyField(i) === 'login_username' || i.autocomplete === 'username');
+			const userField = emailField || phoneField || genericUserField;
+
 			let identifierVal = '';
 			if (defaultProfile) {
-				identifierVal = defaultProfile.email || defaultProfile.phone || defaultProfile.fullName || '';
+				identifierVal = defaultProfile.email || defaultProfile.phone || '';
 			}
 			if (userField && !userField.value && identifierVal) {
 				setNativeFieldValue(userField, identifierVal);
 			}
 
-			const finalUsername = (userField ? userField.value : '') || identifierVal;
+			// Prioritize captured email or phone from inputs, then identifierVal
+			let capturedEmailOrPhone = '';
+			if (emailField && emailField.value && emailField.value.trim()) {
+				capturedEmailOrPhone = emailField.value.trim();
+			} else if (phoneField && phoneField.value && phoneField.value.trim()) {
+				capturedEmailOrPhone = phoneField.value.trim();
+			}
+
+			const finalUsername = capturedEmailOrPhone || (userField ? userField.value.trim() : '') || identifierVal;
 			const title = `${currentDomain} Account`;
 
 			chrome.runtime.sendMessage(
@@ -1706,34 +1720,52 @@
 	function setupAutoSaveSubmitListener() {
 		const triggerSaveFromForm = (form) => {
 			if (!form) return;
+
+			// Invariant: Only capture & save when registering a new account, NOT on standard login
+			const isRegister = isRegistrationForm(form) || classifyForm(form) === 'register';
+			if (!isRegister) return;
+
 			const passInputs = Array.from(form.querySelectorAll('input[type="password"]')).filter(isElementVisible);
 			if (passInputs.length === 0) return;
 
-			const primaryPass = passInputs[0];
-			const userInput = form.querySelector('input[type="email"], input[autocomplete="username"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[id*="login" i], input[type="text"]');
-			const passVal = primaryPass.value;
-			const userVal = userInput ? userInput.value : '';
+			// For registration forms with multiple password fields (e.g. password & confirm password), take the primary new password
+			const newPassInput = passInputs.find(i => classifyField(i) === 'new_password') || passInputs[0];
+			const passVal = newPassInput.value;
+			if (!passVal || passVal.length < 4) return;
 
-			if (passVal && passVal.length >= 4) {
-				const title = `${currentDomain} Account`;
-				chrome.runtime.sendMessage(
-					{
-						action: "SAVE_PASSWORD",
-						id: form.dataset?.safevaultItemId,
-						title,
-						username: userVal,
-						password: passVal,
-						url: window.location.href,
-						notes: `Captured from form on ${currentDomain}.`,
-					},
-					(res) => {
-						if (res?.success) {
-							if (res.item && form.dataset) form.dataset.safevaultItemId = res.item.id;
-							showToastBanner(res.queued ? 'Credentials queued (vault locked)' : 'Credentials saved to vault');
-						}
-					}
-				);
+			// Extract username: Strictly prioritize email or mobile phone
+			const allInputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select')).filter(el => !shouldIgnoreField(el) && isElementVisible(el));
+			const emailInput = allInputs.find(i => classifyField(i) === 'personal_email' || i.type === 'email');
+			const phoneInput = allInputs.find(i => classifyField(i) === 'personal_phone' || i.type === 'tel');
+			const genericUserInput = allInputs.find(i => classifyField(i) === 'login_username' || i.autocomplete === 'username');
+
+			let userVal = '';
+			if (emailInput && emailInput.value && emailInput.value.trim()) {
+				userVal = emailInput.value.trim();
+			} else if (phoneInput && phoneInput.value && phoneInput.value.trim()) {
+				userVal = phoneInput.value.trim();
+			} else if (genericUserInput && genericUserInput.value && genericUserInput.value.trim()) {
+				userVal = genericUserInput.value.trim();
 			}
+
+			const title = `${currentDomain} Account`;
+			chrome.runtime.sendMessage(
+				{
+					action: "SAVE_PASSWORD",
+					id: form.dataset?.safevaultItemId,
+					title,
+					username: userVal,
+					password: passVal,
+					url: window.location.href,
+					notes: `Captured from registration on ${currentDomain}.`,
+				},
+				(res) => {
+					if (res?.success) {
+						if (res.item && form.dataset) form.dataset.safevaultItemId = res.item.id;
+						showToastBanner(res.queued ? 'Credentials queued (vault locked)' : 'New credentials saved to vault');
+					}
+				}
+			);
 		};
 
 		document.addEventListener('submit', (e) => {
@@ -1748,8 +1780,8 @@
 			const target = e.target.closest('button, input[type="submit"], input[type="button"], .btn');
 			if (!target) return;
 			const btnText = (target.textContent || target.value || '').toLowerCase();
-			const isSubmitAction = target.type === 'submit' || ['register', 'signup', 'sign-up', 'join', 'create', 'submit', "s'inscrire", 'إنشاء', 'login', 'connexion'].some(kw => btnText.includes(kw));
-			if (isSubmitAction) {
+			const isRegisterAction = ['register', 'signup', 'sign-up', 'join', 'create', "s'inscrire", 'إنشاء', 'تسجيل'].some(kw => btnText.includes(kw));
+			if (isRegisterAction || (target.type === 'submit' && isRegistrationUrl())) {
 				const form = target.form || target.closest('form') || getFormScope(target);
 				setTimeout(() => triggerSaveFromForm(form), 120);
 			}
